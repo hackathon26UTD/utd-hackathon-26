@@ -6,6 +6,8 @@
 - [Work log](WORKLOG.md): append-only changes, failures and evidence.
 - [Architecture](ARCHITECTURE.md): actual browser/server/data/hosting boundaries.
 - [Design](DESIGN.md) and [marketing](MARKETING.md): visual contract, motion and visitor-to-portal journey.
+- [Next AI instructions](START_HERE.md): copy-ready development briefing and immediate startup steps.
+- [Site control](SITE_CONTROL.md): Cloudflare CLI, Mongo metadata/deployment records and secret boundary.
 - [Accounts and accessibility](ACCESSIBILITY_AND_ACCOUNT.md): sign-in/recovery/policy flows and limits.
 - [Operator layers](OPERATOR_LAYERS.md): demo restrictions, NVIDIA configuration, evidence and scope.
 - [Core API](API.md): Dhruv's devices/readings/events/rules/store contract.
