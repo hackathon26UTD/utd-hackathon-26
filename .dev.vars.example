@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local Pages Functions. Never commit real credentials.
+# Server-only MongoDB database connection; never expose this URI to browsers.
+MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@YOUR_CLUSTER.mongodb.net/
+MONGODB_DB=utd_hackathon_26
