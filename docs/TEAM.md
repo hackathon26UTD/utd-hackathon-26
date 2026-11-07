@@ -11,6 +11,8 @@ Assign these roles together. Each person owns a deliverable and backs up another
 
 The repository is owned by the `hackathon26UTD` organization. `aa3264`, `dnpatel2311`, and `Abasheer-rion` have active organization Owner access, which includes full repository administration. Invitations for `UhhSaif` are deferred at the owner's request. Workstream assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team.
 
+Private team contacts are in [CONTACTS.md](CONTACTS.md) (private repository only). A later check of the GitHub organization also listed `UhhSaif`; verify live Atlas and Cloudflare access separately.
+
 ## First 20 minutes
 
 Atlas Organization Owner invitations for `dnpatel2311` and `Abasheer-rion` are pending acceptance. GitHub organization access is already active. See [MongoDB setup](MONGODB.md) for the remaining application connection steps.

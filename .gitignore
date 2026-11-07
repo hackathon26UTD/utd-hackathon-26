@@ -38,3 +38,13 @@ dump/
 
 # Cache left by the earlier backend setup
 supabase/.temp/
+
+# Cloudflare local state and secrets
+.wrangler/
+.cloudflare-build/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
+# Device firmware secrets
+clients/esp32/secrets.h

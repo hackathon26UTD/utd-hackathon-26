@@ -1,5 +1,9 @@
 # MVP plan
 
+## Current discussion
+
+The original smart fridge magnet was challenged because a phone could replace its workflow and customer value is unproven. Cold-storage, equipment, and leak monitoring are alternatives, not selected projects. MongoDB is selected for storage and Cloudflare requested for hosting. Final product, hardware, AI provider, and API contract remain undecided.
+
 ## Decide before coding
 
 - Project name:

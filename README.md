@@ -67,3 +67,21 @@ docker compose exec mongodb mongosh --quiet --eval 'db.runCommand({ ping: 1 })'
 ```
 
 The local database is available only on `127.0.0.1:27017` and persists in a Docker volume. It has no authentication and is intended only for local synthetic demo data. Use `.env.example` as the server's local configuration template. Stop it with `docker compose down`.
+
+## Cloudflare starter
+
+Framework-neutral placeholder pages and a health function are prepared. Run `npm ci`, then `npm run dev`; use `.dev.vars` for local Pages Functions runtime settings. `npm run build` compiles the function. See [Cloudflare setup](docs/CLOUDFLARE.md). Hosting and provider credentials remain pending, and deployment is disabled by default. No product frontend framework is fixed by this starter.
+
+## Project logs and handoff
+
+Read [current context](docs/PROJECT_CONTEXT.md), [work log](docs/WORKLOG.md), [decisions](docs/DECISIONS.md), [hardware constraints](docs/HARDWARE.md), and [development plan](docs/DEVELOPMENT.md). [Team contacts](docs/CONTACTS.md) are for this private repository only. Update logs after meaningful work and preserve uncertainty. Never include credentials.
+
+## Team API (ready to use)
+
+A product-agnostic REST API is in `src/app.js`: device registration with per-device keys, sensor ingest, latest/history/chart-series queries, threshold rules that open alerts, event logs, and a generic `/api/store/:collection` document store. Contract and deploy checklist: [docs/API.md](docs/API.md). Clients: `clients/esp32/` and `clients/python/`.
+
+```sh
+npm ci
+npm test            # end-to-end tests against an in-memory MongoDB
+npm run dev:local   # Cloudflare runtime + throwaway MongoDB at http://127.0.0.1:8788
+```
