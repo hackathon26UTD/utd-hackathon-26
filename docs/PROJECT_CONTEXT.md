@@ -43,3 +43,16 @@ The active checkout is under the original temporary integration checkout because
 ## Next integration work
 
 Verify actual firmware/gateway sensor names, units, power path and timestamps with Dhruv. Demonstrate real offline replay and idempotency, physical battery endurance and sensor calibration. Connect/evaluate NVIDIA only when the API/model becomes available. Obtain exact track criteria. Add browser/axe enforcement and UI-only path coverage to CI. Review real-data privacy, retention and accessibility before production household use.
+- Referenced planning conversation: Smart Fridge Hardware Plan, `6aef7693-4d98-83ea-a594-081797eee22b`.
+- HackUTD public site: https://zeroday.hackutd.co/
+- Signed-in portal: https://harp.hackutd.co/app
+- Event Devpost link observed in HARP: https://hackutd-zeroday.devpost.com/
+- Earlier Cloudflare draft: https://github.com/AdyaanAkram/utd-hackathon-26/pull/8
+- MLH prizes: https://hack.mlh.io/ (redirects to https://www.mlh.com/events/prizes).
+
+
+## Newly merged database workstream: PR #14
+
+Another agent's `work/homebeacon-database` work merged while this handoff was being written. Preserve `src/beacon.js`, its tests, explicit schema/setup/reconciliation tools, legacy readings projection and hardware contract. It adds `/api/beacon/ingest` with retry receipts, homes, telemetry time series, latched incidents and geospatial queries. See [database architecture](mongodb-architecture.md) and [ESP32 contract](../clients/esp32/HOMEBEACON.md). This supersedes earlier notes saying no HomeBeacon ingest adapter exists.
+
+The new schema's Atlas bootstrap and full hardware-to-UI path have not been validated by this handoff. Do not treat legacy database readiness as proof of new collections/indexes. Verify home coordinates and latched incidents are reflected in the existing command-center projection before calling that integration complete. `feat/futureyou` / PR #15 is separate work and was not merged by this handoff.

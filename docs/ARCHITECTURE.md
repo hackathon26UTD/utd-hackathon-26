@@ -14,6 +14,10 @@ Cloudflare Pages Functions route the API. Dhruv's `src/app.js` provides device e
 
 `domain/property.js` converts latest observations into review priority and freshness. Stale/missing values remain unknown unless last-known critical evidence requires review. `functions/api/command-center.js` returns bounded live snapshots. Follow-ups record human actions and explicit sourced evacuation reports; they do not dispatch teams. See [API](API.md), [MongoDB](MONGODB.md) and [concept](HOME_BLACK_BOX.md).
 
+## Newly merged telemetry and incidents
+
+The separate PR #14 database workstream adds `src/beacon.js`: homes/device association, `/api/beacon/ingest`, time-series records, ordinary unique retry receipts, latched incidents, audit and geospatial queries. It preserves legacy APIs and projects sensor records into readings. Explicit bootstrap/reconciliation requirements, partial-write semantics and Atlas verification are in [database architecture](mongodb-architecture.md) and the [hardware contract](../clients/esp32/HOMEBEACON.md). New schema bootstrap and full home/incident joins into the command UI remain unverified. Do not duplicate this work or confuse generic readiness with schema verification.
+
 ## Accounts
 
 Salted PBKDF2 password verification, signed eight-hour secure HTTP-only sessions, same-origin state changes, throttling and database-backed session invalidation after password changes. Profile and single-use recovery code reset are implemented. Email reset, self-service registration, invitations, SSO/MFA and general multi-tenant permissions are not. Shared demo is restricted on the server to fictional records/read-only profile/preset views. See [account/accessibility implementation](ACCESSIBILITY_AND_ACCOUNT.md).

@@ -5,7 +5,7 @@ MONGODB_DB=utd_hackathon_26
 # Admin bearer key for write/management endpoints. Generate: npm run keygen
 API_ADMIN_KEY=
 # true = unauthenticated GET on devices/readings/alerts/events/store (dashboard demos)
-API_PUBLIC_READ=true
+API_PUBLIC_READ=false
 # Comma-separated allowed origins for browser calls, or *
 CORS_ORIGINS=*
 

@@ -4,6 +4,7 @@
 import { HttpError, badRequest, notFound, json, readJson, corsHeaders, intParam, dateParam } from './http.js';
 import { requireAdmin, requireRead, requireDevice, isAdmin, sha256Hex, newSecret } from './auth.js';
 import { withDb, oid, ensureIndexes } from './db.js';
+import { setupBeacon, registerBeaconRoutes } from './beacon.js';
 
 const SENSOR_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 const COLLECTION_RE = /^[a-z][a-z0-9_]{0,40}$/;
@@ -70,7 +71,7 @@ route('GET', '/health', async (ctx) => {
 // Admin: create indexes once after first deploy.
 route('POST', '/setup', async (ctx) => {
   requireAdmin(ctx.request, ctx.env);
-  await db(ctx, ensureIndexes);
+  await db(ctx, async d => { await ensureIndexes(d); await setupBeacon(d); });
   return json({ ok: true, indexes: 'ensured' });
 });
 
@@ -403,3 +404,5 @@ route('DELETE', '/store/:collection/:id', async (ctx) => {
   if (!r.deletedCount) throw notFound('Item not found');
   return json({ deleted: true });
 });
+
+registerBeaconRoutes(route, db, { readJson, json, oid, intParam, dateParam });
