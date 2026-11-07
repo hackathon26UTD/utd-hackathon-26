@@ -9,7 +9,7 @@ Last updated: November 7, 2026 (America/Chicago). This document summarizes this 
 - Existing starter repository: https://github.com/AdyaanAkram/utd-hackathon-26. This is the earlier personal repository; the current target is https://github.com/hackathon26UTD/utd-hackathon-26.
 - Hosting: Cloudflare Pages project `utd-hackathon-26` is configured. The organization PR #8 is pushed and ready for review, with automated preview deployments and main-branch deployment after merge.
 - Database: Adyaan's MongoDB Atlas Free cluster is active. The application login `hackathon26-app` has read/write access only to `utd_hackathon_26`. Its connection passed ping, isolated write/read/cleanup, and local Cloudflare-runtime readiness checks. Supabase is superseded; no hosted Supabase resource was deleted.
-- Product, audience, project name, final hardware, AI provider, frontend framework, application authentication, and app API contract remain undecided.
+- Current product direction: a battery-backed home disaster incident recorder (“house black box”) with local hazard observations, durable offline records, energy-aware operation, and a regional response-priority map. State Farm is the intended track; exact prompt and final hardware are unverified. See HOME_BLACK_BOX.md.
 - The latest clarification means infrastructure API credentials, not a request to design app CRUD endpoints yet.
 
 ## Credential request and actual state
@@ -31,10 +31,12 @@ The local `.env` contains real credentials and must remain excluded from documen
 - Preview: https://pr-8.utd-hackathon-26.pages.dev/status. `/api/health` checks liveness/configuration; `/api/ready` actually pings MongoDB and returns 503 if unavailable.
 - [CI/CD runs](https://github.com/hackathon26UTD/utd-hackathon-26/actions): unit/privacy tests, isolated MongoDB integration test, and function compilation run before deployment. Deployment also verifies the live database connection; an upload alone is insufficient.
 - Same-repository PRs get previews. Updates to main deploy production after tests. Fork PRs and Dependabot do not receive deployment credentials. Production URL is https://utd-hackathon-26.pages.dev once main has a deployment.
-- Product, real application endpoints, hardware, AI provider and end-user authentication remain undecided. Select the demo journey before building product-specific collections or write APIs.
+- The home black-box direction is now selected for planning. Final hardware, AI provider and demo scope remain to be confirmed. Coordinate with teammate PR #9 for device ingestion/events/alerts rather than duplicating it.
 - Use CLI/API access first and keep credentials private. The persistent `.env` is under the original project work folder; active source checkout is linked from `work/active-repo` because filesystem syncing disrupted Git writes in the first checkout.
 
 ## Documentation map
+
+- HOME_BLACK_BOX.md: current concept, meaning of response priority, 24-hour demo proposal, battery/network constraints.
 
 - WORKLOG.md: ordered history and verified work.
 - DECISIONS.md: choices, reversals, proposals, open questions.
