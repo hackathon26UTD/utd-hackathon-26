@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "wrangler pages dev public",
     "build": "wrangler pages functions build functions --outdir=.cloudflare-build",
-    "deploy": "wrangler pages deploy public --project-name=utd-hackathon-26"
+    "deploy": "wrangler pages deploy public --project-name=utd-hackathon-26",
+    "test": "node --test",
+    "test:db": "node --env-file-if-exists=.dev.vars scripts/check-mongodb.mjs"
   },
   "repository": {
     "type": "git",
@@ -20,5 +22,8 @@
   "devDependencies": {
     "wrangler": "4.158.0"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "mongodb": "7.8.0"
+  }
 }

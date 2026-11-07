@@ -7,9 +7,16 @@ async function checkHealth() {
     const data = await response.json();
     if (data.status !== 'ok') throw new Error('Service unavailable');
     health.textContent = 'The service is online.';
-    backend.textContent = data.mongodb.configured
-      ? 'Backend settings are present. The database connection has not been tested.'
-      : 'The backend is not connected yet.';
+    if (!data.mongodb.configured) {
+      backend.textContent = 'The database is not configured yet.';
+      return;
+    }
+    backend.textContent = 'Checking the database connection…';
+    const ready = await fetch('/api/ready', { cache: 'no-store' });
+    const readiness = await ready.json();
+    backend.textContent = ready.ok && readiness.mongodb?.connected
+      ? 'The database is connected.'
+      : 'The database is currently unavailable.';
   } catch {
     health.textContent = 'The service could not be reached. Try again shortly.';
     backend.textContent = '';
