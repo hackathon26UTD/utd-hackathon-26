@@ -44,6 +44,8 @@ Unrelated FutureYou work has existed in the same repo. Do not merge it into or r
 
 Atlas schema setup has now succeeded without seeding fake homes. Required collections and 30-day telemetry retention were directly checked. PR #14 provides /api/beacon/ingest, homes, retry receipts, latched incidents, audit and geospatial queries. Read docs/mongodb-architecture.md and clients/esp32/HOMEBEACON.md before touching ingest. Do not build a duplicate adapter. Ambiguous writes need its documented paused-ingestion reconciliation, not blind retries.
 
+Dhruv has now committed docs/DATA_SOURCES.md and firmware toolchain notes in docs/HARDWARE.md (PR #19). Read them before adding feeds. His catalog distinguishes integrated, tested on his machine, and untested sources. EIA/AirNow/FIRMS credentials and an Atlas administration service account were verified in his own setup; do not assume those secrets exist in yours. New ingest jobs/layers are not yet built and ownership must be coordinated.
+
 Next integration work: verify physical firmware units/events and replay; join new homes/latched incidents into the existing command view where needed; ensure stale/critical semantics remain correct; verify the real hardware path. Physical battery endurance, calibration, fallback networking and offline replay are not established by animations or synthetic tests.
 
 NVIDIA command-view integration is built for a future API key or compatible hosted model. No live inference is configured. Ayan explicitly said to build it for later connection. Preset observation views work now. Model output is constrained to supported predicates with all/any composition; server computes matching readings. Do not let a model execute arbitrary database queries or mutate hazard data.
