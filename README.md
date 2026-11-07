@@ -73,3 +73,13 @@ Framework-neutral placeholder pages and a health function are prepared. Run `npm
 ## Project logs and handoff
 
 Read [current context](docs/PROJECT_CONTEXT.md), [work log](docs/WORKLOG.md), [decisions](docs/DECISIONS.md), [hardware constraints](docs/HARDWARE.md), and [development plan](docs/DEVELOPMENT.md). [Team contacts](docs/CONTACTS.md) are for this private repository only. Update logs after meaningful work and preserve uncertainty. Never include credentials.
+
+## Team API (ready to use)
+
+A product-agnostic REST API is in `src/app.js`: device registration with per-device keys, sensor ingest, latest/history/chart-series queries, threshold rules that open alerts, event logs, and a generic `/api/store/:collection` document store. Contract and deploy checklist: [docs/API.md](docs/API.md). Clients: `clients/esp32/` and `clients/python/`.
+
+```sh
+npm ci
+npm test            # end-to-end tests against an in-memory MongoDB
+npm run dev:local   # Cloudflare runtime + throwaway MongoDB at http://127.0.0.1:8788
+```

@@ -4,8 +4,11 @@
   "description": "Team workspace for UTD Hackathon 2026: four people, one focused MVP, one reliable demo.",
   "scripts": {
     "dev": "wrangler pages dev public",
-    "build": "wrangler pages functions build functions --outdir=.cloudflare-build",
-    "deploy": "wrangler pages deploy public --project-name=utd-hackathon-26"
+    "build": "wrangler pages functions build functions --outdir=.cloudflare-build --compatibility-flags=nodejs_compat --compatibility-date=2026-11-07",
+    "deploy": "wrangler pages deploy public --project-name=utd-hackathon-26",
+    "test": "node --test test/",
+    "keygen": "node -e \"console.log('ak_'+require('crypto').randomBytes(24).toString('hex'))\"",
+    "dev:local": "node scripts/dev-local.mjs"
   },
   "repository": {
     "type": "git",
@@ -18,7 +21,11 @@
   },
   "homepage": "https://github.com/hackathon26UTD/utd-hackathon-26#readme",
   "devDependencies": {
+    "mongodb-memory-server": "11.3.0",
     "wrangler": "4.158.0"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "mongodb": "7.8.0"
+  }
 }
