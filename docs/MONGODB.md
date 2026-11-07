@@ -1,6 +1,6 @@
 # MongoDB setup
 
-The team selected MongoDB Atlas for the shared backend. The free cluster is running and a database statistics command returned `ok: 1`. Application credentials, client IP access, and teammate invitations remain to be completed. The optional local database is configured in `compose.yaml`.
+The team selected MongoDB Atlas for the shared backend. The free cluster is running and a database statistics command returned `ok: 1`. Teammate Owner invitations are awaiting acceptance; application credentials and client IP access remain to be configured. The optional local database is configured in `compose.yaml`.
 
 ## Shared Atlas environment
 
@@ -19,7 +19,7 @@ This organization was newly created and had no listed projects when setup began.
 
 ## Full teammate access
 
-The owner requested full access for `dnpatel2311` and `Abasheer-rion`. Invite their provided Atlas account emails with **Organization Owner** in this dedicated organization. That role gives full management of the hackathon organization and its projects. Invitations for `UhhSaif` remain deferred. Keep teammate email addresses out of source control.
+The owner requested full access for `dnpatel2311` and `Abasheer-rion`. On November 7, 2026, Atlas showed pending **Organization Owner** invitations for both teammates' provided account emails. Each teammate must accept the invitation to activate access. That role gives full management of the hackathon organization and its projects. Keep teammate email addresses out of source control.
 
 Atlas account access and database access are separate. Each teammate who connects through a driver, Compass, or mongosh also needs a database user and an allowed network address. Give human administrators the database access needed for their work. Give the application its own database user with `readWrite` on `utd_hackathon_26` rather than using a human administrator's credentials.
 

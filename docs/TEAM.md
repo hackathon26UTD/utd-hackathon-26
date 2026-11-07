@@ -13,6 +13,8 @@ The repository is owned by the `hackathon26UTD` organization. `aa3264`, `dnpatel
 
 ## First 20 minutes
 
+Atlas Organization Owner invitations for `dnpatel2311` and `Abasheer-rion` are pending acceptance. GitHub organization access is already active. See [MongoDB setup](MONGODB.md) for the remaining application connection steps.
+
 - Confirm the event's actual team-size eligibility, deadline, timezone, judging rubric, tracks, and submission platform with organizers.
 - Choose one user problem and define the single demo journey.
 - Assign roles, record each GitHub handle, and accept repository invites.

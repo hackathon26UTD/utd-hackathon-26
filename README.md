@@ -57,7 +57,7 @@ Fill in: live demo, submission page, demo video, screenshots, third-party APIs/a
 
 ## MongoDB backend
 
-Use MongoDB Atlas for the shared database. The free `utd-hackathon-26` cluster is running in AWS Northern Virginia, and a database command succeeded. See [MongoDB setup](docs/MONGODB.md) for project details, team access, connection settings, and verification. Atlas teammate invitations, application credentials, and client network access are still pending.
+Use MongoDB Atlas for the shared database. The free `utd-hackathon-26` cluster is running in AWS Northern Virginia, and a database command succeeded. See [MongoDB setup](docs/MONGODB.md) for project details, team access, connection settings, and verification. Atlas Organization Owner invitations for `dnpatel2311` and `Abasheer-rion` are awaiting acceptance. Application credentials and client network access are still pending.
 
 For optional local development, start Docker and run:
 
