@@ -34,6 +34,8 @@ The local `.env` contains real credentials and must remain excluded from documen
 5. Move/rebase the prepared Cloudflare/MongoDB starter into the final repository without overwriting teammates' changes. Do not merge the stale Supabase-oriented PR unchanged.
 6. Choose one product/problem, define the single demo journey, and reserve compatible hardware only if it remains necessary.
 
+Current organization draft: https://github.com/hackathon26UTD/utd-hackathon-26/pull/8. Not merged or deployed.
+
 ## Documentation map
 
 - WORKLOG.md: ordered history and verified work.
