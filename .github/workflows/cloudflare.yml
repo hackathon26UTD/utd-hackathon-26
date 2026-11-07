@@ -21,7 +21,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # MongoDB 8.0 rejects newer runner kernels; keep CI on the supported image.
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     services:
       mongodb:
