@@ -13,7 +13,7 @@ Updated November 7, 2026.
 
 ## Accessibility
 
-Target: WCAG 2.2 AA. Automated axe checks cover login, exercise command center, reset password, privacy, terms, cookies, and accessibility pages. Results are in accessibility-audit.json. Property filtering and Escape-to-close dialogs are exercised in scripts/audit-ui.mjs. Desktop and mobile screenshots are captured. Focus styling, text status labels, native form controls, reduced motion, and a complete list alternative accompany the map.
+Target: WCAG 2.2 AA. Eight pages pass automated axe checks, including the authenticated profile. Automated axe checks cover login, exercise command center, reset password, privacy, terms, cookies, and accessibility pages. Results are in accessibility-audit.json. Property filtering and Escape-to-close dialogs are exercised in scripts/audit-ui.mjs. Desktop and mobile screenshots are captured. Focus styling, text status labels, native form controls, reduced motion, and a complete list alternative accompany the map.
 
 Automated checks do not certify ADA compliance. Screen-reader testing, expanded zoom and device testing, and human review are still required. Legal pages are prototype drafts. Production needs legal review, a named operator, an approved public support contact, and an enforced retention schedule.
 
