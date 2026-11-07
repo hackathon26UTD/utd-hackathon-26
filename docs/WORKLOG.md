@@ -101,3 +101,8 @@ Built the map workspace, public exercise, real device summary endpoint, public d
 ## Demo account and NVIDIA operator views
 
 Added a shared exercise-only demo login, server-enforced separation from live data, preview/apply/clear observation layers and a server-side NVIDIA NIM adapter. User requested building for a future API or hosted model; no NVIDIA credential was supplied or found. Presets work now. Model requests return a clear unavailable state until configured. MongoDB remains the source of observations, and model-generated text cannot write readings or decide claims/dispatch. Added operator-layer setup and limits in OPERATOR_LAYERS.md.
+
+## November 7, 2026 — shared credential loader (Dhruv, branch `chore/env-access`)
+
+- Labeled `.env.example` by service (GitHub, MongoDB connection, Atlas Admin API, Cloudflare, team API, data feeds, NVIDIA) with the non-secret Atlas org/project IDs filled in. `scripts/env.mjs` loads `.env`/`.dev.vars` for every script and falls back to `gh auth token` for GitHub. `npm run access` reports OK/MISSING/FAILED per credential without printing values; `npm run atlas` wraps common Atlas Admin API calls (service account OAuth or legacy API-key digest).
+- Verified: GitHub OK via gh CLI; live team API reports MongoDB reachable from Cloudflare. Not yet verified: Atlas Admin API calls (no service account created yet), data-feed keys (not issued yet).
