@@ -10,8 +10,9 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
+TEAM = ["dnpatel2311", "Abasheer-rion"]
 SEEDS = [
-    ("Agree on MVP and assign five team roles", "planning", "Complete docs/MVP.md and docs/TEAM.md. Confirm event requirements and assign one owner per workstream."),
+    ("Agree on MVP and assign four team roles", "planning", "Complete docs/MVP.md and docs/TEAM.md. Confirm event requirements and assign one owner per workstream."),
     ("Select stack and document clean setup", "setup", "Choose the stack, commit its lockfile, add application CI, and verify the README commands on a teammate's machine."),
     ("Agree on API and data contract", "backend", "Record request/response examples, sample data, validation, errors, and ownership in docs/ARCHITECTURE.md."),
     ("Build the core end-to-end demo journey", "feature", "Implement the single MVP journey, including loading, empty, and failure states. Have another teammate verify it."),
@@ -31,15 +32,15 @@ def run(*args, capture=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("repo", help="OWNER/REPO; creates a private repository by default")
-    parser.add_argument("--collaborator", action="append", default=[], help="GitHub username; repeat for teammates")
+    parser.add_argument("--collaborator", action="append", default=None, help="GitHub username; repeat to override the two teammates approved for invitations")
     parser.add_argument("--public", action="store_true", help="Explicitly publish publicly")
     parser.add_argument("--apply", action="store_true", help="Execute; otherwise only print the plan")
     args = parser.parse_args()
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*/[A-Za-z0-9_.-]+", args.repo):
         parser.error("Use OWNER/REPO with no URL, spaces, or shell syntax.")
-    people = list(dict.fromkeys(args.collaborator))
-    if len(people) > 4:
-        parser.error("This starter expects at most four collaborators plus the owner.")
+    people = list(dict.fromkeys((args.collaborator if args.collaborator is not None else TEAM)))
+    if len(people) > 3:
+        parser.error("This starter expects at most three collaborators plus the owner.")
     for person in people:
         if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?", person):
             parser.error("Collaborators must be GitHub usernames, not email addresses.")
@@ -47,8 +48,6 @@ def main():
     print(f"Repository: {args.repo} ({visibility} for initial creation)")
     print("Plan: publish initial commit if needed, configure six labels, seed six issues.")
     print("Invite with write access: " + (", ".join(people) or "none supplied"))
-    if len(people) < 4:
-        print(f"Still missing {4 - len(people)} collaborator username(s). Rerun to add them later.")
     if not args.apply:
         print("Preview only. Add --apply to execute this plan.")
         return

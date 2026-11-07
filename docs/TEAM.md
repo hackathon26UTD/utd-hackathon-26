@@ -1,4 +1,4 @@
-# Five-person team
+# Four-person team
 
 Assign these roles together. Each person owns a deliverable and backs up another workstream. Roles are suggestions, not assignments based on identity.
 
@@ -7,10 +7,9 @@ Assign these roles together. Each person owns a deliverable and backs up another
 | Repo owner / integrator | Scope, merges, deployment | Working shared development setup |
 | Collaborator 1 | Frontend | Main user journey with sample data |
 | Collaborator 2 | Backend / API | Agreed request and response contract |
-| Collaborator 3 | Data / core feature | Smallest working core capability |
-| Collaborator 4 | QA / demo / product | Acceptance checklist and demo outline |
+| Collaborator 3 | Data / core feature and QA | Working core capability and acceptance checklist |
 
-`UhhSaif` was provided as a GitHub username. The other three usernames and all role assignments remain to be confirmed. No collaborator invitation has been sent by creating this file.
+Confirmed GitHub handles: `UhhSaif`, `dnpatel2311`, and `Abasheer-rion`. Invite `dnpatel2311` and `Abasheer-rion`; invitations for `UhhSaif` are deferred at the owner's request. Role assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team. Check GitHub for current invitation acceptance status.
 
 ## First 20 minutes
 

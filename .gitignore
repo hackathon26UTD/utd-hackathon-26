@@ -31,3 +31,8 @@ Thumbs.db
 *.log
 *.sqlite
 *.sqlite3
+
+# Supabase local state and access credentials
+.supabase/
+supabase/.temp/
+supabase/.branches/
