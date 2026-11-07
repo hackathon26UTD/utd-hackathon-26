@@ -33,7 +33,7 @@ Gotchas found today:
 
 | Source | What it gives | Access | Status |
 | --- | --- | --- | --- |
-| FEMA National Flood Hazard Layer | Flood zone per location (100-/500-year) | ArcGIS REST, no key (`https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28`, layer 28 verified Nov 7) | **Integrated** as live-cached overlay `nfhl`, not bulk loaded |
+| FEMA National Flood Hazard Layer | Flood zone per location (100-/500-year) | ArcGIS REST, no key, layer 28 | **Integrated**: teammate `/api/flood/*` and the integration’s live-cached `nfhl` overlay; preserve both until shared caching is reconciled |
 | FEMA National Risk Index | Expected annual loss + social vulnerability per hazard, by tract | Download / ArcGIS, no key | Untested |
 | CDC/ATSDR Social Vulnerability Index | Elderly, disability, no-vehicle etc. by tract | Download, no key | Untested |
 | Microsoft US Building Footprints / OpenAddresses | Real house outlines/addresses for simulated homes | Download, no key | Untested |
@@ -52,7 +52,7 @@ Using every source live would add many failure points during judging and each ne
 4. **Every source is a map toggle;** the pitch uses 3–4 that tell the story.
 
 Priority:
-1. Triage drivers: NWS alerts, FEMA flood zones, SVI, building footprints.
+1. Triage drivers: NWS alerts, FEMA flood zones (done: `/api/flood/*`), SVI, building footprints.
 2. Context panels: EIA/ERCOT grid, Open-Meteo rain, USGS gauges.
 3. Depth layers: FIRMS, AirNow, earthquakes, shelters, EAGLE-I replay, Black Marble.
 

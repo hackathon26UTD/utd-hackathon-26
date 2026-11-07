@@ -241,7 +241,7 @@ test('customer messages: shown from the message module, acknowledgement only for
   assert.equal((await call(messages,'POST','/api/customer/messages?id='+linkId,{cookie,deps,body:{messageId:'other'}})).status,404);
   assert.equal((await call(messages,'POST','/api/customer/messages?id='+linkId,{cookie,deps,body:{messageId:'m1'}})).status,200);
   assert.deepEqual(seen,[[id,'m1']]);
-  assert.equal((await call(messages,'POST','/api/customer/messages?id='+linkId,{cookie,deps:{customerMessages:deps.customerMessages},body:{messageId:'m1'}})).status,503);
+  assert.equal((await call(messages,'POST','/api/customer/messages?id='+linkId,{cookie,deps:{customerMessages:deps.customerMessages,markCustomerSeen:null},body:{messageId:'m1'}})).status,503);
 });
 
 test('middleware routes credentials correctly',async()=>{
