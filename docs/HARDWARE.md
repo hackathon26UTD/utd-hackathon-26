@@ -81,6 +81,17 @@ Box B (ESP32) --ESP-NOW--> Box A (ESP32-S3 Sense) --USB serial--> Uno Q hub --Wi
 
 Suggested rules: `water_level > <wet threshold>` (critical), `flame == 1`, `temp_c > 50`, `accel_g > 1.5`.
 
+### Firmware toolchain
+
+- **ESP32s: Arduino IDE 2.** Boards Manager → install "esp32 by Espressif Systems".
+  - ESP32-S3 Sense: board **XIAO_ESP32S3**, **PSRAM → OPI PSRAM** (camera will not start otherwise).
+  - Second ESP32: board matching its silkscreen, usually **ESP32 Dev Module**.
+  - Libraries: ArduinoJson, DHT sensor library, Adafruit MPU6050, Adafruit SSD1306, RTClib. ESP-NOW, WiFi and SD ship with the ESP32 core.
+  - Serial Monitor 115200 baud. If an S3 upload fails: hold BOOT, tap RESET, upload.
+- **Alternative: PlatformIO in VS Code** pins library versions in a committed `platformio.ini`; about 15 minutes more setup.
+- **Arduino Uno Q: Arduino App Lab** for both halves (MCU sketch + Linux-side Python hub). Arduino IDE 2 can still program the MCU side.
+- Device keys: register each box with `POST /api/devices` using `API_ADMIN_KEY` (from Ayan), then put the returned `dk_...` key in `clients/esp32/secrets.h` (git-ignored).
+
 ---
 
 ## Earlier exploration (historical)
