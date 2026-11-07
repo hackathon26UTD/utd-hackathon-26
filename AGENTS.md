@@ -19,3 +19,9 @@ Read `docs/PROJECT_CONTEXT.md` for the requested credential scope and provisioni
 ## User workflow preference
 
 Prioritize CLI/API access. Use Chrome to establish access or handle capabilities unavailable through APIs. Complete authorized, solvable setup without handing routine steps back to the user. Credentials are in the ignored local `.env`; never log their values. Use the intended hackathon resources and preserve unrelated account projects.
+
+## Ayan workstream handoff and coordination
+
+For work continuing Ayan's product/design/infrastructure stream, read `HANDOFF.md` and `docs/handovers/AYAN-2026-11-07.md` first. Label logs and handoffs as Ayan's workstream while attributing actual teammate contributions. Always fetch current branches, inspect open PRs and relevant teammate changes, and reconcile their contracts before edits. Preserve both intents during merge resolution; do not blindly choose ours. Dhruv's core API/hardware/credential work and Adyaan's organization/database work are shared dependencies.
+
+The product is now HomeBeacon. Vanilla JS/CSS/esbuild, Cloudflare Pages Functions, MongoDB, real MapLibre maps and server-side operator sessions are implemented. The public marketing homepage, separate portal/login and controllable motion are required. NVIDIA is prepared for a future key/model; physical hardware behavior is not established by exercise data. Use current context and source over stale starter notes.
