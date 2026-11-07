@@ -1,6 +1,8 @@
+import {exerciseProperties} from '../../domain/exercise.js';
 import { withDb } from '../../src/db.js';
 import { summarizeProperty,areaSummary } from '../../domain/property.js';
-export async function onRequestGet({env}){
+export async function onRequestGet({env,data}){
+  if(data?.operator?.role==='demo')return Response.json({mode:'exercise',properties:exerciseProperties()},{headers:{'Cache-Control':'no-store'}});
   try{return await withDb(env,null,async db=>{
     const [devices,latest,alerts,events,followups]=await Promise.all([
       db.collection('devices').find({disabled:{$ne:true},'meta.exercise':{$ne:true}},{projection:{keyHash:0}}).limit(500).toArray(),
