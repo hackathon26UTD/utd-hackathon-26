@@ -1,33 +1,24 @@
-# Demo and submission
+# FutureYou demo
 
-Use the organizer's actual time limit and submission requirements; this file is a planning aid, not official event guidance.
+## Two-minute journey
 
-## Pitch outline
+1. Reset the demo. Introduce Maya, a fictional UTD student considering a summer internship in Austin.
+2. Show **Money picture → Connect Nessie → Import sandbox accounts**. Three sandbox accounts supply $3,500 of cash and $450 of credit-card debt; five recurring bills include campus rent. Return to **Your next move**.
+3. Point out the apparent good news: ending cash is $3,225. Then show the earlier problem: cash first goes negative June 1 and bottoms at −$750 June 28, before the July 1 paycheck.
+4. Select **Move with a roommate**. Rent and deposit fall to $950 and moving costs to $650. The lowest balance becomes $1,100; the ending balance becomes $6,475.
+5. Move the first-paycheck-delay slider. Show why a pay date changes the shortfall even with the same paycheck amount.
+6. Save a named plan, reopen it under **Saved plans**, and export the full cash-flow CSV.
+7. End with the point: "A promising opportunity can still have a timing problem. FutureYou makes that gap visible before the decision."
 
-1. Who has the problem and why it matters.
-2. Show the core user journey live.
-3. Explain the result and the technical contribution.
-4. State what works today, known limitations, and the next useful step.
+## Optional integrations
 
-## Rehearsal
+- If Atlas is configured and verified, show the saved plan labeled MongoDB Atlas. Browser-only storage must not be presented as cloud storage.
+- If Gemini is configured, click **Explain with AI**. Show the explicit AI label and compare the explanation with the calculated numbers. Calculation summaries alone are not an AI integration.
 
-- Run from a clean browser session at the deployed URL.
-- Prepare sample inputs and a safe demo account if needed.
-- Check external services, quota, connectivity, and error handling.
-- Record a backup screen capture and save screenshots.
-- Time the pitch, assign speakers, and practice transitions.
-- Verify the judging audience can access every submitted link.
+## Track fit
 
-## Submission checklist
+PNC: integrated financial picture, three health indicators, scenario simulation, and optional AI explanation. Capital One: Nessie accounts and recurring bills materially power the forecast. Design: readable comparisons and immediate feedback. MongoDB Atlas and Gemini MLH entries require the corresponding working integration. Confirm current submission rules and track limits with organizers.
 
-- [ ] Confirm eligibility, team-size rules, deadline, tracks, and required fields.
-- [ ] Project title, concise problem statement, and solution description.
-- [ ] All teammates listed correctly.
-- [ ] Repository URL with the required visibility/access.
-- [ ] Live demo URL and video, if required.
-- [ ] Setup instructions tested by a teammate.
-- [ ] Technologies, reused work, datasets, APIs, and asset credits disclosed.
-- [ ] Screenshots and known limitations included.
-- [ ] No credentials or private data in code, history, screenshots, or recordings.
-- [ ] Submit early; reopen the submission to verify saved links.
-- [ ] Tag the tested demo commit: `git tag demo-v1` then `git push origin demo-v1`.
+## Before presenting
+
+Open the deployed app in a fresh browser. Verify Nessie import, save/restore, CSV export, and any optional integration you plan to claim. Keep the built-in fictional profile and a screen recording as fallbacks. The repo is private; confirm judge access and submission visibility requirements. Credit libraries, the existing starter, AI assistance, and any reused assets in the submission.

@@ -15,6 +15,9 @@ build/
 .vercel/
 .netlify/
 coverage/
+*.tsbuildinfo
+.futureyou/
+.next-dev/
 .venv/
 venv/
 __pycache__/

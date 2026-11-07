@@ -1,23 +1,30 @@
-name: Starter checks
+name: FutureYou checks
 on:
   push:
-    branches: [main]
+    branches: [main, feat/futureyou]
   pull_request:
 permissions:
   contents: read
 concurrency:
-  group: starter-${{ github.ref }}
+  group: futureyou-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  starter:
+  application:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
       - name: Check tracked whitespace
         run: |
           task_empty_tree=$(git hash-object -t tree -w --stdin < /dev/null)
           git diff --check "$task_empty_tree" HEAD
       - name: Check publishing helper syntax
         run: python3 -m py_compile scripts/publish.py
-      # Add application lint, test, and build steps after choosing the stack.
