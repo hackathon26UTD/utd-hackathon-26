@@ -151,3 +151,9 @@ Verification completed: `npm run site -- status` successfully read the Pages pro
 - AirNow retired its old web services on October 1, 2026 (HTTP 410). Switched the check to `/aq/observation/current/ziplatLong` (PR #17).
 - Recorded the data-source catalog, test results, gotchas and the "ingest into MongoDB, don't call live" plan in [DATA_SOURCES.md](DATA_SOURCES.md). Tested today: NWS alerts and points, USGS quakes and gauges, OpenFEMA, ERCOT dashboards, EIA, AirNow, FIRMS, Open-Meteo forecast and flood. Ingest jobs and new map layers are not built; ownership to be agreed with Ayan.
 - Added the firmware toolchain (Arduino IDE 2 for ESP32s, Arduino App Lab for the Uno Q) to [HARDWARE.md](HARDWARE.md). A HARP hardware request exists for the team; check its approval status in HARP.
+
+## 2026-11-07 evening: FEMA flood zones (Dhruv)
+
+- Request: flood region data. Added `src/flood.js` (registered like `beacon.js`, no changes to Ayan's modules): `GET /api/flood/zone`, `GET /api/flood/zones` (GeoJSON for a map layer) and admin `POST /api/flood/homes/refresh`, which adds a `floodZone` field to `homes` documents only. Source: FEMA NFHL MapServer layer 28; results cached in MongoDB 30 days with TTL indexes (`POST /setup` creates them).
+- Verified: 35/35 tests (6 new, fake FEMA so CI does not depend on FEMA), build OK, and a live run against FEMA + Atlas (`dhruv-dev` user): point lookups correct, cache hit on repeat, 9 AE polygons on the Trinity.
+- Next: run `POST /api/setup` then `POST /api/flood/homes/refresh` on production with the admin key; Ayan to decide whether the command center shows the polygon layer and uses `floodZone.risk` in priority. Demo account cannot reach these routes (middleware allows it only `/api/account`, `/api/command-center`, `/api/layers`).
