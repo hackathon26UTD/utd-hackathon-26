@@ -73,3 +73,17 @@ Clients: `clients/esp32/esp32_client.ino` (WiFi + reed switch + temp), `clients/
 ## Runtime notes
 
 Each request opens and closes one MongoDB connection (Workers cannot reuse sockets across requests), so expect ~100–300 ms per call to Atlas from the edge. Batch readings (e.g. every 5 s) instead of one request per sample.
+
+## Flood zones (FEMA National Flood Hazard Layer)
+
+Code: `src/flood.js`. Requires a signed-in operator session or the admin key (same as other data routes). FEMA results are cached in MongoDB for 30 days (`flood_zone_cache`, `flood_polygon_cache`, TTL indexes created by `POST /setup`), so repeat lookups are fast and survive FEMA outages. A FEMA failure returns 503 with a plain message.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/flood/zone?lat=&lon=` | FEMA zone at a point → `{risk, zone, subtype, specialFloodHazardArea, baseFloodElevationFt, source, fetchedAt, cached}` |
+| GET | `/flood/zones?bbox=w,s,e,n[&include=moderate]` | GeoJSON flood-zone polygons for a map layer (max 0.15° per side; tile larger areas). Default high-risk only; `include=moderate` adds 0.2%-chance and levee areas. Each feature has `properties.risk`. |
+| POST | `/flood/homes/refresh[?limit=100&force=true]` | Admin: adds `floodZone` to documents in `homes` (from `location`); skips homes checked in the last 30 days. Changes no other fields. |
+
+`risk` values: `high` (Special Flood Hazard Area, 1% annual chance, zones A/V), `moderate` (0.2% annual chance or levee-protected), `minimal` (zone X), `undetermined` (zone D), `open_water`, `unmapped` (no FEMA map at that point). These are regulatory map designations, not a forecast of current flooding; combine with live water sensors and NWS alerts.
+
+Verified 2026-11-07 against live FEMA + Atlas: Richardson (32.95, -96.73) → minimal; Trinity River levee area (32.76, -96.81) → moderate; a 0.04° box on the Trinity returned 9 zone-AE polygons in under 1 s.
