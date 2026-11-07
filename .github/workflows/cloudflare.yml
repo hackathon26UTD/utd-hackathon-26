@@ -10,6 +10,7 @@ on:
       - 'lib/**'
       - 'test/**'
       - 'scripts/check-mongodb.mjs'
+      - 'scripts/deploy.mjs'
       - 'package.json'
       - 'package-lock.json'
       - 'wrangler.jsonc'
@@ -68,4 +69,4 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx wrangler pages deploy public --project-name=utd-hackathon-26 --branch "$DEPLOY_BRANCH" --commit-hash "$GITHUB_SHA" --commit-dirty=false
+      - run: npm run deploy -- --branch "$DEPLOY_BRANCH" --commit-hash "$GITHUB_SHA" --commit-dirty=false
