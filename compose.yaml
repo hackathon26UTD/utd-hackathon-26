@@ -1,0 +1,16 @@
+name: utd-hackathon-26
+services:
+  mongodb:
+    image: mongodb/mongodb-community-server:9.0-ubi9-slim
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "quit(db.adminCommand({ ping: 1 }).ok === 1 ? 0 : 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+volumes:
+  mongodb-data:

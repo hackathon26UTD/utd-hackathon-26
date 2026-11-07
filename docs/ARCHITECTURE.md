@@ -6,7 +6,7 @@ Fill this out as the team chooses a stack. Keep it short and actionable.
 | --- | --- | --- |
 | Frontend | Undecided | |
 | Backend | Undecided | |
-| Data storage | Undecided | |
+| Data storage | MongoDB Atlas | Shared hackathon database; hosted provisioning pending |
 | Authentication, if needed | Undecided | |
 | External APIs / models | Undecided | |
 | Hosting | Undecided | |
@@ -18,6 +18,8 @@ Before parallel implementation, agree on endpoint or function names, request and
 ## Environment variables
 
 Document name, purpose, whether required, and which teammate owns provisioning. Put placeholder names in `.env.example`; store real values in local environments and hosting secret settings.
+
+The backend uses `MONGODB_URI` and `MONGODB_DB`. Keep the connection string in server-side configuration; browser code calls the backend API. See [MongoDB setup](MONGODB.md). MongoDB does not supply the application's end-user authentication flow; select that separately if the MVP needs accounts.
 
 ## Reliability
 

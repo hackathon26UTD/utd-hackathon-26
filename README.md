@@ -2,7 +2,7 @@
 
 Team workspace for UTD Hackathon 2026: four people, one focused MVP, one reliable demo.
 
-**Status:** repository starter. The project idea, technology stack, and application are not defined yet.
+**Status:** repository starter with MongoDB selected for data storage. The project idea, application framework, and application are not defined yet.
 
 ## Start here
 
@@ -53,6 +53,15 @@ CI does not test an application yet. Extend it with your chosen stack's lint, te
 
 Fill in: live demo, submission page, demo video, screenshots, third-party APIs/assets, and dependencies. Record what was built during the event versus reused material. Choose a license together before allowing reuse; no open-source license has been applied to this starter.
 
-## Supabase backend
+## MongoDB backend
 
-Supabase CLI configuration is initialized in `supabase/config.toml`. See [Supabase setup](docs/SUPABASE.md) for local startup, hosted project setup, and teammate access. A hosted project and invitations are still pending account authentication.
+Use MongoDB Atlas for the shared database. See [MongoDB setup](docs/MONGODB.md) for Atlas provisioning, full team access, connection settings, and verification. The hosted cluster and invitations are pending Atlas account access.
+
+For optional local development, start Docker and run:
+
+```sh
+docker compose up -d mongodb
+docker compose exec mongodb mongosh --quiet --eval 'db.runCommand({ ping: 1 })'
+```
+
+The local database is available only on `127.0.0.1:27017` and persists in a Docker volume. It has no authentication and is intended only for local synthetic demo data. Use `.env.example` as the server's local configuration template. Stop it with `docker compose down`.
