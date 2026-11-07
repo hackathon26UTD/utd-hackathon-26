@@ -4,6 +4,8 @@
 
 See whether a major life decision fits your finances, including the awkward gap before the first paycheck.
 
+![FutureYou cash-flow forecast](docs/images/futureyou-live.jpg)
+
 This branch implements a complete interactive internship-planning demo with synthetic student finances. Next.js and React render the app; a deterministic TypeScript engine computes daily balances; Capital One Nessie supplies real sandbox balances and recurring bills. MongoDB Atlas saving and Gemini explanations activate when their server credentials are configured.
 
 ## Run locally
