@@ -15,7 +15,8 @@
     "atlas": "node scripts/atlas.mjs",
     "db:setup": "node --env-file-if-exists=.env scripts/beacon-db.mjs setup",
     "db:seed": "node --env-file-if-exists=.env scripts/beacon-db.mjs seed",
-    "db:reconcile": "node --env-file-if-exists=.env scripts/beacon-db.mjs reconcile"
+    "db:reconcile": "node --env-file-if-exists=.env scripts/beacon-db.mjs reconcile",
+    "site": "node scripts/site.mjs"
   },
   "repository": {
     "type": "git",

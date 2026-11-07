@@ -23,6 +23,10 @@ TEST_BASE_URL=http://localhost:8792 node scripts/test-marketing.mjs
 
 Use ignored `.dev.vars` for Pages runtime secrets and `.env` for local service access. `.env.example` is the placeholder template; do not overwrite an existing secret file. The handoff records the approved private local paths. `npm run dev:local` is the throwaway-local-database alternative.
 
+## Site management and next-agent brief
+
+Use [AI_START_HERE.md](docs/AI_START_HERE.md) as the next model's copy-ready instructions. `npm run site -- status` links Cloudflare project metadata to MongoDB; `npm run site -- deployments` syncs deployment summaries. Management secrets stay private outside MongoDB. Explicit retry/rollback usage and limits: [site control](docs/SITE_CONTROL.md).
+
 ## Deploy
 
 Cloudflare Pages project `utd-hackathon-26`, production branch `main`. Main CI tests, builds and deploys; live readiness is checked after upload. Authorized local deployment:
