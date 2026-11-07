@@ -85,3 +85,13 @@ npm ci
 npm test            # end-to-end tests against an in-memory MongoDB
 npm run dev:local   # Cloudflare runtime + throwaway MongoDB at http://127.0.0.1:8788
 ```
+
+## HomeBeacon database
+
+The additive HomeBeacon API supports homes, time-series telemetry, retry receipts,
+latched flood/power/temperature incidents, and geospatial home queries. Existing
+hardware ingestion and dashboard APIs remain available. Configure Atlas in ignored
+`.env`, then run `npm run db:setup`; `npm run db:seed` adds only fictional exercise
+data using a locally configured `BEACON_DEMO_DEVICE_KEY`. Local Pages runtime
+settings belong in `.dev.vars`. See [database architecture and Atlas verification](docs/mongodb-architecture.md)
+and [ESP32 contract and curl examples](clients/esp32/HOMEBEACON.md).
