@@ -9,6 +9,7 @@
 - [Accounts and accessibility](ACCESSIBILITY_AND_ACCOUNT.md): sign-in/recovery/policy flows and limits.
 - [Operator layers](OPERATOR_LAYERS.md): demo restrictions, NVIDIA configuration, evidence and scope.
 - [Core API](API.md): Dhruv's devices/readings/events/rules/store contract.
+- [Database extension](mongodb-architecture.md): PR #14 schema, retry/incident semantics and required Atlas checks.
 - [Hardware](HARDWARE.md): inventory, requested parts, wiring/power/network constraints.
 - [House black box concept](HOME_BLACK_BOX.md): product value and honesty boundaries.
 - [Cloudflare](CLOUDFLARE.md) and [MongoDB](MONGODB.md): provider setup and deployment details.
