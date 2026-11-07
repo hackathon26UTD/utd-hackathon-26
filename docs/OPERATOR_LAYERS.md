@@ -12,7 +12,7 @@ The adapter is ready but no NVIDIA key or model endpoint is connected yet. Set e
 
 `GET /api/layers` reports configuration state. `POST /api/layers` takes `method` (`preset` or `nvidia`), `filter` for presets, and `question` (maximum 1,000 characters). Requires a signed operator session and same-origin request. Hosted model calls are capped at four per minute per operator and time out after 40 seconds.
 
-NVIDIA receives a bounded snapshot of the latest sensor values and timestamps for up to 500 boxes. It does not receive operator emails, addresses, household names, credentials or free-text notes. This is not the entire MongoDB history. The response must choose a supported observation filter. The server calculates matching IDs directly from recorded values and returns source evidence. Model text is an interpretation, not a verified assessment. No damage probabilities, occupancy inference, claims decisions or automatic dispatch.
+NVIDIA receives a bounded snapshot of the latest sensor values and timestamps for up to 500 boxes. It does not receive operator emails, addresses, household names, credentials or free-text notes. This is not the entire MongoDB history. The response must choose up to three supported observation filters combined with all/any logic. The server calculates matching IDs directly from recorded values and returns source evidence. Model text is an interpretation, not a verified assessment. No damage probabilities, occupancy inference, claims decisions or automatic dispatch.
 
 ## Extension path
 
