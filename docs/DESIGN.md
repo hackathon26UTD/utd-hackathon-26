@@ -23,3 +23,7 @@ Exercise versus live data clearly separated. Unknown is not safe. Stale critical
 ## Accessibility
 
 Target WCAG 2.2 AA. Semantic landmarks, skip links, text labels, keyboard filters/tabs, visible focus, non-color severity, bounded motion, accessible dialogs, error feedback, and a list alternative to WebGL are required. Automated checks and manual keyboard testing do not establish legal ADA certification.
+
+## Marketing experience revision
+
+The public homepage is distinct from operator sign-in. Paper #f4f6f7, ink #182f3b, teal #21665f, mist #dceae6 and alert red #b9413b continue the command center palette. Bricolage carries large, closely spaced headlines; Geist carries navigation and copy. A left-aligned editorial hero faces a custom neighborhood cutaway. Scenario controls animate observations through home, local record and operator view. Below it, a three-step explanation leads into an actual command-center preview, hardware details and FAQ. Sticky top navigation provides product sections, exercise access and a portal action. Motion is concentrated in the interactive scene, with a pause control and reduced-motion alternative. No fictional customer logos, adoption statistics or safety claims.
