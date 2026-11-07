@@ -1,0 +1,7 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {summarizeProperty} from '../domain/property.js';
+import {issueSession,readSession,sessionCookie,sameOrigin,passwordHash} from '../src/operator-session.js';
+test('stale critical observations remain critical; missing observations are unknown',()=>{const device={id:'box'};const old=new Date(Date.now()-600000);assert.equal(summarizeProperty(device,[{sensor:'water_detected',value:true,ts:old}]).severity,'critical');assert.equal(summarizeProperty(device,[]).severity,'unknown');assert.equal(summarizeProperty(device,[{sensor:'water_detected',value:false,ts:new Date()}]).severity,'normal');});
+test('sessions reject tampering and require the signing secret',async()=>{const env={SESSION_SECRET:'test-secret-with-enough-entropy'};const token=await issueSession(env,'operator@example.test');const req=t=>new Request('https://local/api/session',{headers:{Cookie:sessionCookie(t)}});assert.equal((await readSession(req(token),env)).email,'operator@example.test');assert.equal(await readSession(req(token+'x'),env),null);assert.equal(await readSession(req(token),{}),null);});
+test('password hash uses salt and origin protects writes',async()=>{assert.notEqual(await passwordHash('password','a'),await passwordHash('password','b'));assert.equal(sameOrigin(new Request('https://local/api/session',{headers:{Origin:'https://evil.test'}})),false);assert.match(sessionCookie('test'),/Secure; HttpOnly; SameSite=Strict/);});

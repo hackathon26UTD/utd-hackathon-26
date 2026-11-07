@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+execFileSync(process.execPath, ['scripts/build-ui.mjs'], { stdio: 'inherit' });
 import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 
