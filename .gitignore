@@ -48,3 +48,6 @@ supabase/.temp/
 public/assets/
 
 work/
+
+# Device firmware secrets
+clients/esp32/secrets.h
