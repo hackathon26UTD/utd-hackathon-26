@@ -11,6 +11,8 @@
     "dev:local": "node scripts/dev-local.mjs",
     "build:ui": "node scripts/build-ui.mjs",
     "keygen": "node -e \"console.log('ak_'+require('crypto').randomBytes(24).toString('hex'))\"",
+    "access": "node scripts/check-access.mjs",
+    "atlas": "node scripts/atlas.mjs",
     "db:setup": "node --env-file-if-exists=.env scripts/beacon-db.mjs setup",
     "db:seed": "node --env-file-if-exists=.env scripts/beacon-db.mjs seed",
     "db:reconcile": "node --env-file-if-exists=.env scripts/beacon-db.mjs reconcile"
