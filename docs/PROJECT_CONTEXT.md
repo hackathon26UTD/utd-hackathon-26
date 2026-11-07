@@ -55,3 +55,9 @@ The local `.env` contains real credentials and must remain excluded from documen
 - Event Devpost link observed in HARP: https://hackutd-zeroday.devpost.com/
 - Earlier Cloudflare draft: https://github.com/AdyaanAkram/utd-hackathon-26/pull/8
 - MLH prizes: https://hack.mlh.io/ (redirects to https://www.mlh.com/events/prizes).
+
+## HomeBeacon database slice — local implementation, November 7, 2026
+
+The new local branch `codex/homebeacon-database` extends the existing JavaScript API with `/api/beacon` homes, device/home association, authenticated time-series telemetry, durable retry receipts, deterministic latched incidents, operator audit and nearby-home queries. Legacy ingest and dashboard sensor conventions are retained. See [MongoDB architecture](mongodb-architecture.md) for exact collections/indexes, setup/seed commands, failure semantics and Atlas verification; see [ESP32 contract](../clients/esp32/HOMEBEACON.md) for curl and firmware pseudocode.
+
+Verified locally: 28 tests pass against isolated MongoDB and Cloudflare production compilation succeeds. This checkout has no local credential files, so no live Atlas checks were performed for this slice. These changes are unpushed and undeployed. Historical Atlas success elsewhere must not be treated as verification of the new schema or routes.
