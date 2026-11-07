@@ -43,7 +43,7 @@ If that name is unavailable, update `wrangler.jsonc` and the deploy script to ma
 
 ## Deployment token and GitHub setup
 
-Ayan later requested broad API privileges with no expiration, where supported. No token has been created. Confirm the intended account and the exact available permission selection before issuance; do not silently replace this preference with an event-expiring token. For a deploy-only alternative, the minimum permission is **Account → Cloudflare Pages → Edit** on the intended account. Store the token in the repository's GitHub Actions secrets as `CLOUDFLARE_API_TOKEN`, not MongoDB tables, source files, browser code, or chat.
+Ayan later requested broad API privileges with no expiration, where supported. A dedicated scoped Pages CI token has been created and installed; the personal global key remains local. Confirm the intended account and the exact available permission selection before issuance; do not silently replace this preference with an event-expiring token. For a deploy-only alternative, the minimum permission is **Account → Cloudflare Pages → Edit** on the intended account. Store the token in the repository's GitHub Actions secrets as `CLOUDFLARE_API_TOKEN`, not MongoDB tables, source files, browser code, or chat.
 
 Set GitHub Actions repository variables:
 
@@ -65,7 +65,7 @@ Redeploy after changing variables. The planned backend needs a database user res
 
 ## First deployment and verification
 
-After review and merge, enable the repository variable and run the deployment workflow. Or, with the approved token in your local environment, run `npm run deploy` from the repository root. Do not pass secrets as command-line arguments.
+The repository deployment variable is enabled and production is live. For a later authorized release, merge and run the deployment workflow. Or, with the approved token in your local environment, run `npm run deploy` from the repository root. Do not pass secrets as command-line arguments.
 
 Check `/`, `/status`, `/api/health`, and an unknown path (404). Confirm the returned `pages.dev` URL and commit in the Cloudflare dashboard. Record the actual URL and account owner here. The configured project is `utd-hackathon-26`; stable URLs are listed above.
 
@@ -86,3 +86,8 @@ Wrangler supports key/email authentication as an alternative to `CLOUDFLARE_API_
 The MongoDB service check runs on `ubuntu-22.04`; MongoDB 8.0 rejected the kernel on the original newer runner. Context: https://www.mongodb.com/docs/manual/release-notes/8.0/ and https://jira.mongodb.org/browse/SERVER-121912. The deploy job can run on the current Ubuntu image. Node compatibility is set explicitly for the MongoDB driver.
 
 `scripts/deploy.mjs` uses Wrangler, reads the resulting immutable deployment URL, and verifies `/api/ready` and the home page. Branch aliases may take a short time to propagate. Build success or upload success alone does not establish a working hosted database connection.
+
+
+## Current handoff correction, November 7
+
+The app and complete public marketing homepage are deployed, including session-aware portal routing, operator/demo access and Mongo-backed data. Earlier starter statements about no app or deployment are superseded by `PROJECT_CONTEXT.md` and `handovers/AYAN-2026-11-07.md`. When patching Pages settings, never write back redacted encrypted values: preserve secrets explicitly and verify both preview and production readiness after redeploying. The original failed database binding update was corrected and verified live.

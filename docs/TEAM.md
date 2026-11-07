@@ -24,3 +24,7 @@ Atlas Organization Owner invitations for `dnpatel2311` and `Abasheer-rion` are p
 ## Coordination
 
 At each check-in, share: done, next, blocked. Integrate small changes frequently. Track Ready / In progress / Review / Done in GitHub Issues or an optional GitHub Project. Keep one active task per person. Record integration decisions in ARCHITECTURE.md.
+
+## Observed workstream ownership, November 7
+
+Ayan owns this chat's product/design/infrastructure integration stream, including the marketing-to-portal experience. Dhruv authored the core API and clients, shared credential tooling, and is working hardware/weather research. Adyaan established the organization and shared MongoDB setup. Saif's current deliverable was not verified here. These are observed contributions, not permanent exclusive assignments. Always cross-check current branches and the full handoff before duplicating or replacing another person's work.

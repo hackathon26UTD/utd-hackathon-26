@@ -1,36 +1,33 @@
-# Architecture and decisions
+# HomeBeacon architecture
 
-Fill this out as the team chooses a stack. Keep it short and actionable.
+Current as of November 7, 2026. See [full handoff](handovers/AYAN-2026-11-07.md) for ownership, verified state, operational traps and open work.
 
-| Decision | Choice | Reason / owner |
-| --- | --- | --- |
-| Frontend | Undecided | |
-| Backend | Undecided | |
-| Data storage | MongoDB Atlas Free | Running shared cluster in AWS US_EAST_1; see MONGODB.md |
-| Authentication, if needed | Undecided | |
-| External APIs / models | Undecided | |
-| Hosting | Undecided | |
+## Browser and routing
 
-## API / data contract
+Static HTML routes render vanilla JS/CSS modules bundled by esbuild. `ui/marketing.js` owns the public product experience; `ui/app.js` owns login/profile/legal and the command workspace. MapLibre is loaded dynamically for the workspace. Fonts, map worker and license notices are self-hosted. OpenFreeMap supplies actual street tiles with attribution. See [marketing](MARKETING.md) and [design](DESIGN.md).
 
-Before parallel implementation, agree on endpoint or function names, request and response examples, validation, errors, and ownership. Record where sample data lives. Mark mocked behavior clearly.
+`/portal` redirects by session state. Marketing and exercise routes are public; command/profile routes require a valid session. API middleware separates operator access, exercise-only demo access and device/admin API credentials.
 
-## Environment variables
+## Server and MongoDB
 
-Document name, purpose, whether required, and which teammate owns provisioning. Put placeholder names in `.env.example`; store real values in local environments and hosting secret settings.
+Cloudflare Pages Functions route the API. Dhruv's `src/app.js` provides device enrollment, per-device keys, readings, threshold rules, alerts, events and store operations. `src/db.js` and `lib/mongodb.js` open/close per-request Mongo clients, avoiding reuse of request-bound sockets. The shared Atlas database is `utd_hackathon_26`; application credentials are DB-scoped and encrypted on Cloudflare.
 
-The backend uses `MONGODB_URI` and `MONGODB_DB`. Keep the connection string in server-side configuration; browser code calls the backend API. See [MongoDB setup](MONGODB.md). MongoDB does not supply the application's end-user authentication flow; select that separately if the MVP needs accounts.
+`domain/property.js` converts latest observations into review priority and freshness. Stale/missing values remain unknown unless last-known critical evidence requires review. `functions/api/command-center.js` returns bounded live snapshots. Follow-ups record human actions and explicit sourced evacuation reports; they do not dispatch teams. See [API](API.md), [MongoDB](MONGODB.md) and [concept](HOME_BLACK_BOX.md).
 
-## Reliability
+## Accounts
 
-Record API limits, expected costs, timeouts, fallback behavior, and a safe demo dataset. Document where logs are visible without storing credentials or personal data here.
+Salted PBKDF2 password verification, signed eight-hour secure HTTP-only sessions, same-origin state changes, throttling and database-backed session invalidation after password changes. Profile and single-use recovery code reset are implemented. Email reset, self-service registration, invitations, SSO/MFA and general multi-tenant permissions are not. Shared demo is restricted on the server to fictional records/read-only profile/preset views. See [account/accessibility implementation](ACCESSIBILITY_AND_ACCOUNT.md).
 
-## Deployment and recovery
+## Public context and model views
 
-Record the deployment URL, build/start commands, required secrets, deploy owner, and how to restore the last working version. Create a demo tag once the main journey is stable.
+Weather endpoint obtains bounded NWS, USGS and FEMA information with explicit source status and timeouts. NWS polygons can be mapped when geometry exists; these feeds do not establish damage to a home.
 
-## Cloudflare starter and current state (November 7, 2026)
+NVIDIA-ready views use bounded sensor snapshots and a constrained declarative output. A model can suggest supported predicates; server-side code selects matching observations. It cannot issue arbitrary database commands or alter recorded priority. The connection is not configured yet. See [operator layers](OPERATOR_LAYERS.md).
 
-Cloudflare hosting was requested; framework-neutral HTML/CSS/JS placeholders and a Pages Functions health endpoint are prepared in this branch. No deployment, frontend framework, product API contract, AI provider, or end-user auth system is selected. Wrangler is pinned to 4.158.0; CI uses Node.js 22. `/api/health` only confirms the function runs and whether MongoDB runtime variables are present; it does not test database connectivity.
+## Delivery and verification
 
-Provider management API credentials are separate from the application's MongoDB connection. Their current requested scope/storage and blockers are recorded in PROJECT_CONTEXT.md. For a Cloudflare runtime, do not reuse request-bound I/O clients across requests without a supported architecture; validate driver lifecycle against Cloudflare's MongoDB documentation before applying a generic connection pool.
+GitHub Actions on Node 22 run backend tests, a real MongoDB service/readiness check and builds, then deploy using a scoped Cloudflare token. Mongo service runs on Ubuntu 22.04 due to a verified kernel incompatibility on newer runners. Main deploys production; eligible same-repo PRs get previews. Live deployment helper checks the immutable URL's database readiness and home response. Browser accessibility/interaction tests currently run separately; add CI enforcement and UI path filters as follow-up. See [Cloudflare](CLOUDFLARE.md).
+
+## Hardware boundary
+
+ESP32 boxes and Arduino Uno Q gateway are planned/current inventory, not proof of flashed or calibrated devices. Existing ingest/client contracts must be reconciled with actual sensors. Durable replay/idempotency, battery endurance, fallback networking, voltage/current limits and physical survivability require demonstration. Synthetic UI behavior is not hardware verification. See [hardware](HARDWARE.md).
