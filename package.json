@@ -1,0 +1,24 @@
+{
+  "name": "utd-hackathon-26",
+  "version": "1.0.0",
+  "description": "Team workspace for UTD Hackathon 2026: four people, one focused MVP, one reliable demo.",
+  "scripts": {
+    "dev": "wrangler pages dev public",
+    "build": "wrangler pages functions build functions --outdir=.cloudflare-build",
+    "deploy": "wrangler pages deploy public --project-name=utd-hackathon-26"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hackathon26UTD/utd-hackathon-26.git"
+  },
+  "license": "UNLICENSED",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/hackathon26UTD/utd-hackathon-26/issues"
+  },
+  "homepage": "https://github.com/hackathon26UTD/utd-hackathon-26#readme",
+  "devDependencies": {
+    "wrangler": "4.158.0"
+  },
+  "private": true
+}

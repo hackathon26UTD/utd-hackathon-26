@@ -50,3 +50,9 @@ docker compose exec mongodb mongosh --quiet --eval 'db.runCommand({ ping: 1 })'
 Connect the local server to `mongodb://127.0.0.1:27017/utd_hackathon_26`. This is an unauthenticated development database bound to your computer's loopback address; use synthetic data. It is separate from the team's Atlas cluster. The named volume preserves data between restarts. `docker compose down` stops it without deleting the volume.
 
 Reference: [MongoDB's official Docker image](https://www.mongodb.com/docs/manual/administration/install-community-docker/).
+
+## Management credentials and latest request (November 7, 2026)
+
+Ayan requested Atlas administration credentials, plus GitHub and Cloudflare API credentials, in an ignored local `.env`, with broad privileges and no expiration where supported. No Atlas administration key has been created. The signed-in account currently shows an older personal organization; confirm the dedicated hackathon organization before credential creation. Actual scopes and expiration must be reported, not assumed.
+
+An Atlas administration API key manages Atlas infrastructure and does not grant direct reads/writes of application collections. Database users and `MONGODB_URI` remain separate. No credential values belong in Markdown, source, or client bundles. See PROJECT_CONTEXT.md and WORKLOG.md for verified state.

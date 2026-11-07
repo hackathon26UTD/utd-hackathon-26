@@ -1,0 +1,10 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #182a25; background: #f5f4ee; }
+body { margin: 0; }
+main { max-width: 48rem; margin: 12vh auto; padding: 2rem; }
+.eyebrow { font-size: .75rem; letter-spacing: .15em; font-weight: 700; color: #416f5b; }
+h1 { font-size: clamp(2.8rem, 9vw, 5rem); line-height: 1.05; letter-spacing: -.06em; font-weight: 600; }
+p { max-width: 35rem; font-size: 1.15rem; line-height: 1.7; }
+nav { margin-top: 2rem; }
+a { color: #215a40; text-underline-offset: .3em; font-weight: 600; }
+a:focus-visible { outline: 3px solid #215a40; outline-offset: 6px; }
+footer { margin-top: 6rem; color: #53625b; font-size: .85rem; }

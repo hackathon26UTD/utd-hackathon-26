@@ -9,7 +9,7 @@ Assign these roles together. Each person owns a deliverable and backs up another
 | Collaborator 2 | Backend / API | Agreed request and response contract |
 | Collaborator 3 | Data / core feature and QA | Working core capability and acceptance checklist |
 
-Confirmed GitHub handles: `UhhSaif`, `dnpatel2311`, and `Abasheer-rion`. Invite `dnpatel2311` and `Abasheer-rion`; invitations for `UhhSaif` are deferred at the owner's request. Role assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team. Check GitHub for current invitation acceptance status.
+Current private team contacts and identity confidence are recorded in [CONTACTS.md](CONTACTS.md), at Ayan's explicit request. The GitHub organization showed `aa3264`, `abasheer-rion`, `dnpatel2311`, and `UhhSaif`. Earlier GitHub invitation deferrals are historical; verify live access separately for Atlas and Cloudflare. Workstream owners remain unassigned.
 
 ## First 20 minutes
 
