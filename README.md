@@ -55,4 +55,4 @@ and [ESP32 contract and curl examples](clients/esp32/HOMEBEACON.md).
 
 ## Credentials (hands-off)
 
-`cp .env.example .env`, fill in what you have, then run `npm run access` to see what works (it never prints values). Every script loads `.env` through `scripts/env.mjs`; your GitHub token comes from `gh auth login` automatically. `npm run atlas -- status | ip | ip-add-me | users` manages Atlas once a service account is in `.env`. `.env` stays on your machine; share secrets privately, never in git or chat.
+`cp .env.example .env`, fill in what you have, then run `npm run access` to see what works (it never prints values). Every script loads `.env` through `scripts/env.mjs`; your GitHub token comes from `gh auth login` automatically. `npm run atlas -- status | ip | ip-add-me | users` manages Atlas once a service account is in `.env`. `.env` stays on your machine; share secrets privately, never in git or chat. Data sources, keys and test status: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
