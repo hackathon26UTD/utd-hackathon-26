@@ -9,7 +9,7 @@ Assign these roles together. Each person owns a deliverable and backs up another
 | Collaborator 2 | Backend / API | Agreed request and response contract |
 | Collaborator 3 | Data / core feature and QA | Working core capability and acceptance checklist |
 
-Confirmed GitHub handles: `UhhSaif`, `dnpatel2311`, and `Abasheer-rion`. Invite `dnpatel2311` and `Abasheer-rion`; invitations for `UhhSaif` are deferred at the owner's request. Role assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team. Check GitHub for current invitation acceptance status.
+The repository is owned by the `hackathon26UTD` organization. `aa3264`, `dnpatel2311`, and `Abasheer-rion` have active organization Owner access, which includes full repository administration. Invitations for `UhhSaif` are deferred at the owner's request. Workstream assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team.
 
 ## First 20 minutes
 

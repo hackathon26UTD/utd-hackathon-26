@@ -35,3 +35,6 @@ Thumbs.db
 # Local database dumps
 dump/
 *.archive
+
+# Cache left by the earlier backend setup
+supabase/.temp/

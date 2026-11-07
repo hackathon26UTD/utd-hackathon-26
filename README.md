@@ -2,7 +2,9 @@
 
 Team workspace for UTD Hackathon 2026: four people, one focused MVP, one reliable demo.
 
-**Status:** repository starter with MongoDB selected for data storage. The project idea, application framework, and application are not defined yet.
+**Status:** private organization repository with a running free MongoDB Atlas cluster. The project idea, application framework, and application are not defined yet.
+
+Repository: [hackathon26UTD/utd-hackathon-26](https://github.com/hackathon26UTD/utd-hackathon-26). GitHub organization owners: `aa3264`, `dnpatel2311`, and `Abasheer-rion`.
 
 ## Start here
 
@@ -16,7 +18,7 @@ Team workspace for UTD Hackathon 2026: four people, one focused MVP, one reliabl
 
 This starter needs Git. The optional publishing helper needs Python 3.9+ and the GitHub CLI (`gh`). No application dependencies are installed yet.
 
-After publication, clone the repository using its GitHub **Code** menu. See [CONTRIBUTING.md](CONTRIBUTING.md) for the daily workflow.
+Clone this repository with `git clone https://github.com/hackathon26UTD/utd-hackathon-26.git`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the daily workflow.
 
 | Application command | Team action |
 | --- | --- |
@@ -33,7 +35,7 @@ Copy `.env.example` to `.env` only when your application needs it. Keep credenti
 Authenticate with `gh auth login` if needed. Preview creation of a private repo:
 
 ```sh
-python3 scripts/publish.py YOUR_GITHUB_USERNAME/utd-hackathon-26
+python3 scripts/publish.py hackathon26UTD/utd-hackathon-26
 ```
 
 The default collaborators are `dnpatel2311` and `Abasheer-rion`. Invitations for `UhhSaif` are deferred. Add `--apply` to execute. Explicit `--collaborator USERNAME` flags replace those defaults. The helper publishes this Git checkout, configures labels, seeds six issues, and sends collaborator invitations. Invites require acceptance. `--public` explicitly selects a public repo. Review visibility against the event's actual submission requirements.
@@ -55,7 +57,7 @@ Fill in: live demo, submission page, demo video, screenshots, third-party APIs/a
 
 ## MongoDB backend
 
-Use MongoDB Atlas for the shared database. See [MongoDB setup](docs/MONGODB.md) for Atlas provisioning, full team access, connection settings, and verification. The hosted cluster and invitations are pending Atlas account access.
+Use MongoDB Atlas for the shared database. The free `utd-hackathon-26` cluster is running in AWS Northern Virginia, and a database command succeeded. See [MongoDB setup](docs/MONGODB.md) for project details, team access, connection settings, and verification. Atlas teammate invitations, application credentials, and client network access are still pending.
 
 For optional local development, start Docker and run:
 

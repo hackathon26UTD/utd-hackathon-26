@@ -1,12 +1,21 @@
 # MongoDB setup
 
-The team selected MongoDB Atlas for the shared backend. Hosted resources and invitations have not been provisioned yet. The optional local database is configured in `compose.yaml`.
+The team selected MongoDB Atlas for the shared backend. The free cluster is running and a database statistics command returned `ok: 1`. Application credentials, client IP access, and teammate invitations remain to be completed. The optional local database is configured in `compose.yaml`.
 
 ## Shared Atlas environment
 
-Use a dedicated organization named **UTD Hackathon 26** and a project named **utd-hackathon-26**. Create a **Free** cluster named **utd-hackathon-26** in a supported nearby region. Do not select a paid tier or upgrade billing as part of this starter.
+| Resource | Value |
+| --- | --- |
+| Organization | Adyaan's Org - 2026-11-07 |
+| Organization ID | `6aef85bf7e6ae4b2af6a2bed` |
+| Project | `utd-hackathon-26` |
+| Project ID | `6aef85f3b64186873a7b77ad` |
+| Cluster | `utd-hackathon-26` — Free |
+| Region | AWS `US_EAST_1` (Northern Virginia) |
+| Server version at setup | `8.0.37` |
+| SRV host | `utd-hackathon-26.md5fla8.mongodb.net` |
 
-Record the organization ID, project ID, cluster name, and dashboard link here after creation. Do not store credentials here.
+This organization was newly created and had no listed projects when setup began. The hackathon project is separate from the default Project 0 created during onboarding. Use the Free cluster; no paid upgrade is configured. Do not store credentials here.
 
 ## Full teammate access
 
