@@ -36,6 +36,9 @@ Thumbs.db
 dump/
 *.archive
 
+# Cache left by the earlier backend setup
+supabase/.temp/
+
 # Cloudflare local state and secrets
 .wrangler/
 .cloudflare-build/

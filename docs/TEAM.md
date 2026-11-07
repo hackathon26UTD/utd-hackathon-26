@@ -9,9 +9,13 @@ Assign these roles together. Each person owns a deliverable and backs up another
 | Collaborator 2 | Backend / API | Agreed request and response contract |
 | Collaborator 3 | Data / core feature and QA | Working core capability and acceptance checklist |
 
-Current private team contacts and identity confidence are recorded in [CONTACTS.md](CONTACTS.md), at Ayan's explicit request. The GitHub organization showed `aa3264`, `abasheer-rion`, `dnpatel2311`, and `UhhSaif`. Earlier GitHub invitation deferrals are historical; verify live access separately for Atlas and Cloudflare. Workstream owners remain unassigned.
+The repository is owned by the `hackathon26UTD` organization. `aa3264`, `dnpatel2311`, and `Abasheer-rion` have active organization Owner access, which includes full repository administration. Invitations for `UhhSaif` are deferred at the owner's request. Workstream assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team.
+
+Private team contacts are in [CONTACTS.md](CONTACTS.md) (private repository only). A later check of the GitHub organization also listed `UhhSaif`; verify live Atlas and Cloudflare access separately.
 
 ## First 20 minutes
+
+Atlas Organization Owner invitations for `dnpatel2311` and `Abasheer-rion` are pending acceptance. GitHub organization access is already active. See [MongoDB setup](MONGODB.md) for the remaining application connection steps.
 
 - Confirm the event's actual team-size eligibility, deadline, timezone, judging rubric, tracks, and submission platform with organizers.
 - Choose one user problem and define the single demo journey.
