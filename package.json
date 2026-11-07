@@ -4,7 +4,7 @@
   "description": "Team workspace for UTD Hackathon 2026: four people, one focused MVP, one reliable demo.",
   "scripts": {
     "dev": "wrangler pages dev public",
-    "build": "wrangler pages functions build functions --outdir=.cloudflare-build",
+    "build": "wrangler pages functions build functions --outdir=.cloudflare-build --compatibility-date=2026-11-07 --compatibility-flags=nodejs_compat",
     "deploy": "wrangler pages deploy public --project-name=utd-hackathon-26",
     "test": "node --test",
     "test:db": "node --env-file-if-exists=.dev.vars scripts/check-mongodb.mjs"
