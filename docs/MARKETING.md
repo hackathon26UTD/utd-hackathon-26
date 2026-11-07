@@ -12,7 +12,7 @@ Below the hero, the site explains observe/retain/review, shows an actual exercis
 
 ## Design and dependencies
 
-Ink/paper/teal visual direction, Bricolage headings and Geist body. Component conventions adapt the public Argus Oracle UI reference, not an installed Argus package. Native SVG, CSS and Web Animations provide motion. MapLibre loads only for the command workspace, keeping marketing independent of map initialization. Public map and font licenses are linked in the footer.
+Marketing identity "Lamp at Dusk" (cream paper, indigo ink, ember signal, night bands; Fraunces, Instrument Sans, DM Mono) lives in `ui/marketing.css` and is lazy-loaded with `ui/marketing.js`. The command center and login keep the ink/teal tokens in `ui/design.css`. Earlier note: Ink/paper/teal direction, Bricolage headings and Geist body. Component conventions adapt the public Argus Oracle UI reference, not an installed Argus package. Native SVG, CSS and Web Animations provide motion. MapLibre loads only for the command workspace, keeping marketing independent of map initialization. Public map and font licenses are linked in the footer.
 
 ## Limitations
 
