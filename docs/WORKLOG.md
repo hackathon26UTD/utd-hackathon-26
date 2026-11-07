@@ -102,6 +102,9 @@ Built the map workspace, public exercise, real device summary endpoint, public d
 
 Added a shared exercise-only demo login, server-enforced separation from live data, preview/apply/clear observation layers and a server-side NVIDIA NIM adapter. User requested building for a future API or hosted model; no NVIDIA credential was supplied or found. Presets work now. Model requests return a clear unavailable state until configured. MongoDB remains the source of observations, and model-generated text cannot write readings or decide claims/dispatch. Added operator-layer setup and limits in OPERATOR_LAYERS.md.
 
+## Public product experience revision
+
+User rejected the login-first homepage as incomplete and requested a full marketing site with stronger animation and navigation. Added a separate public homepage, sticky product navigation, interactive illustrated neighborhood with outage playback and signal transport, hardware cutaway, actual command-center preview, practical FAQ and portal entry. Portal redirects authenticated users to the workspace and visitors to sign-in. Scenario playback has pause controls, respects reduced motion and does not represent live readings. Added mobile/reflow, automated accessibility, interaction and portal-route checks.
 ## November 7, 2026 — shared credential loader (Dhruv, branch `chore/env-access`)
 
 - Labeled `.env.example` by service (GitHub, MongoDB connection, Atlas Admin API, Cloudflare, team API, data feeds, NVIDIA) with the non-secret Atlas org/project IDs filled in. `scripts/env.mjs` loads `.env`/`.dev.vars` for every script and falls back to `gh auth token` for GitHub. `npm run access` reports OK/MISSING/FAILED per credential without printing values; `npm run atlas` wraps common Atlas Admin API calls (service account OAuth or legacy API-key digest).
