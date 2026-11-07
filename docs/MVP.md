@@ -2,7 +2,7 @@
 
 ## Current discussion
 
-The original smart fridge magnet was challenged because a phone could replace its workflow and customer value is unproven. Cold-storage, equipment, and leak monitoring are alternatives, not selected projects. MongoDB is selected for storage and Cloudflare requested for hosting. Final product, hardware, AI provider, and API contract remain undecided.
+The current direction is a battery-backed house black box for disaster incident recording and response-priority triage. State Farm is the intended track; its exact prompt is unverified. The proposed minimum demo is power loss + water detection + local durable recording + offline replay + a regional status map. This is a scope proposal, not proof of completed hardware. See [current concept](HOME_BLACK_BOX.md).
 
 ## Decide before coding
 
