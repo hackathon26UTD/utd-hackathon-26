@@ -1,6 +1,91 @@
 # Hardware plan, constraints, and observed inventory
 
-No hardware has been requested or reserved through this chat. Product and final board remain undecided. Stock below is a November 7, 2026 snapshot from signed-in HARP and can change at any time.
+## Current plan: home disaster blackbox (State Farm track) — updated November 7, 2026 evening
+
+Concept and honesty constraints are in [HOME_BLACK_BOX.md](HOME_BLACK_BOX.md). This section records the hardware we have, what was requested from HARP, and how the boards talk to each other. Everything below is planned and unverified on real hardware until the work log says otherwise.
+
+### Already on hand (team-owned)
+
+| Item | Qty | Role |
+| --- | ---: | --- |
+| ESP32-S3 Sense (camera module + microSD) | 1 | Box A: flagship box and ESP-NOW gateway. Camera snapshot on trigger, SD-card blackbox log. |
+| ESP32 (second board) | 1 | Box B: second house, sends to box A over ESP-NOW. |
+| Arduino Uno Q | 1 | Neighborhood hub: Linux side buffers readings, serves an offline local dashboard, forwards to the cloud API. |
+| microSD card | 1 | Durable local log on box A. |
+| Push button | 1 | "Need help / I'm OK" input → `POST /api/events`. |
+| Sound sensor | 1 | Detects smoke-alarm beeping (proxy, not a certified detector). |
+| Buzzer | 1 | Local alarm. |
+
+### HARP request (drafted in the team cart; confirm submission/approval status in HARP)
+
+The cart held 37 units when the request form was filled. Approved requests are held at the hardware desk for one hour.
+
+| HARP item | Qty | Role |
+| --- | ---: | --- |
+| Temp and Humidity (DHT11) | 2 | One per box |
+| Water Level Sensor | 2 | Flooding, one per box |
+| GY-521 Module (MPU-6050) | 1 | Shaking / structural tilt (box B, I2C) |
+| Tilt Switch | 1 | Cheap shake/tilt input for box A |
+| Flame | 1 | Fire proxy (box B) |
+| HC-SR501 PIR Motion Sensor | 1 | Occupancy proxy; never proves a home is empty |
+| DS-1307 RTC Module | 2 | Correct timestamps while offline (evidence timeline) |
+| SSD1306 0.96in OLED Display | 2 | Status screen per box (optional; first thing to shut off on battery) |
+| 6xAA Battery Holder w/ Switch | 2 | Battery backup (9 V pack) |
+| Power Supply Module | 2 | Regulates the pack to 5 V / 3.3 V |
+| Diode | 4 | Diode-OR between USB power and battery |
+| Resistor | 10 | Voltage divider on USB 5 V so firmware detects loss of external power |
+| 830-pt Breadboard | 1 | |
+| Breadboard Jumper Wire Set (65pc) | 1 | |
+| Jumper Wires (F-F), (M-F) | 1 each | Few loose wires; borrow more for sensor modules if needed |
+| USB-C Cable, 6ft | 1 | |
+| Digital Multimeter | 1 | Verify power path and divider voltages before connecting to GPIO |
+| Hot Glue Gun | 1 | Enclosure assembly |
+
+Also planned: a HARP **3D print** request for the box enclosure.
+
+Request-form answers submitted with the cart: the project is a neighborhood disaster-response network for the State Farm track (home blackboxes that log offline and report to a command center that ranks who needs help first); hardware roles as in the table above.
+
+### Gaps
+
+- **No air-quality / gas sensor on HARP** (no MQ-2, MQ-135, BME680, SGP30). Borrow one or drop air quality from the pitch; use flame + alarm-sound detection and outdoor AirNow data in the command center instead.
+- **No LiPo.** AA pack is the backup. The ESP32-S3 Sense has battery pads if a LiPo turns up.
+- **No LoRa.** ESP-NOW is the short-range stand-in; say so in the pitch.
+- **Box A pins are scarce:** the camera and SD card use most of the ESP32-S3 Sense GPIO. Keep box A to DHT11, water level, sound, button, buzzer, tilt switch. Put GY-521, flame, PIR and OLED on box B.
+
+### Communication design
+
+```
+Box B (ESP32) --ESP-NOW--> Box A (ESP32-S3 Sense) --USB serial--> Uno Q hub --Wi-Fi--> Cloudflare API --> command center
+                                  \--> microSD log (durable, sequence-numbered)
+```
+
+- **Normal mode:** each box joins Wi-Fi and batches readings to `POST /api/ingest` every ~5 s with its `X-Device-Key` (see [API.md](API.md)). Use a phone hotspot, not campus Wi-Fi (eduroam/captive portal). ESP32 radios are **2.4 GHz only**; on iPhone enable Personal Hotspot → *Maximize Compatibility*.
+- **ESP-NOW:** Espressif peer-to-peer radio built into every ESP32, no router needed, ~100–200 m open air, 250-byte frames. When a box is also connected to Wi-Fi, ESP-NOW peers must use the access point's channel.
+- **Uno Q:** its Wi-Fi lives on the Linux side and cannot speak ESP-NOW, so box A bridges ESP-NOW frames to it over USB serial. The Uno Q stores them, serves a LAN dashboard, and forwards to the cloud when internet is available.
+- **Offline behavior (store-and-forward):** boxes keep logging to SD with RTC timestamps and sequence numbers; on reconnection the backlog is replayed in order and deduplicated. The command center must show a silent box as *stale/unknown*, never safe. Do not label ESP-NOW relay or buffered replay as live internet connectivity.
+- **Power-loss detection:** USB 5 V through a resistor divider into an ADC pin (keep the pin under 3.3 V; check with the multimeter first) while the diode-OR'd AA pack keeps the board running. Report `power.mains` readings and a `power.lost` event.
+
+### Sensor → API mapping
+
+| Reading / event | Sensor | Unit / values |
+| --- | --- | --- |
+| `temp_c`, `humidity_pct` | DHT11 | °C, % |
+| `water_level` | Water Level Sensor (ADC) | raw 0–4095 (calibrate dry/wet) |
+| `accel_g`, `tilt` | GY-521, tilt switch | g, boolean |
+| `flame` | Flame sensor | boolean |
+| `motion` | PIR | boolean |
+| `sound_level`, event `alarm.beeping` | Sound sensor | raw / event |
+| `power.mains`, event `power.lost` | Divider on USB 5 V | boolean |
+| event `help.request`, `ok.report` | Button | — |
+| `battery_v`, `rssi` | Divider on pack, Wi-Fi | V, dBm |
+
+Suggested rules: `water_level > <wet threshold>` (critical), `flame == 1`, `temp_c > 50`, `accel_g > 1.5`.
+
+---
+
+## Earlier exploration (historical)
+
+Stock below is a November 7, 2026 afternoon snapshot from signed-in HARP and can change at any time.
 
 ## Initial smart-fridge proposal
 
