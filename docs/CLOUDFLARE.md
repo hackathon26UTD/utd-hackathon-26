@@ -4,9 +4,12 @@ Framework-neutral Pages starter. No product decision, app data model, or fronten
 
 ## Current state
 
-- Source ready: home, status, 404, and `GET /api/health` Pages Function.
-- Existing Cloudflare Global API Key authentication is verified locally. Hosted Pages project, CI credentials, and MongoDB application connection remain pending.
-- Health checks only confirm the function runs and whether backend variables exist. They do not test database connectivity.
+- Pages project: `utd-hackathon-26`, with encrypted MongoDB URI in preview and production settings.
+- Public database name is tracked in `wrangler.jsonc`; never put the URI there.
+- Existing global API key remains local. CI uses a separate account-scoped Pages Write token without an expiration, stored as GitHub Actions `CLOUDFLARE_API_TOKEN`.
+- Repository variables `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_DEPLOY_ENABLED=true` are configured.
+- CI gates preview/main deployments on tests and build. The deployment script verifies the live site and real database readiness before passing.
+- Preview: https://pr-8.utd-hackathon-26.pages.dev/status. Production follows main after merge.
 
 ## Run locally
 
@@ -17,7 +20,7 @@ cp .dev.vars.example .dev.vars
 npm run dev
 ```
 
-Open the local address printed by Wrangler. `/status` displays API status. `/api/health` returns no credential values. Do not put privileged keys in `public/` or browser code. `.env` is not the Pages Functions local environment; use `.dev.vars`.
+Open the local address printed by Wrangler. `/status` displays API status. `/api/health` returns no credential values. `/api/ready` performs an actual MongoDB ping and returns 503 on failure. Do not put privileged keys in `public/` or browser code. `.env` is not the Pages Functions local environment; use `.dev.vars`.
 
 ```sh
 npm run build
@@ -47,7 +50,7 @@ Set GitHub Actions repository variables:
 - `CLOUDFLARE_ACCOUNT_ID`: intended account ID.
 - `CLOUDFLARE_DEPLOY_ENABLED`: `true` only when the project, token, and deployment configuration are ready.
 
-The workflow is disabled until enabled. Once enabled, changes merged to main in deployment-related paths deploy the site publicly. Pull requests do not get deployment credentials or trigger this workflow. The chosen token permissions determine its account-wide impact; record actual scope and expiration without storing the value here. If collaborator permissions prevent setting repository secrets/variables, Adyaan must add them.
+The workflow is now enabled. Main pushes run tests then deploy production. Same-repository PRs get previews after tests; forks and Dependabot do not receive deployment credentials. Never add an unrestricted global key to CI. The chosen token permissions determine its account-wide impact; record actual scope and expiration without storing the value here. If collaborator permissions prevent setting repository secrets/variables, Adyaan must add them.
 
 ## MongoDB configuration
 
@@ -64,7 +67,7 @@ Redeploy after changing variables. The planned backend needs a database user res
 
 After review and merge, enable the repository variable and run the deployment workflow. Or, with the approved token in your local environment, run `npm run deploy` from the repository root. Do not pass secrets as command-line arguments.
 
-Check `/`, `/status`, `/api/health`, and an unknown path (404). Confirm the returned `pages.dev` URL and commit in the Cloudflare dashboard. Record the actual URL and account owner here. No hosted URL is assigned by this starter.
+Check `/`, `/status`, `/api/health`, and an unknown path (404). Confirm the returned `pages.dev` URL and commit in the Cloudflare dashboard. Record the actual URL and account owner here. The configured project is `utd-hackathon-26`; stable URLs are listed above.
 
 ## References
 
@@ -76,4 +79,10 @@ Check `/`, `/status`, `/api/health`, and an unknown path (404). Confirm the retu
 
 The user authorized reusing their existing Global API Key. The ignored local `.env` contains `CLOUDFLARE_API_KEY`, `CLOUDFLARE_EMAIL`, and `CLOUDFLARE_ACCOUNT_ID`; account REST access returned HTTP 200. GitHub authentication is also verified. No new key was created and no credential values belong here. The user's priority is CLI/API first and hands-off execution, using Chrome for setup only when necessary.
 
-Wrangler supports key/email authentication as an alternative to `CLOUDFLARE_API_TOKEN`: [supported environment variables](https://developers.cloudflare.com/workers/wrangler/system-environment-variables/). The included CI workflow still expects a scoped `CLOUDFLARE_API_TOKEN` in GitHub Actions; it remains disabled and no personal global key has been copied to shared CI. `.dev.vars` keeps runtime development variables separate from the local management `.env`; do not expose management credentials in app responses.
+Wrangler supports key/email authentication as an alternative to `CLOUDFLARE_API_TOKEN`: [supported environment variables](https://developers.cloudflare.com/workers/wrangler/system-environment-variables/). The CI workflow now uses the dedicated scoped `CLOUDFLARE_API_TOKEN` configured in GitHub Actions. No personal global key was copied to shared CI. `.dev.vars` keeps runtime development variables separate from the local management `.env`; do not expose management credentials in app responses.
+
+## CI/runtime details
+
+The MongoDB service check runs on `ubuntu-22.04`; MongoDB 8.0 rejected the kernel on the original newer runner. Context: https://www.mongodb.com/docs/manual/release-notes/8.0/ and https://jira.mongodb.org/browse/SERVER-121912. The deploy job can run on the current Ubuntu image. Node compatibility is set explicitly for the MongoDB driver.
+
+`scripts/deploy.mjs` uses Wrangler, reads the resulting immutable deployment URL, and verifies `/api/ready` and the home page. Branch aliases may take a short time to propagate. Build success or upload success alone does not establish a working hosted database connection.

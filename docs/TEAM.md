@@ -9,9 +9,7 @@ Assign these roles together. Each person owns a deliverable and backs up another
 | Collaborator 2 | Backend / API | Agreed request and response contract |
 | Collaborator 3 | Data / core feature and QA | Working core capability and acceptance checklist |
 
-The repository is owned by the `hackathon26UTD` organization. `aa3264`, `dnpatel2311`, and `Abasheer-rion` have active organization Owner access, which includes full repository administration. Invitations for `UhhSaif` are deferred at the owner's request. Workstream assignments remain to be confirmed. The integrator coordinates the demo and submission with the entire team.
-
-Private team contacts are in [CONTACTS.md](CONTACTS.md) (private repository only). A later check of the GitHub organization also listed `UhhSaif`; verify live Atlas and Cloudflare access separately.
+The repository is owned by `hackathon26UTD`. `aa3264`, `dnpatel2311`, and `abasheer-rion` have active organization Owner access. `UhhSaif` was also visible in the organization; confirm current membership before sending another invitation. Private team contact details and identity confidence are recorded in [CONTACTS.md](CONTACTS.md), at Ayan's explicit request. Workstream ownership remains unassigned.
 
 ## First 20 minutes
 

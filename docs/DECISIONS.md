@@ -4,7 +4,7 @@ Updated November 7, 2026. Proposed items are not commitments.
 
 | Topic | Current position | Status / history |
 | --- | --- | --- |
-| Product | Undecided | Smart fridge magnet was initial concept; Ayan challenged phone substitution and problem strength. |
+| Product | House disaster black box / incident recorder | User selected this direction for planning; fridge magnet is superseded. See HOME_BLACK_BOX.md. |
 | Hardware requirement | Must have a meaningful sensing/physical role if chosen | Cold storage, equipment monitoring, and leak sensing discussed; none selected. |
 | Database | MongoDB | Explicitly replaces Supabase. No hosted resource deletion requested or performed. |
 | Hosting | Cloudflare | Requested; starter prepared, login/deployment pending. |
@@ -25,3 +25,7 @@ Updated November 7, 2026. Proposed items are not commitments.
 - Which organization repo and Atlas project are authoritative?
 - Which of the actual 2026 tracks permit this project, and how many may be entered?
 - Which teammate owns frontend, backend/data, hardware, and integration/demo?
+
+## Home black-box planning update
+
+User-proposed goals: power/network loss, air quality, moisture/water, local inference/logging, battery conservation, regional map and weather context. Recommended framing is response priority based on observed hazards and information freshness, not a calibrated insurance risk/payout score. A working fallback network is required for live reporting when home internet fails; otherwise use honest offline replay. Critical sensing/logging should not depend on AI availability.

@@ -1,6 +1,6 @@
 # MongoDB setup
 
-The team selected MongoDB Atlas for the shared backend. The free cluster is running and a database statistics command returned `ok: 1`. Teammate Owner invitations are awaiting acceptance; application credentials and client IP access remain to be configured. The optional local database is configured in `compose.yaml`.
+The team selected MongoDB Atlas for the shared backend. The free cluster is running and a database statistics command returned `ok: 1`. Application credentials and local/hosted network access are now configured; dashboard invitations are historical and should be verified live. The optional local database is configured in `compose.yaml`.
 
 ## Shared Atlas environment
 
@@ -65,3 +65,11 @@ Reference: [MongoDB's official Docker image](https://www.mongodb.com/docs/manual
 Ayan requested Atlas administration credentials, plus GitHub and Cloudflare API credentials, in an ignored local `.env`, with broad privileges and no expiration where supported. No Atlas administration key has been created. The signed-in account currently shows an older personal organization; confirm the dedicated hackathon organization before credential creation. Actual scopes and expiration must be reported, not assumed.
 
 An Atlas administration API key manages Atlas infrastructure and does not grant direct reads/writes of application collections. Database users and `MONGODB_URI` remain separate. No credential values belong in Markdown, source, or client bundles. See PROJECT_CONTEXT.md and WORKLOG.md for verified state.
+
+## Application connection completed in this work
+
+Created `hackathon26-app` with `readWrite` on `utd_hackathon_26` only. The user approved allowing `0.0.0.0/0` so Cloudflare can connect from changing IPs; SCRAM/password and TLS are required. The original local `/32` entry remains. Do not confuse this database login with Atlas administrative API credentials.
+
+Credentials are only in ignored local `.env` / `.dev.vars` and encrypted Cloudflare Pages runtime settings. Preview and production use this hackathon database; preview is not a separate data sandbox.
+
+`npm run test:db` performs a ping, inserts/reads one uniquely identified document in `_integration_checks`, and removes only that document. It passed against Atlas. `/api/ready` also passed through the local Cloudflare runtime. CI runs this integration check against its own isolated MongoDB service, with no hosted database credentials. Every deployment checks the hosted `/api/ready`; inspect the latest CI/CD result for current live status.
