@@ -105,3 +105,7 @@ Added a shared exercise-only demo login, server-enforced separation from live da
 ## Public product experience revision
 
 User rejected the login-first homepage as incomplete and requested a full marketing site with stronger animation and navigation. Added a separate public homepage, sticky product navigation, interactive illustrated neighborhood with outage playback and signal transport, hardware cutaway, actual command-center preview, practical FAQ and portal entry. Portal redirects authenticated users to the workspace and visitors to sign-in. Scenario playback has pause controls, respects reduced motion and does not represent live readings. Added mobile/reflow, automated accessibility, interaction and portal-route checks.
+## November 7, 2026 — shared credential loader (Dhruv, branch `chore/env-access`)
+
+- Labeled `.env.example` by service (GitHub, MongoDB connection, Atlas Admin API, Cloudflare, team API, data feeds, NVIDIA) with the non-secret Atlas org/project IDs filled in. `scripts/env.mjs` loads `.env`/`.dev.vars` for every script and falls back to `gh auth token` for GitHub. `npm run access` reports OK/MISSING/FAILED per credential without printing values; `npm run atlas` wraps common Atlas Admin API calls (service account OAuth or legacy API-key digest).
+- Verified: GitHub OK via gh CLI; live team API reports MongoDB reachable from Cloudflare. Not yet verified: Atlas Admin API calls (no service account created yet), data-feed keys (not issued yet).
