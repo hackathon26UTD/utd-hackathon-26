@@ -1,0 +1,28 @@
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/bricolage-grotesque';
+:root{--ink:#182f3b;--muted:#4d6470;--bg:#f4f6f7;--card:#fff;--line:#d7e0e3;--teal:#21665f;--teal-ink:#fff;--ok:#17653f;--ok-bg:#e3f3ea;--warn:#7a4b00;--warn-bg:#fff0d1;--bad:#8f1d1d;--bad-bg:#fde4e2;--none:#3f525c;--none-bg:#e9eef0;--focus:#0b5fff;font-family:'Geist Variable',system-ui,sans-serif;color:var(--ink);background:var(--bg);font-size:16px;line-height:1.5}
+@media (prefers-color-scheme:dark){:root{--ink:#e8f0f2;--muted:#a9bcc4;--bg:#0f1b21;--card:#16262e;--line:#2a3f49;--teal:#5dc0b3;--teal-ink:#0b1c20;--ok:#8be0b0;--ok-bg:#12382a;--warn:#ffd48a;--warn-bg:#3b2c0b;--bad:#ffb4ae;--bad-bg:#4a1a18;--none:#c3d2d8;--none-bg:#24363f;--focus:#8fb4ff}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg)}h1,h2,h3,.brand{font-family:'Bricolage Grotesque Variable',sans-serif;line-height:1.15}
+.skip{position:absolute;left:-999px;top:0;background:var(--card);padding:8px 12px;z-index:5}.skip:focus{left:8px;top:8px}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.shell{max-width:640px;margin:0 auto;padding:0 16px 48px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 0}.brand{font-weight:700;font-size:20px;color:var(--ink);text-decoration:none}
+main{display:grid;gap:16px}h1{font-size:28px;margin:8px 0 0}h2{font-size:20px;margin:0}p{margin:0}.muted{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px}
+.banner{border:1px dashed var(--teal);border-radius:12px;padding:12px 16px;background:var(--card)}
+button,.btn{font:inherit;min-height:44px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button.primary{background:var(--teal);color:var(--teal-ink);border-color:var(--teal);font-weight:600}button.link{border:0;background:none;text-decoration:underline;min-height:44px;padding:0 4px;color:var(--ink)}button.danger{color:var(--bad)}button[disabled]{opacity:.6;cursor:progress}
+form{display:grid;gap:12px}label{display:grid;gap:4px;font-weight:600}label small{font-weight:400;color:var(--muted)}
+input[type=text],input[type=email],input[type=password]{font:inherit;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+input.mono{font-family:ui-monospace,Menlo,monospace;letter-spacing:.08em;text-transform:uppercase}
+.check{display:flex;gap:12px;align-items:flex-start;font-weight:400}.check input{width:24px;height:24px;margin-top:2px;flex:none}
+.tabs{display:flex;gap:8px}.tabs button[aria-pressed=true]{background:var(--teal);color:var(--teal-ink);border-color:var(--teal)}
+.msg{min-height:1.5em}.msg.err{color:var(--bad)}.msg.ok{color:var(--ok)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;font-weight:700;width:fit-content}.pill::before{content:'';width:10px;height:10px;border-radius:50%;background:currentColor}
+.pill.normal{background:var(--ok-bg);color:var(--ok)}.pill.needs_attention{background:var(--warn-bg);color:var(--warn)}.pill.urgent{background:var(--bad-bg);color:var(--bad)}.pill.no_recent_signal{background:var(--none-bg);color:var(--none);border:1px dashed currentColor}.pill.urgent::before{border-radius:2px}.pill.needs_attention::before{border-radius:0;transform:rotate(45deg)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+ul.plain{list-style:none;margin:0;padding:0;display:grid;gap:8px}ul.plain li{padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}ul.plain strong{display:block}
+.help{border-left:4px solid var(--teal);padding:4px 0 4px 12px}.help.help_on_the_way{border-color:var(--ok)}
+.box{border:2px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px;background:var(--bg)}.box.urgent{border-color:var(--bad)}.box.advisory{border-color:var(--warn)}.box h3{margin:0;font-size:16px}
+.fine{font-size:13px;color:var(--muted)}
+footer{margin-top:24px;display:grid;gap:8px}

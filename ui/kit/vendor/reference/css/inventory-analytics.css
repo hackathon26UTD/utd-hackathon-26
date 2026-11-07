@@ -1,0 +1,508 @@
+/* ============================================================================
+ * INVENTORY › ANALYTICS (rebuilt 2026-09-24)
+ *
+ * The Analytics page and its three views: Reports, Forecast and Shrink, plus
+ * the two blocks Reports mounts (register exceptions, stock value). The page
+ * anatomy (head row, KPI strip, sections, "?" tips, framed tables, guided
+ * empty states) is the shared `.inv-sub*` set in css/inventory-order.css; this
+ * sheet holds only what is Analytics' own: the view switch, the ranking bars,
+ * the stock-health band, the "Right now" seam, the stock-value callout and
+ * the forecast chart and its very large figures on the standalone page.
+ *
+ * Every colour is a token: --kit-* (they flip with the theme under `.kit`)
+ * and the module accent --crm-mod. No raw colour, no palette of its own.
+ *
+ * Motion (Kit.motion.reveal): bars and bands draw in once per visit. The
+ * observed element is never hidden, only its moving children; nothing loops;
+ * every animated rule has a reduced-motion entry.
+ *
+ * ⛔ Loaded with loadInventoryBundle() AND ROUTE_STYLES.hermes (js/main.js),
+ * so the standalone Forecast page, which awaits the bundle, gets it too.
+ * ⛔ No control is a pill; no class contains card, panel, widget, tile, -page
+ * or spin.
+ * ========================================================================== */
+
+/* ── The page ─────────────────────────────────────────────────────────── */
+.inv-analytics {
+    min-width: 0;
+}
+
+.inv-analytics__views {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* The view switch is the page's navigation, so it is a size up from the
+   filters inside each view. */
+.kit .inv-analytics__segs .kit-seg {
+    min-height: 36px;
+    padding: 8px 18px;
+    font-size: 13.5px;
+}
+
+.inv-analytics__body,
+.inv-an-reports,
+.inv-an-shrink,
+.inv-fc__main {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+/* A view whose kit did not load says so in one line. */
+.inv-analytics__nokit {
+    margin: 0;
+    padding: 24px 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+
+/* The read's source badge, at the right end of a toolbar. */
+.inv-an__source,
+.inv-fc__source {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+}
+
+/* ── Reports: ranked tables ───────────────────────────────────────────── */
+.inv-an__ranks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(520px, 100%), 1fr));
+    gap: 18px;
+    align-items: start;
+}
+
+/* A figure over a slim bar. The bar is the row's share of the largest, on the
+   same field the table is ranked by. */
+.inv-an__metric {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 110px;
+}
+
+.inv-an__metric-n {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-an__track {
+    display: block;
+    height: 6px;
+    margin-top: 6px;
+    border-radius: 3px;
+    background: var(--kit-meter-bg);
+    overflow: hidden;
+}
+
+/* Nothing to compare the row on: an empty, hatched track, never a bar drawn
+   off a different field. */
+.inv-an__track--none {
+    background: repeating-linear-gradient(135deg, var(--kit-line) 0 4px, transparent 4px 8px);
+}
+
+.inv-an__fill {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--crm-mod, var(--kit-accent));
+    transform-origin: left center;
+}
+
+.kit-table.is-motion-waiting .inv-an__fill {
+    transform: scaleX(0);
+}
+
+.kit-table.is-motion-playing .inv-an__fill {
+    animation: inv-an-bar 700ms var(--kit-ease) both;
+    animation-delay: calc(var(--motion-lag, 0ms) + var(--motion-i, 0) * 22ms);
+}
+
+@keyframes inv-an-bar {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* ── Reports: the seam between ranged and point-in-time figures ───────── */
+.inv-an__seam {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.inv-an__seam::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--kit-line);
+}
+
+.inv-an__seam-label {
+    font-size: var(--kit-fs-caption);
+    font-weight: 650;
+    color: var(--kit-ink-2);
+    white-space: nowrap;
+}
+
+/* ── Reports: stock health, a compact band ────────────────────────────── */
+.inv-an__health {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: 12px;
+}
+
+.inv-an__health-lead {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.inv-an__health-figure {
+    font-size: 28px;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--kit-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-an__health-caption {
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-2);
+}
+
+.inv-an__health-bar {
+    display: flex;
+    gap: 2px;
+    height: 12px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--kit-meter-bg);
+}
+
+.inv-an__health-seg {
+    min-width: 3px;
+}
+
+.inv-an__health-seg--critical,
+.inv-an__health-dot--critical {
+    background: var(--kit-bad);
+}
+
+.inv-an__health-seg--low,
+.inv-an__health-dot--low {
+    background: var(--kit-amber);
+}
+
+.inv-an__health-seg--healthy,
+.inv-an__health-dot--healthy {
+    background: var(--kit-ok);
+}
+
+.inv-an__health-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-an__health-key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inv-an__health-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.inv-an__health.is-motion-waiting .inv-an__health-bar {
+    clip-path: inset(0 100% 0 0);
+}
+
+.inv-an__health.is-motion-playing .inv-an__health-bar {
+    animation: inv-an-fill 700ms var(--kit-ease) both;
+    animation-delay: var(--motion-lag, 0ms);
+}
+
+@keyframes inv-an-fill {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+/* ── Register exceptions ──────────────────────────────────────────────── */
+.inv-an-rex__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.inv-an-rex__block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.inv-an-rex__sub {
+    margin: 0;
+    font-size: var(--kit-fs-caption);
+    font-weight: 650;
+    color: var(--kit-ink-2);
+}
+
+.inv-an-rex__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* ── Stock value ──────────────────────────────────────────────────────── */
+.inv-an-val__cov {
+    display: inline-flex;
+}
+
+.inv-an-val__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inv-an-val__row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    gap: 14px;
+    align-items: stretch;
+}
+
+.inv-an-val__fig {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.inv-an-val__fig > .kit-bal {
+    flex: 1 1 auto;
+}
+
+/* The unvalued hole: always the amount the figure understates by. */
+.inv-an-val__gap {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 18px;
+    background: var(--kit-warn-tint);
+    border: 1px solid var(--kit-line);
+    border-radius: 12px;
+}
+
+.inv-an-val__gap--bad {
+    background: var(--kit-bad-tint);
+    border-color: var(--kit-bad-line);
+}
+
+.inv-an-val__gap-words {
+    flex: 1;
+    min-width: 0;
+}
+
+.inv-an-val__gap-title {
+    font-size: 14px;
+    font-weight: 650;
+    color: var(--kit-ink);
+}
+
+.inv-an-val__gap-body {
+    margin: 4px 0 0;
+    font-size: var(--kit-fs-caption);
+    line-height: 1.5;
+    color: var(--kit-ink-2);
+}
+
+.inv-an-val__cat {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* ── Forecast ─────────────────────────────────────────────────────────── */
+.inv-fc {
+    min-width: 0;
+}
+
+/* `body.light-mode .inv-tokens` paints Inventory's ground white. On the
+   standalone Forecast page that was a white slab on the grey sheet; by id, so
+   nothing inside Inventory is touched. */
+#argus-os-forecast-mount.inv-tokens {
+    background: transparent !important;
+}
+
+.inv-fc__caption {
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+
+.inv-fc__status {
+    margin-bottom: 2px;
+}
+
+.inv-fc__kpis {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.inv-fc__kpi {
+    min-width: 0;
+}
+
+.kit .inv-fc__kpi--up .kit-bal__main {
+    color: var(--crm-mod-ink, var(--kit-ok));
+}
+
+.kit .inv-fc__kpi--down .kit-bal__main {
+    color: var(--kit-bad);
+}
+
+/* A gapped register feed changes what the money means: its note is a
+   warning, not fine print. */
+.kit .inv-fc__kpi--warned .kit-bal__note {
+    color: var(--kit-warn);
+    font-weight: 600;
+}
+
+.inv-fc__legend {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+
+.inv-fc__key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inv-fc__key::before {
+    content: '';
+    width: 16px;
+    height: 0;
+    border-top: 2px solid var(--kit-ink-2);
+}
+
+.inv-fc__key--actual::before {
+    border-top-color: var(--kit-ink-2);
+}
+
+.inv-fc__key--forecast::before {
+    border-top: 2px dashed var(--crm-mod-ink, var(--kit-accent));
+}
+
+.inv-fc__key--band::before {
+    height: 10px;
+    border-top: 0;
+    border-radius: 2px;
+    background: rgba(var(--crm-mod-rgb, 100, 116, 139), 0.22);
+}
+
+.inv-fc__plot {
+    padding: 14px 16px 10px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: 12px;
+}
+
+.inv-fc__canvas {
+    position: relative;
+    height: 300px;
+}
+
+.inv-fc__canvas canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.inv-fc__plot.is-motion-waiting .inv-fc__canvas {
+    clip-path: inset(0 100% 0 0);
+}
+
+.inv-fc__plot.is-motion-playing .inv-fc__canvas {
+    animation: inv-an-fill 900ms var(--kit-ease) both;
+    animation-delay: var(--motion-lag, 0ms);
+}
+
+/* The standalone page: the figures, very large (owner, 2026-09-22: "make it
+   just very large KPI's"). Money spans the row; the rest sit two up. */
+.inv-fc--big .inv-fc__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.inv-fc--big .inv-fc__kpi--hero {
+    grid-column: 1 / -1;
+}
+
+.kit .inv-fc--big .kit-bal > * {
+    --bal-main: clamp(56px, 6.2vw, 96px);
+    --bal-frac: 28px;
+    --bal-label: 16px;
+    --bal-meta: 15px;
+}
+
+.kit .inv-fc--big .inv-fc__kpi--hero .kit-bal > * {
+    --bal-main: clamp(72px, 8vw, 128px);
+}
+
+.inv-fc--big .kit-bal {
+    min-height: 220px;
+}
+
+@media (max-width: 760px) {
+    .inv-fc--big .inv-fc__kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .inv-fc__canvas {
+        height: 240px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kit-table.is-motion-playing .inv-an__fill,
+    .inv-an__health.is-motion-playing .inv-an__health-bar,
+    .inv-fc__plot.is-motion-playing .inv-fc__canvas {
+        animation: none;
+    }
+
+    .kit-table.is-motion-waiting .inv-an__fill {
+        transform: none;
+    }
+
+    .inv-an__health.is-motion-waiting .inv-an__health-bar,
+    .inv-fc__plot.is-motion-waiting .inv-fc__canvas {
+        clip-path: none;
+    }
+}

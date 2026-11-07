@@ -22,3 +22,29 @@ export async function readSession(request,env) {
 }
 export function sessionCookie(token,maxAge=28800){return `${COOKIE}=${token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`;}
 export function sameOrigin(request){return request.headers.get('Origin')===new URL(request.url).origin;}
+// Customer sessions: separate cookie, separate derived signing key, role strictly "customer".
+// A customer token never verifies as an operator token and the reverse, and readSession() above
+// still accepts only operator or demo.
+export const CUSTOMER_COOKIE = '__Host-homebeacon_customer';
+async function customerKey(secret) {
+  const root=await signingKey(secret);
+  const derived=await crypto.subtle.sign('HMAC',root,encoder.encode('homebeacon:customer-session:v1'));
+  return crypto.subtle.importKey('raw',derived,{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+}
+export async function issueCustomerSession(env,email) {
+  const payload=b64(encoder.encode(JSON.stringify({email,iat:Date.now(),exp:Math.floor(Date.now()/1000)+28800,role:'customer'})));
+  const sig=b64(await crypto.subtle.sign('HMAC',await customerKey(env.SESSION_SECRET),encoder.encode(payload)));
+  return payload+'.'+sig;
+}
+// `db` is optional: when given it is used for the password-change revocation check instead of opening a second connection.
+export async function readCustomerSession(request,env,db) {
+  if(!env.SESSION_SECRET)return null;
+  const token=(request.headers.get('Cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(CUSTOMER_COOKIE+'='))?.slice(CUSTOMER_COOKIE.length+1);
+  if(!token)return null;
+  try {const [payload,sig,...rest]=token.split('.');if(rest.length||!payload||!sig)return null;const okay=await crypto.subtle.verify('HMAC',await customerKey(env.SESSION_SECRET),unb64(sig),encoder.encode(payload));if(!okay)return null;const data=JSON.parse(new TextDecoder().decode(unb64(payload)));if(!(data.exp>Date.now()/1000&&data.role==='customer'&&typeof data.email==='string'))return null;
+    const check=async d=>{const account=await d.collection('customer_accounts').findOne({_id:data.email});if(!account)return false;return !(account.passwordChangedAt&&(!data.iat||data.iat<new Date(account.passwordChangedAt).getTime()));};
+    if(db)return await check(db)?data:null;
+    if(env.MONGODB_URI)return await withDatabase(env,check)?data:null;
+    return data;} catch {return null;}
+}
+export function customerCookie(token,maxAge=28800){return `${CUSTOMER_COOKIE}=${token}; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`;}
