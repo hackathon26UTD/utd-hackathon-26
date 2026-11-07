@@ -1,0 +1,33 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.secrets/
+
+# Common build and dependency artifacts
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+.vercel/
+.netlify/
+coverage/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+target/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*.sqlite
+*.sqlite3

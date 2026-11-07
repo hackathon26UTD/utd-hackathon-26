@@ -1,0 +1,21 @@
+name: Starter checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: starter-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  starter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check tracked whitespace
+        run: git ls-files -z | xargs -0 -n 1 git diff --no-index --check /dev/null
+      - name: Check publishing helper syntax
+        run: python3 -m py_compile scripts/publish.py
+      # Add application lint, test, and build steps after choosing the stack.

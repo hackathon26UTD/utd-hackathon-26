@@ -1,0 +1,21 @@
+name: Bug
+description: Something blocks or breaks the expected behavior
+title: "[Bug] "
+body:
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Environment and evidence
+      description: Browser, commit, sanitized logs, or screenshots. Do not include secrets.
