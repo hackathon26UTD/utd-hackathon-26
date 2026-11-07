@@ -44,3 +44,7 @@ dump/
 !.dev.vars.example
 # Cache left by the earlier backend setup
 supabase/.temp/
+
+public/assets/
+
+work/
