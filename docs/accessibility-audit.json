@@ -1,0 +1,30 @@
+[
+  {
+    "path": "/login",
+    "violations": []
+  },
+  {
+    "path": "/demo",
+    "violations": []
+  },
+  {
+    "path": "/privacy",
+    "violations": []
+  },
+  {
+    "path": "/terms",
+    "violations": []
+  },
+  {
+    "path": "/cookies",
+    "violations": []
+  },
+  {
+    "path": "/accessibility",
+    "violations": []
+  },
+  {
+    "path": "/reset-password",
+    "violations": []
+  }
+]

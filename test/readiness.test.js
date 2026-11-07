@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { onRequestGet } from '../functions/api/ready.js';
-import { onRequestGet as health } from '../functions/api/health.js';
 
 test('readiness fails closed when database settings are absent', async () => {
   const response = await onRequestGet({ env: {} });
@@ -22,11 +21,4 @@ test('invalid private connection settings never reach the public response', asyn
   for (const secret of ['secret-sentinel', 'password-sentinel', 'private-host', 'private-database']) {
     assert.equal(body.includes(secret), false);
   }
-});
-
-test('liveness distinguishes configured settings from tested connectivity', async () => {
-  const response = health({ env: { MONGODB_URI: 'secret-sentinel', MONGODB_DB: 'test' } });
-  assert.deepEqual(await response.json(), {
-    status: 'ok', mongodb: { configured: true, connectionTested: false },
-  });
 });

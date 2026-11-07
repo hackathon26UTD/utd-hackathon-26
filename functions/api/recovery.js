@@ -1,0 +1,10 @@
+import {withDatabase} from '../../lib/mongodb.js';
+import {passwordHash,equal,sameOrigin,sessionCookie} from '../../src/operator-session.js';
+import {sha256Hex} from '../../src/auth.js';
+export async function onRequestPost({request,env}){
+ if(!sameOrigin(request))return Response.json({error:'Invalid origin.'},{status:403});
+ try{const raw=await request.text();if(raw.length>4096)return Response.json({error:'Request too large.'},{status:413});const b=JSON.parse(raw);if(typeof b.email!=='string'||typeof b.recoveryCode!=='string'||b.recoveryCode.length>256||typeof b.password!=='string'||b.password.length<12||b.password.length>512)return Response.json({error:'Enter your email, recovery code, and a password of at least 12 characters.'},{status:400});
+ return await withDatabase(env,async db=>{const key='recovery:'+await sha256Hex((request.headers.get('CF-Connecting-IP')||'local')+env.SESSION_SECRET);const attempts=db.collection('login_attempts');const since=new Date(Date.now()-900000);if(await attempts.countDocuments({key,at:{$gte:since}})>=8)return Response.json({error:'Too many attempts. Try again in 15 minutes.'},{status:429});await attempts.insertOne({key,at:new Date()});
+ const col=db.collection('operator_accounts');const account=await col.findOne({_id:b.email.trim().toLowerCase()});const codeHash=await sha256Hex(b.recoveryCode.trim());if(!account?.recoveryHash||!equal(account.recoveryHash,codeHash))return Response.json({error:'Email or recovery code is incorrect.'},{status:400});const salt=crypto.randomUUID();const result=await col.updateOne({_id:account._id,recoveryHash:codeHash},{$set:{salt,hash:await passwordHash(b.password,salt),passwordChangedAt:new Date()},$unset:{recoveryHash:''}});if(!result.modifiedCount)return Response.json({error:'This recovery code has already been used.'},{status:400});return Response.json({reset:true},{headers:{'Set-Cookie':sessionCookie('',0),'Cache-Control':'no-store'}});
+ });}catch{return Response.json({error:'Password recovery is unavailable.'},{status:503});}
+}
