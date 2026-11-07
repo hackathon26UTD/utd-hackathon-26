@@ -8,3 +8,9 @@ API_ADMIN_KEY=
 API_PUBLIC_READ=true
 # Comma-separated allowed origins for browser calls, or *
 CORS_ORIGINS=*
+
+# Optional NVIDIA hosted API or a team-hosted OpenAI-compatible NIM endpoint.
+# Keep credentials server-side. Never prefix secrets with PUBLIC or VITE.
+# NVIDIA_API_KEY=
+# NVIDIA_MODEL=nvidia/llama-3.3-nemotron-super-49b-v1.5
+# NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1

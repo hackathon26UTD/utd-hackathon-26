@@ -8,6 +8,7 @@ export async function onRequest(context){
   const session=await readSession(request,env);
   if(!session)return Response.json({error:'Sign in to view this data.'},{status:401,headers:{'Cache-Control':'no-store'}});
   if(!['GET','HEAD'].includes(request.method)&&!sameOrigin(request))return Response.json({error:'Request origin is not allowed.'},{status:403});
+  if(session.role==='demo'&&!((request.method==='GET'&&['/api/account','/api/command-center'].includes(path))||(request.method==='POST'&&path==='/api/layers')))return Response.json({error:'Demo accounts can view exercise data only.'},{status:403});
   context.data.operator=session;
   const headers=new Headers(request.headers);headers.set('Authorization','Bearer '+env.API_ADMIN_KEY);
   return context.next(new Request(request,{headers}));
