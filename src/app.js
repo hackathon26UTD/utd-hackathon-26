@@ -37,7 +37,7 @@ export async function handle(request, env = {}, { db } = {}) {
     if (err instanceof HttpError) {
       res = json({ error: err.message, ...(err.details ? { details: err.details } : {}) }, err.status);
     } else {
-      console.error('Unhandled API error', err?.name, err?.message);
+      console.error('Unhandled API error', err?.name);
       const dbDown = /Mongo|ECONNREFUSED|ETIMEDOUT|Server selection/i.test(`${err?.name} ${err?.message}`);
       res = json({ error: dbDown ? 'Database unavailable' : 'Internal error' }, dbDown ? 503 : 500);
     }

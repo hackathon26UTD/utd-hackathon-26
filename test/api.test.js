@@ -9,10 +9,11 @@ const ADMIN = 'ak_test_admin';
 let mongod, client, db, env;
 
 before(async () => {
-  mongod = await MongoMemoryServer.create();
-  client = await MongoClient.connect(mongod.getUri());
+  if(!process.env.TEST_MONGODB_URI)mongod = await MongoMemoryServer.create();
+  const uri=process.env.TEST_MONGODB_URI||mongod.getUri();
+  client = await MongoClient.connect(uri);
   db = client.db('api_test');
-  env = { API_ADMIN_KEY: ADMIN, MONGODB_URI: mongod.getUri(), MONGODB_DB: 'api_test' };
+  env = { API_ADMIN_KEY: ADMIN, MONGODB_URI: uri, MONGODB_DB: 'api_test' };
 });
 after(async () => {
   await client?.close();
