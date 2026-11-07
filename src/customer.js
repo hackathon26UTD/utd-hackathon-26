@@ -90,7 +90,7 @@ async function depsFor(ctx) {
     loadRisk: d.loadRisk || (await loadRiskMod())?.loadRisk,
     customerView: d.customerView || (await customerViewMod())?.customerView,
     customerMessages: d.customerMessages || (await messagesMod())?.customerMessages,
-    markCustomerSeen: d.markCustomerSeen || (await messagesMod())?.markCustomerSeen,
+    markCustomerSeen: Object.hasOwn(d,'markCustomerSeen') ? d.markCustomerSeen : (await messagesMod())?.markCustomerSeen,
     writeAudit: d.writeAudit || (await liveMod())?.writeAudit,
   };
 }
