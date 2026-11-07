@@ -30,7 +30,11 @@ export function shortDate(date: string): string {
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00Z`));
 }
-export function forecast(portfolio: Portfolio, scenario: Scenario): Forecast {
+export function forecast(
+  portfolio: Portfolio,
+  scenario: Scenario,
+  additionalEvents: ReadonlyArray<Omit<LedgerEvent, "id">> = [],
+): Forecast {
   const openingCents = portfolio.accounts
     .filter(
       (a) =>
@@ -113,7 +117,13 @@ export function forecast(portfolio: Portfolio, scenario: Scenario): Forecast {
       "Income",
     );
     for (
-      let payday = scenario.firstPayDate;
+      let payday =
+        scenario.firstPayDate < start
+          ? addDays(
+              scenario.firstPayDate,
+              Math.ceil(daysBetween(scenario.firstPayDate, start) / 14) * 14,
+            )
+          : scenario.firstPayDate;
       payday <= end;
       payday = addDays(payday, 14)
     )
@@ -130,6 +140,8 @@ export function forecast(portfolio: Portfolio, scenario: Scenario): Forecast {
     -scenario.purchaseCents,
     "Purchase",
   );
+  for (const event of additionalEvents)
+    add(event.date, event.name, event.amountCents, event.category);
   events.sort(
     (a, b) => a.date.localeCompare(b.date) || b.amountCents - a.amountCents,
   );

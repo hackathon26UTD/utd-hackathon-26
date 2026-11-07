@@ -51,6 +51,7 @@ import {
   type Scenario,
 } from "@/lib/model";
 import CashChart from "./cash-chart";
+import { BriefButton, RepairPanel, StressPanel } from "./decision-tools";
 
 type Status = {
   nessie: boolean;
@@ -63,7 +64,7 @@ type View = "forecast" | "accounts" | "plans" | "method";
 type Plan = SavedPlan & { storage?: "atlas" | "browser" };
 const storedPlanSchema = planInputSchema.extend({
   id: z.string(),
-  savedAt: z.string(),
+  savedAt: z.string().datetime(),
   storage: z.enum(["atlas", "browser"]).optional(),
 });
 const jsonHeaders = { "Content-Type": "application/json" };
@@ -282,8 +283,9 @@ export default function FutureYou() {
     setPlans(next);
     try {
       localStorage.setItem("futureyou-plans-v1", JSON.stringify(next));
+      return true;
     } catch {
-      notify("Browser storage is full. Export your timeline to keep a copy.");
+      return false;
     }
   }
   function choose(p: Scenario) {
@@ -294,6 +296,12 @@ export default function FutureYou() {
     setScenario(defaultScenario);
     setPortfolio(demoPortfolio);
     setView("forecast");
+    setCompare(true);
+    setFilter("all");
+    setMenuOpen(false);
+    setModal(null);
+    setConnectionError("");
+    setInsight(null);
     notify(
       "Demo reset to Maya’s original internship plan. Saved plans are unchanged.",
     );
@@ -348,7 +356,12 @@ export default function FutureYou() {
           message = "Cloud save was unavailable. Plan saved in this browser.";
         }
       }
-      persistPlans([saved, ...plans].slice(0, 20));
+      const persisted = persistPlans([saved, ...plans].slice(0, 20));
+      if (!persisted)
+        message =
+          saved.storage === "atlas"
+            ? "Plan saved to Atlas; browser storage is unavailable."
+            : "Plan is only in memory because browser storage is unavailable. Download a decision brief before closing.";
       change("name", named.name);
       setModal(null);
       notify(message);
@@ -370,8 +383,12 @@ export default function FutureYou() {
         return;
       }
     }
-    persistPlans(plans.filter((p) => p.id !== plan.id));
-    notify("Saved plan removed.");
+    const persisted = persistPlans(plans.filter((p) => p.id !== plan.id));
+    notify(
+      persisted
+        ? "Saved plan removed."
+        : "Removed from this session, but browser storage could not be updated.",
+    );
   }
   function exportTimeline() {
     const url = URL.createObjectURL(
@@ -504,6 +521,9 @@ export default function FutureYou() {
             </strong>
           </div>
           <div className="top-actions">
+            <a className="text-button demo-link" href="/demo">
+              Present demo <ArrowUpRight size={14} />
+            </a>
             <button className="text-button reset-button" onClick={reset}>
               <RotateCcw size={14} />
               Reset demo
@@ -700,80 +720,19 @@ export default function FutureYou() {
                     </div>
                   </section>
                   {scenario.kind === "internship" && (
-                    <section className="adjustments">
-                      <div className="section-label">
-                        <h2>Give your plan some breathing room</h2>
-                        <span>Try a change. See the difference.</span>
-                      </div>
-                      <div className="adjustment-grid">
-                        <button
-                          onClick={() =>
-                            choose({
-                              ...scenario,
-                              name: "Austin with a roommate",
-                              rentCents: 95000,
-                              depositCents: 95000,
-                              movingCents: 65000,
-                            })
-                          }
-                        >
-                          <span className="mini-icon">
-                            <Home size={17} />
-                          </span>
-                          <strong>Share a place</strong>
-                          <p>Try $950 rent and a smaller deposit.</p>
-                          <span className="adjustment-link">
-                            Explore this change <ArrowRight size={14} />
-                          </span>
-                        </button>
-                        <button
-                          onClick={() =>
-                            setScenario((s) => ({
-                              ...s,
-                              stipendCents: 150000,
-                              stipendDate: addDays(s.startDate, -3),
-                            }))
-                          }
-                        >
-                          <span className="mini-icon">
-                            <BriefcaseBusiness size={17} />
-                          </span>
-                          <strong>Test a relocation stipend</strong>
-                          <p>What if $1,500 arrives before the move?</p>
-                          <span className="adjustment-link">
-                            Explore this change <ArrowRight size={14} />
-                          </span>
-                        </button>
-                        <button
-                          onClick={() =>
-                            setScenario((s) => ({
-                              ...s,
-                              firstPayDate: addDays(
-                                s.startDate,
-                                Math.max(
-                                  0,
-                                  daysBetween(s.startDate, s.firstPayDate) - 14,
-                                ),
-                              ),
-                            }))
-                          }
-                        >
-                          <span className="mini-icon">
-                            <CalendarDays size={17} />
-                          </span>
-                          <strong>Bring payday forward</strong>
-                          <p>Explore being paid two weeks earlier.</p>
-                          <span className="adjustment-link">
-                            Explore this change <ArrowRight size={14} />
-                          </span>
-                        </button>
-                      </div>
-                      <small className="assumption-note">
-                        These are possibilities to verify with a landlord or
-                        employer, not available offers.
-                      </small>
-                    </section>
+                    <RepairPanel
+                      portfolio={portfolio}
+                      scenario={scenario}
+                      onApply={choose}
+                    />
                   )}
+                  <StressPanel portfolio={portfolio} scenario={scenario} />
+                  <div className="brief-action">
+                    <BriefButton portfolio={portfolio} scenario={scenario} />
+                    <span>
+                      A printable plan with assumptions and stress checks.
+                    </span>
+                  </div>
                   <section className="panel timeline-panel">
                     <div className="panel-header">
                       <div>

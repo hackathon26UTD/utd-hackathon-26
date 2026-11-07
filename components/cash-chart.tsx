@@ -7,11 +7,15 @@ export default function CashChart({
   baseline,
   cushion,
   compare,
+  scenarioLabel = "Your scenario",
+  baselineLabel = "Stay in Dallas",
 }: {
   result: Forecast;
   baseline: Forecast;
   cushion: number;
   compare: boolean;
+  scenarioLabel?: string;
+  baselineLabel?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -62,12 +66,12 @@ export default function CashChart({
       <div className="chart-legend">
         <span>
           <i className="legend-dot purple" />
-          Your scenario
+          {scenarioLabel}
         </span>
         {compare && (
           <span>
             <i className="legend-dash" />
-            Stay in Dallas
+            {baselineLabel}
           </span>
         )}
         <span>

@@ -1,6 +1,6 @@
 # FutureYou
 
-**[Open the live demo](https://futureyou-utd-26.vercel.app)**
+**[Present the three-minute demo](https://futureyou-utd-26.vercel.app/demo)** · [Open the full planner](https://futureyou-utd-26.vercel.app)
 
 See whether a major life decision fits your finances, including the awkward gap before the first paycheck.
 
@@ -31,6 +31,9 @@ The app reads only the configured sandbox customer. It never offers access to ar
 
 ## What works
 
+- A five-chapter presentation view at `/demo`, with keyboard navigation, explicit data-source status, and repeatable reset.
+- Calculated housing ceilings and minimum upfront support, plus $500-expense and seven-day-payroll stress tests.
+- A downloadable standalone HTML decision brief with a chart, assumptions and stress outcomes; opens offline and prints to PDF.
 - A 90-day timeline for a summer internship, moving with a roommate, or staying in Dallas.
 - Adjustable rent, net pay, first-paycheck delay, moving costs, deposits, savings, cash cushion, stipend, purchases, and weekly expenses.
 - Lowest cash balance, days below the cushion, ending cash, comparison chart, dated ledger, and CSV export.
@@ -52,7 +55,7 @@ The default fictional internship reaches **−$750 on June 28, 2027** despite en
 | `GEMINI_API_KEY` | Optional AI explanation API key |
 | `GEMINI_MODEL` | Model ID; defaults to `gemini-2.5-flash` |
 
-Hosting: Vercel project `futureyou-utd-26` under `adyaanakrams-projects`. Use server-side production environment variables, then `vercel deploy --prod`. Do not upload `.env.local`. See [architecture](docs/ARCHITECTURE.md), [MongoDB setup](docs/MONGODB.md), and [demo script](docs/DEMO.md).
+Hosting: Vercel project `futureyou-utd-26` under `adyaanakrams-projects`. Use server-side production environment variables, then `vercel deploy --prod`. Do not upload `.env.local`. See [architecture](docs/ARCHITECTURE.md), [MongoDB setup](docs/MONGODB.md), and [four-person demo script](docs/DEMO.md), and [submission draft and team checklist](docs/SUBMISSION.md).
 
 At initial delivery, Nessie imports and Gemini explanations are connected and verified. The Atlas connector has not created the requested application user because its execution confirmation remains unresolved. Plans therefore use browser storage; the Atlas API implementation is ready for credentials. An existing Atlas cluster alone does not enable cloud saving.
 
@@ -64,7 +67,7 @@ npm test
 npm run build
 ```
 
-Tests cover conservation of cash, payroll timing, one-time expenses, savings/debt treatment, calendar boundaries, negative balances, late stipends, Nessie normalization, validation, and CSV safety. GitHub Actions runs the same checks without secrets.
+28 tests cover repair boundaries, combined shocks, audit reconciliation, offline-brief escaping, conservation of cash, payroll timing, one-time expenses, savings/debt treatment, calendar boundaries, negative balances, late stipends, Nessie normalization, validation, and CSV safety. GitHub Actions runs the same checks without secrets.
 
 ## Scope and credits
 

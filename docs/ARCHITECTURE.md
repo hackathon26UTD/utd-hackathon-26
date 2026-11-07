@@ -10,6 +10,9 @@ React client state feeds a pure integer-cent forecast engine. A custom SVG chart
 - `components/future-you.tsx`: editable scenarios, source selection, snapshot saving, and four workspace views.
 - `components/cash-chart.tsx`: scenario/baseline/cushion comparison with mouse and keyboard exploration.
 - `lib/export.ts`: dated CSV ledger; text cells neutralize spreadsheet formulas.
+- `lib/decision.ts`: deterministic housing/stipend search, additive expense shock, shifted payroll schedule, and low-point audit. The housing search uses whole-dollar rent from $500 (or the existing rent if lower) to the existing rent, and caps the deposit at one month. The stipend search is $0–$100,000 at three days before move-in, clamped to the opening date. No option is returned unless the same ledger meets the cushion target.
+- `lib/decision-brief.ts`: HTML-escaped standalone decision brief, embedded SVG chart and all stress checks; no external assets or executable scripts.
+- `components/demo-experience.tsx`: `/demo` presentation with five chapters, fixed navigation controls, reset and data-source labels. It does not overwrite the main planner's saved scenarios.
 
 ## API
 
@@ -22,7 +25,7 @@ React client state feeds a pure integer-cent forecast engine. A custom SVG chart
 | `DELETE /api/plans` | Removes a plan only within the requesting browser session |
 | `POST /api/insights` | Recomputes the forecast and requests an optional Gemini explanation; deterministic fallback on errors |
 
-No external API key is sent to the browser. The Nessie key is supplied to Nessie's required query parameter only on the server. Gemini receives only selected dates and formatted calculated aggregates, without account IDs, profile names, or user-entered plan names. Completed explanations are cached for ten minutes; truncated outputs fall back to the deterministic summary.
+No external API key is sent to the browser. The Nessie key is supplied to Nessie's required query parameter only on the server. Gemini receives only selected dates and formatted calculated aggregates, without account IDs, profile names, or user-entered plan names. Completed explanations are cached for ten minutes. The prompt requests qualitative explanation; the interface renders verified numbers separately. Responses containing digits, currency/percent symbols or most explicit month names are rejected to prevent observed date/balance mix-ups. This is a bounded guard, not a proof that every natural-language claim is correct. Truncated outputs and failures fall back to the deterministic summary.
 
 ## Persistence
 

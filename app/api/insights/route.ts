@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { planInputSchema } from "@/lib/model";
 import { explainForecast, forecast, money } from "@/lib/forecast";
 import { body, response } from "@/lib/server";
+import { stressedForecast } from "@/lib/decision";
 export const runtime = "nodejs";
 
 // Bounded per-instance demo protection. Provider quotas remain the global spending limit.
@@ -24,6 +25,11 @@ export async function POST(request: NextRequest) {
     return response({ text: fallback, source: "calculation" });
 
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const badWeek = stressedForecast(
+    input.portfolio,
+    input.scenario,
+    input.scenario.kind === "internship" ? "both" : "expense",
+  );
   const facts = {
     scenario: input.scenario.kind,
     planningStart: input.portfolio.asOf,
@@ -38,6 +44,14 @@ export async function POST(request: NextRequest) {
     extraOpeningCashToPreserveCushion: money(result.cushionGapCents, 2),
     chosenCushion: money(input.scenario.cushionCents, 2),
     endingCash: money(result.endingCents, 2),
+    stressAssumption:
+      input.scenario.kind === "internship"
+        ? "Payroll schedule 7 days later plus a $500 expense at move-in"
+        : "$500 extra expense",
+    stressMinimumCash: money(badWeek.minimumCents, 2),
+    stressMinimumDate: badWeek.minimumDate,
+    stressFirstNegativeDate: badWeek.firstNegativeDate,
+    stressCushionGap: money(badWeek.cushionGapCents, 2),
   };
   const key = createHash("sha256")
     .update(JSON.stringify({ model, facts }))
@@ -75,7 +89,7 @@ export async function POST(request: NextRequest) {
             {
               parts: [
                 {
-                  text: `Explain this fictional student cash-flow simulation in one complete plain-text paragraph of at most 100 words. Do not give investment, tax, credit-approval, or product advice. Use only supplied calculations; do not calculate new numbers or make promises. Emphasize the timing of a shortfall, whether the ending balance conceals it, and one practical assumption to verify with an employer or landlord. If there is no shortfall, say so. Amounts are already formatted in US dollars. No names or account identifiers are supplied. Facts: ${JSON.stringify(facts)}`,
+                  text: `Explain this fictional student cash-flow simulation in one complete plain-text paragraph of at most 75 words. Do not give investment, tax, credit-approval, or product advice. Use only supplied calculations; do not calculate new numbers or make promises. Emphasize the timing of a shortfall, whether the ending balance conceals it, and one practical assumption to verify with an employer or landlord. Distinguish the base case from the supplied stress case and explain whether the stress case violates the cushion or goes negative. Do not call the plan safe or guaranteed. If there is no base-case shortfall, say so. Do not repeat any amounts, dates, numerical values or month names in your answer, in digits or in words. The interface displays verified figures separately; your role is to explain the tradeoff and a practical next step, not restate the arithmetic. No names or account identifiers are supplied. Facts: ${JSON.stringify(facts)}`,
                 },
               ],
             },
@@ -98,7 +112,16 @@ export async function POST(request: NextRequest) {
       .map((p: { text?: string }) => p.text || "")
       .join("")
       .trim();
-    if (candidate?.finishReason !== "STOP" || !text || text.length > 1800)
+    // Numeric/date claims stay in deterministic UI so an explanation cannot
+    // accidentally attach a base-case date to a stress-case balance.
+    if (
+      candidate?.finishReason !== "STOP" ||
+      !text ||
+      text.length > 1800 ||
+      /[0-9$€£%]|\b(?:January|February|March|April|June|July|August|September|October|November|December)\b/i.test(
+        text,
+      )
+    )
       throw new Error();
     if (cache.size >= 100) cache.delete(cache.keys().next().value!);
     cache.set(key, { text, expires: now + 10 * 60000 });

@@ -80,3 +80,32 @@ test("completed AI output is reused for identical facts without sharing identiti
     else process.env.GEMINI_API_KEY = previousKey;
   }
 });
+
+test("generated numeric claims fall back rather than mixing scenario facts", async () => {
+  const previousFetch = globalThis.fetch,
+    previousKey = process.env.GEMINI_API_KEY;
+  process.env.GEMINI_API_KEY = "test-only";
+  globalThis.fetch = async (_url, init) => {
+    const sent = String(init?.body);
+    assert.ok(sent.includes("stressMinimumDate"));
+    return Response.json({
+      candidates: [
+        {
+          finishReason: "STOP",
+          content: {
+            parts: [{ text: "The stress case reaches -$520 on June 28." }],
+          },
+        },
+      ],
+    });
+  };
+  try {
+    const data = await (await POST(request({ movingCents: 110300 }))).json();
+    assert.equal(data.source, "calculation");
+    assert.ok(!data.text.includes("The stress case reaches"));
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = previousKey;
+  }
+});
