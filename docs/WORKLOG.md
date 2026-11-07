@@ -97,3 +97,7 @@ Use America/Chicago for dates and times. Append meaningful changes; do not inven
 ## 2026-11-07 HomeBeacon command center and account access
 
 Built the map workspace, public exercise, real device summary endpoint, public disaster source endpoint, operator session login, basic profile, password change and single-use recovery. Added privacy, terms, cookie and accessibility pages. Adapted the actual public Argus Oracle component patterns with Geist and Bricolage typography. Added no analytics. Seven public routes pass automated WCAG A/AA checks; manual accessibility and legal review remain outstanding. User authorized merging project PRs. Hardware still belongs to Dhruv; synthetic exercise readings do not represent a connected physical device.
+
+## Demo account and NVIDIA operator views
+
+Added a shared exercise-only demo login, server-enforced separation from live data, preview/apply/clear observation layers and a server-side NVIDIA NIM adapter. User requested building for a future API or hosted model; no NVIDIA credential was supplied or found. Presets work now. Model requests return a clear unavailable state until configured. MongoDB remains the source of observations, and model-generated text cannot write readings or decide claims/dispatch. Added operator-layer setup and limits in OPERATOR_LAYERS.md.
