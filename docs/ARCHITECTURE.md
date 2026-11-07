@@ -6,7 +6,7 @@ Fill this out as the team chooses a stack. Keep it short and actionable.
 | --- | --- | --- |
 | Frontend | Undecided | |
 | Backend | Undecided | |
-| Data storage | MongoDB Atlas | Shared hackathon database; hosted provisioning pending |
+| Data storage | MongoDB Atlas Free | Running shared cluster in AWS US_EAST_1; see MONGODB.md |
 | Authentication, if needed | Undecided | |
 | External APIs / models | Undecided | |
 | Hosting | Undecided | |
