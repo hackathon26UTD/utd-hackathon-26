@@ -1,0 +1,1 @@
+-- Add only synthetic demo data after defining the application's schema.

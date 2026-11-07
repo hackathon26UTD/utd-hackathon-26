@@ -18,7 +18,7 @@ Copy `.env.example` to `.env`, then fill in the project URL and publishable or l
 
 ## Team access
 
-Invite the two currently approved teammates with the Developer role from the hackathon organization's Team settings, using their Supabase account emails. Leave UhhSaif out until the owner requests otherwise. Keep emails out of this repository.
+Invite the two currently approved teammates with the Owner role from the dedicated hackathon organization's Team settings, using their Supabase account emails. The team requested full access to the hackathon resources. Leave UhhSaif out until the owner requests otherwise. Keep emails out of this repository.
 
 Organization-level access applies to all projects in that organization. Project-scoped roles require a supported paid plan, so a dedicated organization keeps this starter isolated without an upgrade. Verify each invite is accepted.
 

@@ -15,7 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check tracked whitespace
-        run: git ls-files -z | xargs -0 -n 1 git diff --no-index --check /dev/null
+        run: |
+          task_empty_tree=$(git hash-object -t tree -w --stdin < /dev/null)
+          git diff --check "$task_empty_tree" HEAD
       - name: Check publishing helper syntax
         run: python3 -m py_compile scripts/publish.py
       # Add application lint, test, and build steps after choosing the stack.
