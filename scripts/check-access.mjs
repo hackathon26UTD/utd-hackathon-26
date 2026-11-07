@@ -78,7 +78,7 @@ await check('EIA', ['EIA_API_KEY'], async () => {
 });
 
 await check('AirNow', ['AIRNOW_API_KEY'], async () => {
-  const r = await fetch(`https://www.airnowapi.org/aq/observation/zipCode/current/?format=application/json&zipCode=75080&API_KEY=${encodeURIComponent(env.AIRNOW_API_KEY)}`, { signal: timeout(15000) });
+  const r = await fetch(`https://www.airnowapi.org/aq/observation/current/ziplatLong?format=application/json&zipCode=75080&api_key=${encodeURIComponent(env.AIRNOW_API_KEY)}`, { signal: timeout(15000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const t = await r.text();
   if (/invalid|error/i.test(t.slice(0, 200)) && !t.startsWith('[')) throw new Error('key rejected');
