@@ -133,3 +133,8 @@ User requested adding the database work to the repository and assessing readines
 Fetched main before publishing the handoff and found PR #14 had merged a separate telemetry/incident backend while documentation was being drafted. Preserved its implementation, test, environment, CI and README additions; reconciled overlapping context/log entries. Updated the handoff to supersede the earlier missing-ingest-adapter note, retain its explicit Atlas setup/reconciliation limits, and flag command UI joins for home coordinates/latched incidents as unverified. Left unrelated FutureYou PR #15 untouched. No live schema bootstrap or fake-data seeding was performed.
 
 Combined handoff/database-main verification: 29/29 tests passed against isolated local MongoDB; deliberate failure-injection tests logged expected network errors. Whitespace checks passed. Marketing release remains separately verified live.
+
+
+## 2026-11-07: Ayan requested immediate shipping
+
+Request: ship all HomeBeacon work as quickly as possible. Cross-checked current main and open PRs; all HomeBeacon PRs were merged, and unrelated FutureYou PR #15 was left separate. Applied the database workstream's explicit `npm run db:setup` to the approved Atlas database without seeding fake homes/readings. Command succeeded. Direct collection inspection verified telemetry is a time-series collection with `observedAt` time field and 2,592,000-second retention, and required homes/receipt/incident/audit/schema collections exist. This supersedes the handoff's earlier Atlas-bootstrap-pending note. Real hardware ingest/replay and command UI incident/home joins remain separate integration work. Production deployment and route/readiness smoke checks follow this commit.
