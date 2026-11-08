@@ -17,7 +17,7 @@ function secure(response, path) {
 
 export async function onRequest(context){
   const path=new URL(context.request.url).pathname.replace(/\.html$/,'').replace(/\/$/,'');
-  if(path==='/portal'){const target=await readSession(context.request,context.env)?'/command-center':await readCustomerSession(context.request,context.env)?'/customer':'/login';return secure(Response.redirect(new URL(target,context.request.url),302));}
+  if(['/portal','/dashboard'].includes(path)){const operator=await readSession(context.request,context.env);const target=operator?(operator.role==='demo'?'/simulations':'/command-center'):await readCustomerSession(context.request,context.env)?'/customer':'/signup';const response=secure(Response.redirect(new URL(target,context.request.url),302));response.headers.set('Cache-Control','no-store');return response;}
   if(['/command-center','/profile'].includes(path)&&!await readSession(context.request,context.env))return secure(Response.redirect(new URL('/login',context.request.url),302));
   return secure(await context.next(), path);
 }

@@ -25,7 +25,7 @@ async function route(context){
   // 1) public
   if(path==='/api/simulations'&&['GET','HEAD','POST'].includes(method))return context.next();
   if(path==='/api/demo'&&['GET','HEAD'].includes(method))return context.next();
-  if(['/api/session','/api/health','/api/ready','/api/weather','/api/recovery','/api/customer/register','/api/customer/login'].includes(path)||(method==='GET'&&path==='/api/customer/me'))return passCustomer(context,path);
+  if(['/api/access','/api/session','/api/health','/api/ready','/api/weather','/api/recovery','/api/customer/register','/api/customer/login'].includes(path)||(method==='GET'&&path==='/api/customer/me'))return passCustomer(context,path);
   // A dedicated scheduler credential is accepted only by its exact refresh endpoint.
   if(path==='/api/ops/data-refresh'&&method==='POST'&&request.headers.has('X-Data-Job-Key'))return context.next();
   // 2) device keys
@@ -46,7 +46,7 @@ async function route(context){
 }
 // Strips any Authorization header so an admin key can never ride along into a customer handler.
 function passCustomer(context,path){
-  if(!path.startsWith('/api/customer/')||!context.request.headers.has('Authorization'))return context.next();
+  if((!path.startsWith('/api/customer/')&&path!=='/api/access')||!context.request.headers.has('Authorization'))return context.next();
   const headers=new Headers(context.request.headers);headers.delete('Authorization');
   return context.next(new Request(context.request,{headers}));
 }
