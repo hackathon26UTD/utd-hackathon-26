@@ -10,7 +10,7 @@ Status: Ayan approved the rendered satellite-map direction for Astra to develop 
 - The default workspace is **map only, with all tools opening on demand**. Exact answer to the layout question, November 7.
 - The map is the command center, not a small dashboard widget. It owns the viewport.
 - No KPI row or KPI cards in the command-center landing state.
-- Remove the current persistent side navigation and side tabs. Do not just recolor or relocate the same dashboard rail.
+- Remove the old full-height dashboard rail and side tabs. Ayan later requested a compact floating left tab island for Devices, Priorities and related views. That small island is allowed; its panels open on demand. Do not restore the old permanent columns.
 - Device-specific information is secondary and appears when a device is deliberately selected.
 - **Selection opens an expandable card anchored to the selected house**, not a permanent side panel or a separate default device screen. Exact answer to the selection question, November 7.
 - **The compact card shows status, why the house needs attention, and when it last reported.** Sensor details/history/logs/actions follow on expansion.
@@ -30,7 +30,7 @@ The foundational layout and selection choices above are locked. The rendered com
 
 ### Details for refinement within the approved direction
 
-- A single compact floating command launcher and region/data-status label are the only app chrome at rest. Conventional map controls and attribution remain.
+- A compact floating launcher, direct overlay buttons and a small floating left tab island form the app chrome at rest. Conventional map controls and attribution remain.
 - The exact content, dimensions and edge placement of the locked anchored region summary require visual review.
 - Dusk/paper tokens and Hanken/Spline typography continue; avoid a new brand/palette invention. Use display serif sparingly in operator UI, not a large marketing headline above the map.
 - Historical replay is an explicit mode, not an always-visible timeline. Its UI is a later priority after live/selection behavior is correct.
@@ -480,3 +480,25 @@ This handoff satisfies the requested first stage: gather requirements, document 
 Implement the approved full-viewport satellite composition against current main. Preserve teammates' firmware/API/database work. Replace the KPI/rail/queue/default-inspector structure rather than hiding it. Build national/viewport data coverage and truthful source states. Complete on-demand search/list/layers/activity/messages/zones/model/account flows. Keep device compact essentials and anchored expansion. Preserve accessibility, privacy, motion/performance constraints and role isolation. Review actual rendered implementation, then perform the acceptance gates in section 11 before reporting production completion.
 
 No new user preference is needed to begin that implementation. Resolve routine details within this approved direction, and return to Ayan only for meaningful changes to the locked behavior or concrete review findings.
+
+
+## 22. Latest refinement: direct overlays, floating tab island and disaster demo
+
+Ayan requested additional top buttons for basic overlays, a left sidebar "like dynamic island" for views such as all devices and assigned priorities, a layered hurricane demo with large danger/severity circles, sorting by power loss, and device dots revealed as the operator zooms in. This explicitly refines the earlier all-tools-hidden direction: a compact floating tab island and direct overlay controls are now desired. It does not restore KPI cards, full-height navigation or permanently open device columns.
+
+### Implemented in the independent proposal
+
+- Top overlay actions: official alert boundaries, exercise wind exposure, power-loss highlights and water reports. Controls expose pressed state; scenario-inapplicable layers are disabled with explanatory labels.
+- Scenario selector: dated official alert geometry sample or a hurricane exercise. Exercise source/zone/device labels remain explicit.
+- Compact rounded floating island: Devices, Priorities, Activity. Desktop stacks the three controls to the left; mobile uses a compact bottom island. Clicking an active view closes it. Tool panels stay on demand.
+- Devices: scoped searchable list, assigned-priority/power-loss/battery/observation-age sorting, power-loss-only filtering, matching map filters and deliberate house selection.
+- Assigned priorities: P1 immediate review, P2 follow up, P3 monitor; actual Argus select controls edit assignments in the review session. Assignment is independent of reported sensor status and does not dispatch anyone. Production persistence/audit is future implementation work.
+- Hurricane exercise: 63 fictional Gulf Coast devices, a fictional track and three exposure circles. Elevated/high/severe radii are 180/95/38 km for demonstration, not NHC forecasts, Saffir-Simpson categories, estimates of damaged houses or safety boundaries.
+- Zoom hierarchy: wide views show the region/zone; individual device dots appear at neighborhood zoom. Search/list remains the keyboard alternative. Selected house evidence still uses the approved anchored card.
+- Mobile: controlled internal scrolling, no page overflow, selected house remains visible on expansion, and source/attribution/control placement are checked by rendered review.
+
+### Production acceptance additions
+
+Persist priority assignments with operator identity/time and an audit trail, keeping triage priority distinct from derived observation severity. Sorting must label whether it uses current or last-known evidence. Store demo datasets separately from real devices and disable real writes in exercise mode. Do not persist this prototype's mutable fixtures as production households. Keep filter choices reflected in map and list, and preserve them across live updates without focus/camera resets.
+
+Use genuine official forecast geometry/radii where a live hurricane layer is later implemented; retain source/valid time/uncertainty and attribution. Do not reuse the fictional circles as live weather or call them official hurricane categories.
