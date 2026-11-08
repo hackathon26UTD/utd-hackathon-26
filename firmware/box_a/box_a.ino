@@ -178,6 +178,7 @@ void observe(const MeshMsg &m, bool own) {
   if (m.flags & F_MAINS_VALID) h["mains"] = (bool)(m.flags & F_MAINS);
   if (m.flags & F_MOTION_VALID) h["motion"] = (bool)(m.flags & F_MOTION);
   if (m.flags & F_FLAME_VALID) h["flame"] = (bool)(m.flags & F_FLAME);
+  if (m.flags & F_TILT_VALID) h["tilt"] = (bool)(m.flags & F_TILT);
   if (m.batteryMv) h["battery_mv"] = m.batteryMv;
   h["gateway"] = mesh::isOnline ? mesh::myId : (mesh::gatewayKnown() ? mesh::gatewayId : "none");
   Serial.print("HB "); serializeJson(h, Serial); Serial.println();

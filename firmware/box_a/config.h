@@ -20,7 +20,7 @@
 #define UNOQ_RX_PIN     44   // D7
 #define UNOQ_STALE_MS  5000  // Uno Q readings older than this are reported as "not measured"
 
-#define USE_MAINS_SENSE  0   // set 1 once the Power MB 3.3 V rail is wired to D3
+#define USE_MAINS_SENSE  1   // Power MB fixed 3.3 V pin -> D3 (wall power present = ~3300 mV)
 #define USE_SOUND        0
 #define USE_CAMERA       0   // off: privacy, power and demo risk outweigh a photo nobody sees (set 1 to re-enable)
 
