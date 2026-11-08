@@ -1,6 +1,6 @@
 # Start here: Ayan's HomeBeacon handoff
 
-November 8 simulation/history release candidate: five-page Simulations, shared HTTP/CLI/MCP engine, private profile photos, unsent customer email templates, and bounded box-to-website retained history. Read [SIMULATIONS.md](docs/SIMULATIONS.md), [DEVICE_HISTORY.md](docs/DEVICE_HISTORY.md), [PROFILE_PHOTOS.md](docs/PROFILE_PHOTOS.md) and the newest work log. Firmware must be flashed and bench-tested before claiming physical outage/reconnect behavior.
+November 8 simulation/history release (PR #41 merged as `99f0681`, production verified): five-page Simulations, shared HTTP/CLI/MCP engine, private profile photos, unsent customer email templates, and bounded box-to-website retained history. Read [SIMULATIONS.md](docs/SIMULATIONS.md), [DEVICE_HISTORY.md](docs/DEVICE_HISTORY.md), [PROFILE_PHOTOS.md](docs/PROFILE_PHOTOS.md) and the newest work log. Firmware must be flashed and bench-tested before claiming physical outage/reconnect behavior.
 
 November 8 customer extension (deployed in PR #37, production verified): self-built box registration, personal OAuth MCP, optional encrypted NVIDIA keys and password-confirmed email changes. Start with [ASSISTANT_CONNECTIONS.md](docs/ASSISTANT_CONNECTIONS.md), then the latest work log. Physical delivery, live customer-key inference and actual ChatGPT/Claude account connections are separate verification steps.
 
