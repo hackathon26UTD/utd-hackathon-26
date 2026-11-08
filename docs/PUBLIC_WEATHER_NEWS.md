@@ -10,7 +10,7 @@ Updated November 8, 2026. Ayan requested public hazards, a mainland-only map, le
 - The national list includes US territories and marine bulletins returned by NWS. The map remains focused on the lower 48. An alert outside the mainland map stays readable in News; its button explains that it cannot be shown in this map.
 - Hazards no longer require an operator login. Missing provider keys, source failures, stale data and zoom requirements still appear. Simulation device reports and synthetic wind remain labeled separately from live public weather.
 - The national fit is the farthest zoom. Resizing recomputes that limit. Panning remains constrained around the mainland. Narrow screens retain a full-country fit instead of cropping away states.
-- Zones controls, the floating Map key & sources box and the distance scale are removed from the visible map. Existing private zone records/contracts are preserved. Required OpenFreeMap/OpenMapTiles/OpenStreetMap and active-source credits remain visible below the canvas.
+- Zones controls, the floating Map key & sources box and the distance scale are removed from the visible map. Existing private zone records/contracts are preserved. The footer strips are removed. OpenFreeMap/OpenMapTiles/OpenStreetMap and active-source credits remain available through MapLibre’s compact attribution control. Simulation/update captions appear in Activity instead of below the map.
 
 ## Refresh, limits and access
 
