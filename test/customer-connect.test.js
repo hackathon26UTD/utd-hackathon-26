@@ -350,7 +350,7 @@ test("real MCP SDK initializes, lists tools and returns only owned reports witho
   );
   await sdk.connect(transport);
   const tools = await sdk.listTools();
-  assert.equal(tools.tools.length, 3);
+  assert.equal(tools.tools.length, 5);
   assert.ok(tools.tools.every((t) => t.annotations.readOnlyHint));
   const list = await sdk.callTool({
     name: "homebeacon_list_devices",
