@@ -20,7 +20,8 @@
     "firmware:sync": "node scripts/firmware.mjs sync",
     "firmware:build": "node scripts/firmware.mjs build",
     "provision": "node scripts/provision-boxes.mjs",
-    "mesh-test": "node scripts/mesh-test.mjs"
+    "mesh-test": "node scripts/mesh-test.mjs",
+    "feed-keys": "node scripts/set-feed-keys.mjs"
   },
   "repository": {
     "type": "git",
