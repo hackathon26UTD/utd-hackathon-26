@@ -82,7 +82,7 @@ export async function mountCommand(env) {
     demo, role, base: [], live: newLiveState(), liveState: 'starting', errors: 0, liveAt: 0, props: [], selectedId: null, selectedRegion: null,
     regions: [], followUps: [], riskState: 'idle', riskAt: 0, feeds: new Map(), filter: 'all', search: '', layerIds: null, queueTab: 'homes', detail: null, detailTab: 'overview', detailOpen: false, fitted: false, embed: embedded, demoScenario: SCENARIOS.some(s => s.id === requestedScenario) ? requestedScenario : 'water-hurricane', demoRequest: 0,
   };
-  const ctx = { S, $, esc, demo, role, announce, toast, api };
+  const ctx = { S, $, esc, demo, role, displayPreferences: env.displayPreferences, announce, toast, api };
   const fleetRoot = document.createElement('section'); fleetRoot.id = 'fleet-panel'; fleetRoot.hidden = true; $('.workspace').append(fleetRoot);
   const fleet = mountFleet(fleetRoot, {api: (url, options) => api(demo && !exerciseMode ? url + '?mode=exercise' : url, options), role: demo ? 'demo' : role, onClose: () => ctx.closeWorkspace()});
   let studio = null;

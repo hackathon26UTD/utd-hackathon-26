@@ -1,8 +1,15 @@
 import { readSession,issueSession,passwordHash,equal,sessionCookie,sameOrigin,authenticationAccount,legacyOperatorSnapshot } from '../../src/operator-session.js';
 import { withDatabase } from '../../lib/mongodb.js';
+import { configuredWifiPreviewIds } from '../../src/display-preview.js';
 const reply=(body,status=200,headers={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store',...headers}});
 export async function onRequest({request,env}){
-  if(request.method==='GET'){const user=await readSession(request,env);return reply(user?{authenticated:true,email:user.email,role:user.role}:{authenticated:false},user?200:401);}
+  if(request.method==='GET'){
+    const user=await readSession(request,env);
+    return reply(user?{
+      authenticated:true,email:user.email,role:user.role,
+      ...(user.role==='operator'?{displayPreferences:{wifiConnectedDeviceIds:configuredWifiPreviewIds(env)}}:{}),
+    }:{authenticated:false},user?200:401);
+  }
   if(!sameOrigin(request))return reply({error:'This request must come from Safe Home.'},403);
   if(request.method==='DELETE')return reply({authenticated:false},200,{'Set-Cookie':sessionCookie('',0)});
   if(request.method!=='POST')return reply({error:'Method not allowed.'},405);

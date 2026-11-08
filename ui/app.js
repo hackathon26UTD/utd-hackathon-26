@@ -27,12 +27,12 @@ document.body.classList.add('command-page');
 // Start every download together: the map library, the command code, its stylesheet and the session check.
 const css=document.createElement('link');css.rel='stylesheet';css.href='/assets/app.css';document.head.append(css);
 const mapLoad=import('maplibre-gl'),commandLoad=import('./command/index.js');
-const roleLoad=new URLSearchParams(location.search).get('embed')!=='hero'?fetch('/api/session').then(r=>r.json()).then(j=>j.role).catch(()=>null):Promise.resolve(null);
+const sessionLoad=new URLSearchParams(location.search).get('embed')!=='hero'?fetch('/api/session',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null):Promise.resolve(null);
 maplibregl=await mapLoad;maplibregl.setWorkerUrl('/assets/map-worker.mjs');
-const role=await roleLoad;
+const session=await sessionLoad,role=session?.role||null;
 const demo=['/demo','/simulations'].includes(path)||role==='demo';
 const {mountCommand}=await commandLoad;
-await mountCommand({maplibregl,demo,role,exerciseProperties,footer,brand,escape});
+await mountCommand({maplibregl,demo,role,displayPreferences:session?.displayPreferences,exerciseProperties,footer,brand,escape});
 }
 
 async function accountPage(recovery){
