@@ -209,7 +209,7 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
   return link;
 }
 
-export async function unlinkDevice(db, { email, linkId, now = new Date() }, deps = {}) {
+export async function unlinkDevice(db, { email, linkId, now = new Date(), actor: by, action = 'customer.unlink' }, deps = {}) {
   const session = db.client.startSession();
   try {
     await session.withTransaction(async () => {
@@ -219,7 +219,7 @@ export async function unlinkDevice(db, { email, linkId, now = new Date() }, deps
       await db.collection('customer_links').updateOne({ _id: link._id }, { $set: { active: false, unlinkedAt: now, consent: false }, $unset: { contactName: '', nickname: '', room: '' } }, options);
       await db.collection('device_pairing').updateOne({ _id: link.deviceId }, { $set: { claimed: true }, $unset: { codeHash: '', salt: '' } }, options);
       await db.collection('devices').updateOne({ _id: new ObjectId(link.deviceId) }, { $set: { unlinkedAt: now }, $inc: { ownershipRevision: 1 } }, options);
-      await db.collection('audit_log').insertOne({ at: now, actor: await customerActor(email), action: 'customer.unlink', deviceId: link.deviceId, details: {}, exercise: link.exercise === true }, options);
+      await db.collection('audit_log').insertOne({ at: now, actor: by || await customerActor(email), action, deviceId: link.deviceId, details: {}, exercise: link.exercise === true }, options);
     });
   } finally { await session.endSession(); }
   return true;
@@ -306,7 +306,7 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
       id: link._id, nickname: link.nickname || 'My Safe Home', exercise: link.exercise === true,
       serial: pairs.find(p => p._id === link.deviceId)?.serial || device.serial || null,
       fleetStatus: fleetStatus(device, link, now), room: link.room || '', consent: link.consent === true, notificationsPausedUntil: link.notificationsPausedUntil || null,
-      firstReportAt: device.firstReportAt || null, lastSeenAt: lastSeen,
+      linkedAt: link.linkedAt || null, firstReportAt: device.firstReportAt || null, lastSeenAt: lastSeen,
       ...base, lastSeen: lastSeen ? new Date(lastSeen).toISOString() : null,
       messages: (messages || []).slice(0, 5).map(m => ({ id: String(m.id), title: String(m.title ?? '').slice(0, 20), body: String(m.body ?? '').slice(0, 80), severity: m.severity, expiresAt: m.expiresAt })),
       help: { status: help?.status || 'none', text: HELP_TEXT[help?.status || 'none'], note: help?.note || '', updatedAt: help?.updatedAt ? new Date(help.updatedAt).toISOString() : null },
@@ -524,8 +524,7 @@ export async function pairingHandler(ctx) {
       if (method === 'DELETE') { // operator releases a device from its customer
         const link = await db.collection('customer_links').findOne({ deviceId, active: true });
         if (!link) return reply({ error: 'Device is not linked.' }, 404);
-        await unlinkDevice(db, { email: link.customerEmail, linkId: link._id }, deps);
-        await audit(deps, db, { actor: actorOf(ctx, deps).actor, action: 'link.release', deviceId, details: {}, exercise: link.exercise === true });
+        await unlinkDevice(db, { email: link.customerEmail, linkId: link._id, actor: actorOf(ctx, deps).actor, action: 'link.release' }, deps);
         return reply({ unlinked: true });
       }
       return reply({ error: 'Method not allowed.' }, 405);
