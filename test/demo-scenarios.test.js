@@ -145,3 +145,11 @@ test('demo endpoint refuses mutation methods without reading payloads or applica
     assert.equal((await response.json()).error, 'This demo is read-only.');
   }
 });
+
+test('exercise dots use distinct mapped address anchors without becoming live devices',async()=>{
+ const {DEMO_ADDRESSES}=await import('../domain/demo-addresses.js');
+ const anchors=[...DEMO_ADDRESSES.dallas,...DEMO_ADDRESSES.tampa];
+ const demo=createDemoScenario('normal',now);
+ assert.equal(new Set(anchors.map(a=>a.coordinates.join(','))).size,95);
+ for(let i=0;i<95;i++){assert.deepEqual(demo.properties[i].coordinates,anchors[i].coordinates);assert.equal(demo.properties[i].area,anchors[i].address);assert.equal(demo.properties[i].synthetic,true);assert.ok(anchors[i].osmId);}
+});

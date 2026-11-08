@@ -169,7 +169,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
 
   function renderFallback(lngLat, hit, why) {
     body.replaceChildren(header('This place', `${lngLat.lat.toFixed(4)}, ${lngLat.lng.toFixed(4)}`, null, null));
-    body.append(el('p', 'pc-status pc-status--error', why));
+    body.append(el('p', ctx.demo ? 'pc-status' : 'pc-status pc-status--error', why));
     const here = mapHere(hit); if (here) body.append(here);
     const near = localNearby(lngLat);
     const sec = el('section', 'pc-sec');
@@ -219,6 +219,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
     const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
     const hitCache = cache.get(key);
     if (hitCache && Date.now() - hitCache.at < CACHE_MS) { render(hitCache.data, lngLat, hit); place(point); return; }
+    if (ctx.demo) { renderFallback(lngLat, hit, 'Exercise area. Select a device to see its sample readings.'); place(point); return; }
     renderLoading(lngLat, hit); place(point);
     abort = new AbortController();
     const r = await ctx.api(`${PLACE_ENDPOINT}?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}`, { signal: abort.signal });
@@ -251,7 +252,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
       return;
     }
     // Bare map points load on click. Hovering across streets should not flood public data sources.
-    if (!hit || hit.kind === 'device' || hit.kind === 'group') return;
+    if (!hit || hit.kind === 'device' || hit.kind === 'group' || hit.kind === 'state') return;
     clearTimeout(hideTimer);
     clearTimeout(showTimer);
     showTimer = setTimeout(() => { if (!pinned) show(lngLat, { point, hit }); }, SHOW_DELAY_MS);
