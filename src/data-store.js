@@ -2,6 +2,8 @@
 import { ObjectId, Binary } from 'mongodb';
 import { gzipSync } from 'node:zlib';
 import { HttpError } from './http.js';
+import { HISTORY_METRICS as METRICS, materializeDeviceHistory } from './device-history.js';
+export { METRICS };
 export const DATASETS = [
  ['homes','Registered locations','registration','Home labels and GeoJSON coordinates','operator'],
  ['devices','Registered boards','registration','Keyed device identity, last receipt and current projection','device'],
@@ -54,7 +56,6 @@ export async function archiveFeedSnapshot(db,doc){
  const payload=Buffer.from(JSON.stringify(doc.data));
  await db.collection('source_snapshots').updateOne({_id:id},{$setOnInsert:{sourceId:doc.layer,scope:doc.tileKey,fetchedAt:doc.fetchedAt,freshUntil:doc.freshUntil,payloadGzip:new Binary(gzipSync(payload,{level:1})),encoding:'gzip-json',uncompressedBytes:payload.length,count:doc.count,truncated:doc.truncated,kind:'hourly_public_source_sample',expiresAt:new Date(doc.fetchedAt.getTime()+90*86400000)}},{upsert:true});
 }
-export const METRICS={temperature_c:{label:'Temperature',unit:'°C'},humidity_pct:{label:'Relative humidity',unit:'%'},battery_pct:{label:'Battery charge',unit:'%'},water_detected:{label:'Water-positive observations',unit:'fraction',boolean:true},main_power_available:{label:'Mains-available observations',unit:'fraction',boolean:true}};
 export async function sensorStats(db,id,{now=new Date(),days=7}={}){
  if(!/^[a-f\d]{24}$/i.test(id))throw new HttpError(400,'A registered device id is required.');
  if(!Number.isInteger(days)||days<1||days>30)throw new HttpError(400,'days must be 1 to 30.');
@@ -71,12 +72,7 @@ export async function sensorStats(db,id,{now=new Date(),days=7}={}){
  const span=row?.firstObservedAt&&row?.lastObservedAt?row.lastObservedAt-row.firstObservedAt:0;
  return {deviceId:id,kind:'observed_sample_averages',notClimateNormal:true,window:{from:since,to:now,days},sampleCount:row?.observations||0,firstObservedAt:row?.firstObservedAt||null,lastObservedAt:row?.lastObservedAt||null,baselineStatus:(row?.observations>=30&&span>=2*86400000)?'observed_reference_only':'insufficient_history',note:'Sample averages include recorded conditions, including incidents. They are not safe limits, calibrated normal values, time-weighted availability, or a climate normal.',metrics:Object.fromEntries(Object.entries(METRICS).map(([key,meta])=>[key,{label:meta.label,unit:meta.unit,mean:row?.[key]??null,min:row?.[key+'_min']??null,max:row?.[key+'_max']??null,count:row?.[key+'_count']||0}]))};
 }
-export async function materializeDailyStats(db,{now=new Date()}={}){
- const from=new Date(now.getTime()-30*86400000);let writes=0;
- // Recompute recent UTC days, so delayed/replayed observations update their original day.
- for(const[key,meta]of Object.entries(METRICS)){
- const v=meta.boolean?{$cond:[{$eq:[{$type:'$'+key},'bool']},{$cond:['$'+key,1,0]},null]}:{$cond:[{$isNumber:'$'+key},'$'+key,null]};
- const rows=await db.collection('telemetry').aggregate([{$match:{observedAt:{$gte:from,$lte:now},'meta.deviceId':{$exists:true}}},{$group:{_id:{deviceId:'$meta.deviceId',day:{$dateToString:{format:'%Y-%m-%d',date:'$observedAt',timezone:'UTC'}}},mean:{$avg:v},min:{$min:v},max:{$max:v},count:{$sum:{$cond:[{$ne:[v,null]},1,0]}}}}]).toArray();
- for(const r of rows){const live=await db.collection('devices').findOne({_id:r._id.deviceId,'meta.exercise':{$ne:true}},{projection:{_id:1}});if(!live)continue;await db.collection('device_daily_stats').updateOne({deviceId:r._id.deviceId,day:r._id.day},{$set:{['metrics.'+key]:{label:meta.label,unit:meta.unit,mean:r.mean,min:r.min,max:r.max,count:r.count},updatedAt:now,kind:'observed_daily_sample_summary',expiresAt:new Date(new Date(r._id.day+'T00:00:00Z').getTime()+365*86400000)}},{upsert:true});writes++;}
- }return writes;
+// The existing hourly scheduled job calls this same entry point.
+export async function materializeDailyStats(db, options = {}) {
+ return materializeDeviceHistory(db, options);
 }
