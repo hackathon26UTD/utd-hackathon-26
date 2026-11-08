@@ -29,7 +29,7 @@ export async function nemotronCompletion(env, { messages, tools, signal }, fetch
   let response;
   try {
     response = await fetcher(base.href.replace(/\/$/, '') + '/chat/completions', {
-      method: 'POST', redirect: 'error', signal: AbortSignal.any([signal || AbortSignal.timeout(45_000), AbortSignal.timeout(20_000)]),
+      method: 'POST', redirect: 'manual', signal: AbortSignal.any([signal || AbortSignal.timeout(45_000), AbortSignal.timeout(20_000)]),
       headers: { 'Content-Type': 'application/json', ...(env.NVIDIA_API_KEY ? { Authorization: `Bearer ${env.NVIDIA_API_KEY}` } : {}) },
       body: JSON.stringify({ model, messages: nvidiaMessages(model, messages), tools, tool_choice: 'auto',
         temperature: 0, max_tokens: 1200, stream: false, chat_template_kwargs: { enable_thinking: false } }),

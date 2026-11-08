@@ -14,6 +14,8 @@ Five-step Simulations use one deterministic browser/HTTP/CLI/MCP engine. Synthet
 
 The latest homepage/wind release is PR #47, production commit `818fb6b`, run `42472116498`. It adds corner navigation, profile avatars, centered readings and blue sampled-wind motion with explicit simulation separation. The Safe Home naming/documentation release is PR #46, production commit `d6c7484`, run `42470384846`. The preceding workflow release is PR #45, production commit `0086310`, run `42469054959`. Household sharing was verified in PR #44; world views in #43; simulations/history in #41. Exact runtime evidence and newer release results belong in [WORKLOG.md](WORKLOG.md), not a stale green workflow screenshot.
 
+November 8 Nemotron integration update (publication evidence in WORKLOG): device Conditions now supports operator-started real Nemotron on registered live/exercise records, with explicit simulator choice, actual tool trace, cited values/timestamps and power/runtime proposals. Model input compaction preserves required evidence and reports omissions; interrupted runs expire on scoped reads. Browser-generated Simulation Studio frames do not become registered exercise devices. Real inference was verified with synthetic data; hardware endurance remains unverified.
+
 ## Fixed implementation choices
 
 Vanilla JS/CSS/static HTML with esbuild, the actual vendored Argus kit, Cloudflare Pages/Functions, MongoDB Atlas and MapLibre/OpenFreeMap. Do not restart the application or migrate to React/Next/Supabase as a rename or styling task. The complete marketing-to-account-to-command journey is required.
