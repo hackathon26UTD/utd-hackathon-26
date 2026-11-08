@@ -165,6 +165,28 @@ Located the actual session and six completed module results; three integration/s
 
 Final local release evidence for Claude continuation: 236/236 tests pass; 43/43 isolated platform checks pass; real-kit gallery draws 108 standards in each theme with no console errors; eight public page/theme combinations pass automated WCAG checks. Marketing and command mobile views fit 390px. Physical hardware, key-gated feeds and NVIDIA remain unverified/unconfigured.
 
+## 2026-11-07: Ayan rejected the command layout; map-only design phase
+
+Ayan requested gathering requirements in an evolving design document for a teammate using Astra. Inspected current source and the deployed first-visit command view at 1440x960: visible map about 30.3% of viewport, cookie panel about 12.6%, persistent KPI/rail/queue/inspector. Observed cookie dismissal focus/scroll jump. Distinguished actual Kit.select/Kit.confirm/runtime from the legacy markup/class-decorating bridge; a kit import/gallery does not prove a component-led command design. Ayan explicitly selected "Map only, with all tools opening on demand." Added a measured design contract and Astra brief with component references, interaction/motion/privacy requirements and verification gates. Device-selection presentation is pending Ayan's answer. This is a design/documentation change, not another production UI redesign or acceptance claim.
+
+Ayan then selected "Expandable card anchored to the selected house." Updated the design contract and Astra brief to lock compact/expanded geographic cards and reject the former floating inspector alternative. Compact card information priority is the next open question.
+
+Ayan selected compact-card content: status, attention reason and last report time. He also selected a disaster-region-first map, with individual devices revealed on zoom. Updated semantic zoom and source-geometry truth requirements. Asked the initial geographic coverage question because current data is Texas-focused and must not be represented as national coverage.
+
+Ayan selected the U.S. disaster overview, then regions and neighborhoods. All five foundational layout/content/geography decisions are now recorded. Added national data/aggregation/source-geometry gaps and explicit truthfulness/performance requirements; no nationwide coverage is claimed from existing Texas endpoints. Exact visual/motion review remains for the Astra design pass.
+
+## 2026-11-07 | Ayan | Satellite map design review proposal
+- Ayan locked satellite imagery with disaster layers. Updated the living brief and Astra instructions.
+- Added an independent local prototype under docs/design/prototype, not a production route. Actual Argus factories power tools, search, layer toggles, status, anchored cards, expansion, readings and history.
+- USGS imagery context retains attribution. A dated NWS snapshot supplies only two actual non-null alert geometries from 322 returned records. Three fictional devices are clearly labeled. No private data or production writes.
+- Inspected desktop/mobile renders; corrected overlapping national labels and map-control/card overlap. The prototype has no KPI row, side rail or default selected house. It uses no cookie-consent interruption; privacy/access is an on-demand tool.
+- Ten rendered route/state checks passed automated accessibility/error/overflow/card-bounds checks. Search, layer toggles, Escape, normal/reduced motion and camera continuity exercised. At 1920x1080, map fills viewport and app chrome leaves 97.7% unobstructed at rest.
+- User visual review, complete national source integration and the actual production replacement remain pending. A local proposal does not prove those complete.
+
+## 2026-11-07 | Ayan | Direction accepted for Astra
+- Ayan answered the rendered composition review: "Use this direction for Astra and refine the details."
+- Recorded approval in the canonical design brief, Astra instructions and prototype README. Added a requirement-by-requirement handoff audit and the next owner's implementation boundary.
+- Requirements/directional review is ready for the teammate using Astra. The production map-only replacement and complete national data coverage are explicitly not claimed complete.
 ## 2026-11-07 | Ayan | Page weight, scroll boundaries and entry points
 - User reports heavy loading, blank space at scroll boundaries, and unclear marketing/operator/household entry points.
 - Replaced whole-document mutation rescans with frame-batched changed-subtree updates. Own component changes are excluded from observation; map and select internals do not trigger product restyling.
@@ -183,6 +205,14 @@ Final local release evidence for Claude continuation: 236/236 tests pass; 43/43 
   - `npm run provision` creates synthetic demo homes + devices and writes git-ignored `secrets.h` files (needs `API_ADMIN_KEY`); `npm run firmware:sync` / `firmware:build`.
 - Verified: both sketches compile with arduino-cli 1.5.1 + ESP32 core 3.3.12 (box A 35% flash / 18% RAM on XIAO_ESP32S3 with OPI PSRAM; box B 72% / 15% on ESP32 Dev Module), no warnings beyond the intentional missing-secrets notice. Hub `--selftest` PASS and its login rejects missing/wrong passwords (Python 3.12). The compiler caught a malformed CA header, now generated by `scripts/gen-root-ca.mjs`. Not verified: nothing has been flashed to real boards; sensor thresholds need calibration on the bench.
 - Added [DATASHEETS.md](DATASHEETS.md) and [firmware/TESTING.md](../firmware/TESTING.md) (bench, system and security tests).
+
+## 2026-11-07 | Ayan | Floating island, triage and hurricane exercise refinement
+- Ayan requested direct top overlays, a compact left tab island, all devices/assigned priorities, power-loss sorting, multiple demo layers/severity circles and device dots on zoom.
+- Refined the independent prototype with actual Argus filter buttons/selects: desktop left island, mobile bottom island, Devices/Priorities/Activity views, search and priority/power/battery/age sorting, power-loss filter, session-only priority assignment and matching map visibility.
+- Added a clearly fictional hurricane exercise: 63 fictional devices, exposure circles and a track. Wind, power-loss and water overlays are independent; official snapshot evidence stays separately labeled. Unknown devices show last-known readings. No production persistence or dispatch is implied.
+- Checked ten desktop/mobile states: no automated accessibility violations, page errors or horizontal overflow. Actual clicks verified P3 assignment and stored session state. Zoom reveals device dots. Fixed dropdown closure caused by container scrolling and mobile control/attribution/card collisions after rendered review.
+- Refined default chrome leaves 93.0% unobstructed at 1440x960. Previous 97.7% figure describes the first proposal. Added reproducible check script and section 22 with the latest user requirements.
+- Review follow-up: Activity, sample-report transitions and search now stay scoped to the selected scenario. A browser check confirmed hurricane activity references HB-2001 and a selected hurricane device receives the exercise report-age transition.
 
 ## 2026-11-07 night: box mesh (Dhruv)
 
