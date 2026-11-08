@@ -75,10 +75,12 @@ function guestView() {
   }); } }, field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Password', 'password', { type: 'password', auto: 'current-password', max: 512 }), h('button', { class: 'primary', type: 'submit' }, 'Sign in'), msgEl('login'));
   const tab = (id, text) => h('button', { type: 'button', id: 'customer-tab-' + id, 'aria-pressed': String(state.tab === id), onclick: () => { state.tab = id; render(); document.getElementById('customer-tab-' + id)?.focus(); } }, text);
   return [
-    h('h1', null, link ? 'Link your HomeBeacon' : 'Sign in'),
+    h('h1', null, link ? 'Create your HomeBeacon account' : 'Sign in'),
     h('p', { class: 'muted' }, 'See your device reports and updates from the response team.'),
-    h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Link a device'), tab('signin', 'I have an account')),
+    h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Sign up'), tab('signin', 'Sign in')),
+    link && h('p', { class: 'fine' }, 'Have your device serial and 6-digit pairing code ready, or scan its QR code. Your account links you to that device.'),
     h('section', { class: 'card' }, link ? regForm : inForm),
+    link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/demo' }, 'Explore the demo'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
   ];
 }
 
