@@ -6,7 +6,7 @@ const json=(body,status,extra={})=>Response.json(body,{status,headers:{'Cache-Co
 const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings','/api/device/history-sync'];
 const DEVICE_GET=['/api/device/messages','/api/device/settings'];
 // Read-only paths a demo account may GET (exercise data only; handlers filter on the exercise flag).
-const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
+const DEMO_GET=['/api/ops/fleet','/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
 // One database connection per API request, shared by the session check and the handler.
 export const onRequest=async context=>{
   // DB_TRACE=1 (never set in production) reports connections and commands for one request, for diagnosis only.
@@ -37,6 +37,7 @@ async function route(context){
   // 5) operator or demo session
   const session=await readSession(request,env);
   if(!session)return json({error:'Sign in to view this data.'},401);
+  if(method==='POST'&&/^\/api\/devices\/?$/.test(path))return json({error:'New boxes must be provisioned through the administrator CLI.'},403);
   if(!['GET','HEAD'].includes(method)&&!sameOrigin(request))return json({error:'Request origin is not allowed.'},403);
   if(session.role==='demo'&&!((method==='GET'&&DEMO_GET.includes(path))||(method==='POST'&&path==='/api/layers')))return json({error:'Demo accounts can view exercise data only.'},403);
   context.data.operator=session;

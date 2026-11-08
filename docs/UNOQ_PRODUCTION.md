@@ -1,3 +1,13 @@
+## November 8 onboarding handoff update
+
+The canonical production identity is now **Uno Q hub** (`6af08de410eb36e804a787ed`), using its existing registered UT Dallas home (`6af08de310eb36e804a787ec`). The earlier controller-only identity below is disabled; its history remains. No key was rotated.
+
+The current host uploader runs from `/private/tmp/hb-onboard`, PID recorded in `work/unoq-hub-live.pid`, log `work/unoq-hub-live.log`. Its ignored private configuration is `.secrets/unoq-hub.json` (mode 600). Restart with `node scripts/uno-to-dashboard.mjs --live --key-file .secrets/unoq-hub.json --hub-adb --adb /private/tmp/homebeacon-households-20261108/work/platform-tools/adb --serial 3058549169`, under caffeinate if needed. Check the PID command before stopping it. These temporary checkout paths must be preserved or moved deliberately.
+
+Stable agent 0.1.0 and private configuration are staged on the Q under `/home/arduino/.local/share/safe-home/agent`, `/home/arduino/.config/safe-home/unoq.toml`, and `/home/arduino/.config/safe-home/device-key` (mode 600). Self-test passed. Root installation requires the board sudo password and no service is started. Wi-Fi is down; the Mac bridge remains the actual uplink. The private claim card/label is in ignored `.secrets/unoq-hub-pairing.json` and `.secrets/unoq-hub-label.html`. No customer has been linked.
+
+Earlier evidence follows for history, not current startup instructions.
+
 # Real Uno Q controller setup
 
 November 8, 2026, Ayan workstream. The connected Arduino Uno Q is registered as **Safe Home Uno Q controller**, production device `6af08b8712d27d9187429ea8`, USB serial `3058549169`. It is the box's Linux controller, not simulated data. Existing Box A and Box B identities and keys are preserved.

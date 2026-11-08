@@ -1,3 +1,5 @@
+November 8 onboarding update: `feat/device-onboarding` implements CLI batch inventory, private pairing cards, customer linking/management, operator fleet and receipt-based availability. See [ONBOARDING.md](ONBOARDING.md) and latest WORKLOG for current verification/deployment state. The canonical Uno Q hub receives real host-assisted controller readings at its pre-registered UT Dallas home; an earlier duplicate controller is disabled with history retained.
+
 # Safe Home current project context
 
 November 8 monitoring/weather follow-up (PR #52, production verified in `65fddf2`, run `42489529431`): fixed homepage monitoring descriptions; fictional device playback stays in Simulations; map Wind/Rain forecast use 24 API hours without changing device reports. NOAA radar retains observed-history playback. See [Public weather and News](PUBLIC_WEATHER_NEWS.md) and WORKLOG.

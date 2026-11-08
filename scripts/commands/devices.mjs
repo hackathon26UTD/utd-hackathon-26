@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import provision, { privatePath, reservePrivateFile, privateRequest } from './provision.mjs';
+import { DEVICE_KEY_RE } from '../lib/labels.mjs';
 import { table, ageOf } from '../lib/hb-ui.mjs';
 import { usageError } from '../lib/hb-errors.mjs';
 
@@ -7,9 +8,11 @@ const ID = /^[a-f0-9]{24}$/i;
 
 export default {
   name: 'devices',
-  summary: 'List, inspect and register devices',
-  usage: 'hb devices [list] [--exercise] | show <id> | register <name> [--type esp32] [--key-file path]',
+  summary: 'List, inspect, register and provision devices',
+  booleans: ['exercise', ...provision.booleans],
+  usage: 'hb devices [list] [--exercise] | show <id> | register <name> [--type esp32] [--key-file path] | provision [batch|add|rotate] (see hb provision --help)',
   async run(args, ctx) {
+    if (args[0] === 'provision') return provision.run(args.slice(1), ctx);
     const sub = args[0] && !ID.test(args[0]) ? args[0] : 'list';
     const rest = sub === 'list' && args[0] !== 'list' ? args : args.slice(1);
     if (sub === 'list') {
@@ -48,25 +51,24 @@ export default {
       const name = rest.join(' ').trim();
       if (!name || name.length > 80) throw usageError('Usage: hb devices register <name> [--type esp32] [--key-file path] (name 1 to 80 chars)');
       const body = { name, type: typeof ctx.flags.type === 'string' ? ctx.flags.type : 'esp32' };
-      if (ctx.flags['dry-run']) { ctx.emit({ dryRun: true, body }, () => ctx.out(`Would register: ${JSON.stringify(body)}`)); return 0; }
-      const r = await ctx.api.ok('/api/devices', { method: 'POST', auth: 'admin', body });
-      const key = r.data?.deviceKey;
-      const id = r.data?.device?.id || r.data?.device?._id;
-      // The device key is shown once by the server. Save it to a private file instead of the terminal.
-      const file = resolve(ctx.repoRoot, typeof ctx.flags['key-file'] === 'string' ? ctx.flags['key-file'] : `.secrets/device-${id}.key`);
-      let saved = null;
-      if (key) {
-        if (existsSync(file)) throw usageError(`Refusing to overwrite ${file}`);
-        mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
-        writeFileSync(file, key + '\n', { mode: 0o600 });
-        saved = file;
-      }
-      ctx.emit({ id, name, type: body.type, keyFile: saved }, () => {
-        ctx.out(`${ctx.c.green('registered')} ${name} (${id})`);
-        ctx.out(`device key saved to ${saved} (mode 600, not printed). Put it in the board secrets header, then record it in the credentials registry.`);
-      });
-      return 0;
+      if (ctx.flags['key-file'] !== undefined && (typeof ctx.flags['key-file'] !== 'string' || !ctx.flags['key-file'])) throw usageError('--key-file requires a private filename.');
+      const file = privatePath(ctx.repoRoot, ctx.flags['key-file'] ?? `.secrets/device-${randomUUID()}.key`);
+      if (ctx.flags['dry-run']) { ctx.emit({ dryRun: true, body, keyFile: file }, () => ctx.out(`Would register: ${JSON.stringify(body)}`)); return 0; }
+      const output = reservePrivateFile(ctx.repoRoot, file);
+      try {
+        const r = await privateRequest(ctx, '/api/devices', { method: 'POST', auth: 'admin', body });
+        const key = r.data?.deviceKey;
+        const id = r.data?.device?.id || r.data?.device?._id;
+        if (!DEVICE_KEY_RE.test(key)) throw usageError('Registration returned no usable key. Inspect the fleet before retrying.');
+        output.write(key + '\n');
+        if (!ID.test(id)) throw usageError('Registration returned no usable device id. The key was saved privately; inspect the fleet before retrying.');
+        ctx.emit({ id, name, type: body.type, keyFile: file }, () => {
+          ctx.out(`${ctx.c.green('registered')} ${name} (${id})`);
+          ctx.out(`Device key saved to ${file} (mode 600, not printed).`);
+        });
+        return 0;
+      } finally { output.close(); }
     }
-    throw usageError(`Unknown devices subcommand "${sub}". Use list, show or register.`);
+    throw usageError(`Unknown devices subcommand "${sub}". Use list, show, register or provision.`);
   },
 };
