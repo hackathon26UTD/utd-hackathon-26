@@ -2,7 +2,7 @@ import { readSession,sameOrigin } from '../../src/operator-session.js';
 import { isAdmin } from '../../src/auth.js';
 const json=(body,status,extra={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store',...extra}});
 // Device-key requests pass through: the handler checks the key itself. Anything with a device key is never treated as an operator.
-const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings'];
+const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings','/api/device/history-sync'];
 const DEVICE_GET=['/api/device/messages','/api/device/settings'];
 // Read-only paths a demo account may GET (exercise data only; handlers filter on the exercise flag).
 const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];

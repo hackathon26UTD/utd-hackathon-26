@@ -43,7 +43,7 @@ test('customer current cookie + active owner link; no identity/address leaks; op
   assert.equal((await call(customer, id, { headers: { Cookie: ownerCookie } })).status, 404);
   const r = await call(customer, link, { headers: { Cookie: ownerCookie } });
   assert.equal(r.status, 200); assert.equal(r.headers.get('Cache-Control'), 'no-store');
-  const body = await r.json(); assert.deepEqual(Object.keys(body), ['days', 'daily', 'baseline']);
+  const body = await r.json(); assert.deepEqual(Object.keys(body), ['days', 'local', 'daily', 'baseline']);
   assert.doesNotMatch(JSON.stringify(body), /PRIVATE|deviceId|homeId|customerEmail|keyHash/);
   await db.collection('customer_links').updateOne({ _id: link }, { $set: { active: false } });
   assert.equal((await call(customer, link, { headers: { Cookie: ownerCookie } })).status, 404);
