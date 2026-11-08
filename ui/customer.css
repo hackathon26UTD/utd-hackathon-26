@@ -6,6 +6,24 @@
 .customer-settings{display:grid;gap:20px;min-width:0}.customer-settings .card{border-radius:12px}.customer-settings details>form,.customer-settings details>p,.customer-settings details>.settings-stack{margin-top:18px}.customer-settings form{margin-block:18px}.customer-settings .settings-stack{display:grid;gap:16px}.customer-settings .credential-result:empty{display:none}.customer-settings .credential-result{display:grid;gap:12px;min-width:0}.customer-settings .copy-value{display:block;overflow-wrap:anywhere;padding:12px 0}.customer-settings code,.customer-settings p{overflow-wrap:anywhere}.customer-settings .msg{white-space:pre-wrap}.customer-settings select,.customer-settings .kit-select{width:100%}.customer-settings .connection-consent{border:2px solid var(--kit-accent)}.customer-settings input[type=password]{text-transform:none;letter-spacing:normal}
 #customer details.card{display:block;border-radius:12px;padding:20px}#customer details.card:not([open]){padding:15px 20px}#customer details.card>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none;min-height:24px}#customer details.card>summary::-webkit-details-marker{display:none}#customer details.card>summary::after{content:'';width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-right:4px;flex:none}#customer details.card[open]>summary::after{transform:rotate(225deg)}#customer details.card[open]>summary{margin-bottom:20px}#customer .customer-settings>details>button{margin-block:12px}#customer .customer-settings>details>a{display:inline-block;margin-block:10px}
 
+/* Customer onboarding, using the existing Argus controls and color tokens. */
+#customer .device-list,#customer .add-box,#customer .settings-stack,#customer .wait,#customer .wifi-help{display:grid;gap:16px;min-width:0}
+#customer .add-box [hidden],#customer .manage [hidden]{display:none!important}
+#customer .manage>summary,#customer .reset>summary{cursor:pointer;min-height:44px;display:flex;align-items:center}
+#customer .manage[open]>.settings-stack{padding-top:16px;border-top:1px solid var(--line)}
+#customer .consents{margin:0;padding:16px;border:1px solid var(--line);border-radius:6px;display:grid;gap:16px;min-width:0}
+#customer .consents legend{padding:0 6px;font-weight:550}
+#customer .confirm-box,#customer .wifi-help{padding:16px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#customer .confirm-box{display:grid;gap:16px}
+#customer .wait-title{font-weight:550}
+#customer .pill.reporting{color:var(--ink);background:var(--none-bg);border:1px solid var(--line)}
+#customer .scan-video{display:block;width:100%;max-height:300px;background:var(--bg);border-radius:6px;object-fit:cover}
+#customer .scan-box{display:grid;gap:12px}
+#customer .scan-photo{font-weight:400;max-width:100%}
+#customer .scan-file{width:100%;min-width:0;max-width:100%}
+#customer .settings-stack .kit-select{width:100%}
+#customer .card p,#customer .card h2,#customer .card code{overflow-wrap:anywhere}
+#customer .card form,#customer .card label{min-width:0}
 
 /* Customer enclosure workspace. */
 .shell:has(.box-overview) main{gap:14px}.shell:has(.box-overview) .top{margin-bottom:8px}.portal-heading{display:none}.box-overview{position:relative;min-width:0;color:var(--ink)}.box-summary{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;position:relative;z-index:2}.box-kicker{font-size:9px;font-weight:600;letter-spacing:.17em;color:var(--muted)}.box-summary h2{font-weight:500;letter-spacing:-.05em;margin-top:8px}.device-health{text-align:right;font-size:11px;display:grid;justify-items:end;gap:7px}.device-health .pill{background:none;padding:0}.device-health small{color:var(--muted)}.box-visual{position:relative;width:100%;min-width:0}.enclosure-stage{width:100%;cursor:grab;touch-action:none}.enclosure-stage:active{cursor:grabbing}.enclosure-stage canvas{display:block;width:100%;height:100%;outline-offset:-4px}.model-status{position:absolute;left:0;right:0;text-align:center;color:var(--muted);pointer-events:none}.shell:has(.box-overview) #devices>div{grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr))}.shell:has(.box-overview) footer{margin-top:24px}

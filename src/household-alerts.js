@@ -72,7 +72,9 @@ async function currentJob(db,env,job,access,{now,fetcher,deps,contextLoader}) {
   }
   return 'superseded';
 }
+const alertsUnpaused = (links, id, now) => links.some(l => l._id === id && (!l.notificationsPausedUntil || new Date(l.notificationsPausedUntil) <= now));
 async function queueEvent(db,env,member,event,now) {
+  if(event.linkId){const link=await db.collection('customer_links').findOne({_id:event.linkId,active:true},{projection:{notificationsPausedUntil:1}});if(!link||link.notificationsPausedUntil&&new Date(link.notificationsPausedUntil)>now)return;}
   if(!eligibleForEmail(member,event.channel)||!member.preferencesUpdatedAt||event.createdAt<member.preferencesUpdatedAt)return;
   const _id=await sha256Hex(event._id+':'+member._id+':'+(member.preferencesVersion||0));
   if(await db.collection('household_mail_outbox').findOne({_id},{projection:{_id:1}}))return;
@@ -90,7 +92,7 @@ export async function deliverHouseholdOutbox(db,env,{now=new Date(),fetcher=fetc
     if(!job)break;
     const finish=async fields=>db.collection('household_mail_outbox').updateOne({_id:job._id,lease},{$set:fields,$unset:{lease:'',leaseUntil:''}});
     const a=await activeHouseholdMember(db,job.memberId),m=a?.member;
-    if(!a||!eligibleForEmail(m,job.channel)||m.email!==job.email||m.accountGeneration!==job.generation||(m.preferencesVersion||0)!==job.preferencesVersion||job.linkId&&!a.links.some(l=>l._id===job.linkId)) {await finish({status:'suppressed',finishedAt:now});continue;}
+    if(!a||!eligibleForEmail(m,job.channel)||m.email!==job.email||m.accountGeneration!==job.generation||(m.preferencesVersion||0)!==job.preferencesVersion||job.linkId&&!alertsUnpaused(a.links,job.linkId,now)) {await finish({status:'suppressed',finishedAt:now});continue;}
     if(job.validUntil<=now || now-job.createdAt>20*HOUR || job.attempts>=4){await finish({status:'expired',finishedAt:now});continue;}
     // A per-member lease prevents two workers from bypassing the recipient cooldown.
     const gate=await db.collection('household_members').updateOne({_id:m._id,status:'active',email:m.email,accountGeneration:m.accountGeneration,$and:[{$or:[{mailLeaseUntil:{$exists:false}},{mailLeaseUntil:{$lte:now}}]},{$or:[{lastEmailAttemptAt:{$exists:false}},{lastEmailAttemptAt:{$lte:new Date(+now-60000)}}]}]},{$set:{mailLeaseUntil:new Date(+now+120000)}});
@@ -101,12 +103,12 @@ export async function deliverHouseholdOutbox(db,env,{now=new Date(),fetcher=fetc
       const payload=JSON.parse(await decryptKey(env,'household-outbox:'+m._id,job.encryptedPayload));
       // Revocation/preferences may have changed during decryption and source checks.
       const current=await activeHouseholdMember(db,m._id);
-      if(!current||!eligibleForEmail(current.member,job.channel)||(current.member.preferencesVersion||0)!==job.preferencesVersion||current.member.email!==job.email||current.member.accountGeneration!==job.generation||job.linkId&&!current.links.some(l=>l._id===job.linkId)){await finish({status:'suppressed',finishedAt:now});continue;}
+      if(!current||!eligibleForEmail(current.member,job.channel)||(current.member.preferencesVersion||0)!==job.preferencesVersion||current.member.email!==job.email||current.member.accountGeneration!==job.generation||job.linkId&&!alertsUnpaused(current.links,job.linkId,now)){await finish({status:'suppressed',finishedAt:now});continue;}
       const condition=await currentJob(db,env,job,current,{now,fetcher,deps,contextLoader});
       if(condition!=='current'){await finish(condition==='retry'?{status:'retry',nextAttemptAt:new Date(+now+60000)}:{status:'superseded',finishedAt:now});continue;}
       // Source work may have awaited I/O; check recipient authority once more before the send.
       const final=await activeHouseholdMember(db,m._id);
-      if(!final||!eligibleForEmail(final.member,job.channel)||final.member.email!==job.email||final.member.accountGeneration!==job.generation||(final.member.preferencesVersion||0)!==job.preferencesVersion||!final.links.some(l=>l._id===job.linkId)){await finish({status:'suppressed',finishedAt:now});continue;}
+      if(!final||!eligibleForEmail(final.member,job.channel)||final.member.email!==job.email||final.member.accountGeneration!==job.generation||(final.member.preferencesVersion||0)!==job.preferencesVersion||!alertsUnpaused(final.links,job.linkId,now)){await finish({status:'suppressed',finishedAt:now});continue;}
       await db.collection('household_mail_outbox').updateOne({_id:job._id,lease},{$inc:{attempts:1},$set:{lastAttemptAt:now}});
       await db.collection('household_members').updateOne({_id:m._id},{$set:{lastEmailAttemptAt:now}});
       attempted++;

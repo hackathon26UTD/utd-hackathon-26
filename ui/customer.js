@@ -1,35 +1,31 @@
 import {backupRuntime} from './backup-runtime.js';
 import {previewDevice} from './customer-preview.js';
+import {onboardingUI, readClaimFragment, boxStatus} from './customer-onboarding.js';
 import {emailConfirmation} from './household-email-confirm.js';
 import {householdUI} from './households.js';
 import {openDeviceHistory} from './device-history.js';
 import {mountProfilePhoto} from './profile-photo.js';
 import {customerSettings} from './customer-settings.js';
 import {startProductKit} from './product-kit.js';
-startProductKit();
 // Customer side of Safe Home. All text is set with textContent; the server returns an allowlisted view only.
 const root = document.getElementById('customer');
 let photoCleanup = null, modelCleanup = null, modelGeneration = 0;
 const preview = new URLSearchParams(location.search).get('preview') === '1';
 let selectedDevice = null;
-const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
+const STATUS = { needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
 const POLL_MS = 10000;
-const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
+const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(window), seen: new Set(), failures: 0, timer: null, refreshSequence: 0 };
+
+startProductKit();
 
 function h(tag, attrs, ...kids) {
-  const el = tag === 'svg' ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
+  const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === false || v == null) continue;
     if (k === 'class') el.setAttribute('class', v); else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
   }
   for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
   return el;
-}
-// QR links look like /customer#claim=HB-7K3Q-9XMD.482913. Read the code, then remove it from the address bar.
-function readClaimFragment() {
-  const m = /^#claim=([A-Za-z0-9-]{8,16})\.(\d{6})$/.exec(location.hash);
-  if (m) history.replaceState(null, '', location.pathname + location.search);
-  return m ? { serial: m[1].toUpperCase(), code: m[2] } : null;
 }
 async function api(path, method = 'GET', body) {
   try {
@@ -60,15 +56,8 @@ async function submit(form, key, fn) {
 }
 
 // ---------- screens ----------
-function deviceFields(prefix) {
-  return [
-    field('Device serial', 'serial', { mono: true, hint: 'On the label, like HB-7K3Q-9XMD', value: state.prefill?.serial, max: 16 }),
-    field('Pairing code', 'code', { mono: true, mode: 'numeric', hint: '6 digits from the label or your installer', value: state.prefill?.code, max: 8 }),
-    field('Device name', 'nickname', { optional: true, hint: 'Optional, like Garage', max: 40 }),
-    field('Your name', 'contactName', { auto: 'name', value: state.user?.contactName, hint: 'Shown to the response team', max: 60 }),
-    h('label', { class: 'check', for: 'f-consent' }, h('input', { type: 'checkbox', id: 'f-consent', name: 'consent' }), h('span', null, 'The response team may use my name and email to contact me about this device. I can unlink it at any time.')),
-  ];
-}
+const onboarding = onboardingUI({h, api, state, refresh, renderDevices, say, msgEl, field, submit, win: window});
+
 function guestView() {
   const link = state.tab === 'link';
   const regForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'reg', async f => {
@@ -90,41 +79,36 @@ function guestView() {
     h('p', { class: 'muted' }, 'See your device reports and updates from the response team.'),
     households.guestNotice(),
     h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Sign up'), tab('signin', 'Sign in')),
-    link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add device to connect your Safe Home.'),
+    link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add my box to connect your Safe Home.'),
     h('section', { class: 'card' }, link ? regForm : inForm),
     link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/simulations' }, 'Explore simulations'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
   ];
 }
 
 function deviceCard(d) {
+  const connection = boxStatus(d);
   const msgs = (d.messages || []).filter(m => !state.seen.has(m.id));
   return h('article', { class: 'card', 'aria-label': d.nickname },
-    h('div', { class: 'row' }, h('h2', null, d.nickname), h('span', { class: 'pill ' + d.status }, STATUS[d.status] || STATUS.no_recent_signal)),
+    h('div', { class: 'row' }, h('h2', null, d.nickname), h('span', { class: 'pill ' + connection.pill }, connection.label)),
     d.exercise && h('p', { class: 'banner' }, 'Exercise device. This is practice data, not a real event.'),
-    h('p', null, d.statusText),
-    h('p', { class: 'fine' }, 'Last heard from: ', ago(d.lastSeen)),
+    d.room && h('p', { class: 'fine' }, 'Room: ', d.room),
+    d.serial && h('p', { class: 'fine' }, 'Serial: ', h('code', null, d.serial)),
+    onboarding.reportingBanner(d), onboarding.waitingView(d), onboarding.lastHeard(d),
+    ['urgent', 'needs_attention'].includes(d.status) && h('span', { class: 'pill ' + d.status }, STATUS[d.status]),
+    d.statusText && h('p', null, d.statusText),
     d.conditions?.length ? h('ul', { class: 'plain' }, d.conditions.map(c => h('li', null, h('strong', null, c.label), c.text))) : null,
     msgs.map(m => h('div', { class: 'box ' + (m.severity || 'info'), role: m.severity === 'urgent' ? 'alert' : 'note' },
       h('h3', null, m.title), m.body && h('p', null, m.body),
       h('button', { type: 'button', onclick: () => ack(d, m) }, 'Got it'))),
-    h('div', { class: 'help ' + d.help.status }, h('strong', null, 'Help status'), h('p', null, d.help.text), d.help.note && h('p', null, d.help.note), d.help.updatedAt && h('p', { class: 'fine' }, 'Updated ', ago(d.help.updatedAt))),
+    d.help && h('div', { class: 'help ' + d.help.status }, h('strong', null, 'Help status'), h('p', null, d.help.text), d.help.note && h('p', null, d.help.note), d.help.updatedAt && h('p', { class: 'fine' }, 'Updated ', ago(d.help.updatedAt))),
     !d.exercise && h('button',{type:'button',onclick:()=>openDeviceHistory(d.id,{customer:true})},'History and usual readings'),
-    state.confirm === d.id
-      ? h('div', { class: 'row' }, h('span', null, 'Unlink this device and delete your contact name from it?'), h('button', { type: 'button', class: 'danger', onclick: () => unlink(d) }, 'Yes, unlink'), h('button', { type: 'button', onclick: () => { state.confirm = null; renderDevices(); } }, 'Keep'))
-      : h('button', { type: 'button', class: 'link', onclick: () => { state.confirm = d.id; renderDevices(); } }, 'Unlink this device'));
+    onboarding.manageView(d));
 }
+
 function devicesView() {
-  if (state.devices === null) return h('p', { class: 'muted', role: 'status' }, 'Loading your devices...');
+  if (state.devices === null) return h('p', { class: 'muted', role: 'status' }, state.failures ? 'Could not load your boxes. Trying again in 10 seconds.' : 'Loading your boxes...');
   if (!state.devices.length) return h('p', { class: 'card' }, 'No devices are linked to this account yet.');
-  return h('div', { style: 'display:grid;gap:16px' }, state.devices.map(deviceCard));
-}
-function addView() {
-  const form = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'add', async f => {
-    const r = await api('/api/customer/claim', 'POST', { serial: f.serial, code: f.code, address:f.address, contactName: f.contactName, consent: !!f.consent, ...(f.nickname ? { nickname: f.nickname } : {}) });
-    if (!r.ok) return say('add', r.data.error || 'Something went wrong. Try again.');
-    state.prefill = null; say('add', 'Device linked.', 'ok'); e.target.reset(); await refresh();
-  }); } }, ...deviceFields(), field('Device address', 'address', { auto:'street-address', max:300, hint:'Street, city, state and ZIP. Sent to the U.S. Census address service to place your device on the map.' }), h('button', { class: 'primary', type: 'submit' }, 'Link device'), msgEl('add'));
-  return h('details', { class: 'card', id:'add-device', open: !!state.prefill || state.devices?.length === 0 }, h('summary', null, 'Add device'), form);
+  return h('div', { class: 'device-list' }, state.failures > 0 && h('p', { class: 'banner', role: 'status' }, 'Could not update your boxes. These are the last details we received. Trying again in 10 seconds.'), state.devices.map(deviceCard));
 }
 function boxOverview() {
   const icons={Power:'ϟ','Wi-Fi':'⌁',Conditions:'◉'};
@@ -158,7 +142,7 @@ function updateOverview() {
   if (!d) { el.replaceChildren(h('h2',null,'Your Safe Home'),h('p',{class:'muted'},'Add a device to see its reports.')); return; }
   const select = devices.length > 1 ? h('label',null,'Your box', h('select',{'aria-label':'Your box',onchange:e=>{selectedDevice=e.target.value;updateOverview();}},devices.map(item=>h('option',{value:item.id,selected:item.id===d.id},item.nickname)))) : '';
   el.replaceChildren(h('div',null,h('p',{class:'box-kicker'},preview?'PREVIEW · SAMPLE DATA':'YOUR BOX'),h('h2',null,d.nickname),select),
-    h('div',{class:'device-health'},h('span',{class:'pill '+d.status},STATUS[d.status] || STATUS.no_recent_signal),h('small',null,'Last report: '+(d.lastSeen ? new Date(d.lastSeen).toLocaleString() : 'Not reported')),
+    h('div',{class:'device-health'},h('span',{class:'pill '+(['urgent','needs_attention'].includes(d.status)?d.status:boxStatus(d).pill)},STATUS[d.status] || boxStatus(d).label),h('small',null,'Last report: '+((d.lastSeenAt || d.lastSeen) ? new Date(d.lastSeenAt || d.lastSeen).toLocaleString() : 'Not reported')),
     state.failures > 0 ? h('p',{role:'status'},'Refresh unavailable.') : ''));
   const groups={Power:/power|mains|battery/i,'Wi-Fi':/connect|internet|wi-fi|network/i,Conditions:/water|flood|temp|air|smoke|humid/i};
   for(const [name,pattern] of Object.entries(groups)){
@@ -181,7 +165,7 @@ async function startBox() {
 function appView() {
   const settings = customerSettings({h,api,state,refresh,enter});
   const connecting = new URLSearchParams(location.search).has('connect');
-  return [h('div',{class:'portal-heading'},h('p',{class:'box-kicker'},'CUSTOMER PORTAL'),h('h1', null, connecting ? 'Connect your assistant' : 'Your home. In view.'),h('p',{class:'muted'},'Your box, its latest observations, and updates from your team.')), boxOverview(), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), h('div',{id:'household-tools'},households.node()), ...(!connecting ? [settings] : [])];
+  return [h('h1', {class:'portal-heading'}, connecting ? 'Connect your assistant' : 'Your devices'), boxOverview(), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), h('div',{id:'add-device'},onboarding.addView()), h('div',{id:'household-tools'},households.node()), ...(!connecting ? [settings] : [])];
 }
 
 // ---------- actions ----------
@@ -189,24 +173,32 @@ async function ack(d, m) {
   const r = await api('/api/customer/messages?id=' + encodeURIComponent(d.id), 'POST', { messageId: m.id });
   if (r.ok || r.status === 404) { state.seen.add(m.id); renderDevices(); }
 }
-async function unlink(d) {
-  const r = await api('/api/customer/devices?id=' + encodeURIComponent(d.id), 'DELETE');
-  state.confirm = null;
-  if (r.ok || r.status === 404) await refresh(); else renderDevices();
-}
 async function refresh() {
+  const user = state.user, sequence = ++state.refreshSequence;
   const r = await api('/api/customer/devices');
-  if (r.status === 401) { stop(); state.user = null; state.devices = null; return render(); }
-  if (r.ok) { state.devices = r.data.devices || []; state.failures = 0; } else state.failures++;
+  if (!user || state.user !== user || sequence !== state.refreshSequence) return;
+  if (r.status === 401) { stop(); onboarding.stopScan(); state.user = null; state.devices = null; return render(); }
+  if (r.ok) { state.devices = r.data.devices || []; onboarding.trackReporting(state.devices); state.failures = 0; } else state.failures++;
   renderDevices();
   households.sync();
 }
-function renderDevices() { updateOverview(); const el = document.getElementById('devices'); if (el) el.replaceChildren(devicesView()); }
+function renderDevices() {
+  updateOverview();
+  const el = document.getElementById('devices');
+  if (!el) return;
+  // Cached management forms keep draft values, expansion, and keyboard focus across polling.
+  const active = el.contains(document.activeElement) ? document.activeElement : null;
+  const selection = active?.tagName === 'INPUT' && active.type === 'text' ? [active.selectionStart, active.selectionEnd] : null;
+  el.replaceChildren(devicesView());
+  if (active?.isConnected) { active.focus({ preventScroll: true }); if (selection) active.setSelectionRange(...selection); }
+  const add = document.getElementById('add-box')?.closest('details');
+  if (add && state.devices?.length === 0) add.open = true;
+}
 function stop() { clearTimeout(state.timer); state.timer = null; }
 function schedule() {
   stop();
-  const wait = Math.min(120000, POLL_MS * 2 ** Math.min(state.failures, 3)) + Math.random() * 2000;
-  state.timer = setTimeout(async () => { if (!document.hidden) await refresh(); schedule(); }, wait);
+  if (!state.user) return;
+  state.timer = setTimeout(async () => { if (!document.hidden) await refresh(); if (state.user) schedule(); }, POLL_MS);
 }
 async function enter() {
   const me = await api('/api/customer/me');
@@ -214,21 +206,22 @@ async function enter() {
   render();
   if (state.user) { await refresh(); schedule(); }
 }
-async function signOut() { stop(); await api('/api/customer/logout', 'POST'); state.user = null; state.devices = null; state.tab = 'signin'; render(); }
+async function signOut() { stop(); onboarding.stopScan(); const r = await api('/api/customer/logout', 'POST'); if (!r.ok) { say('session', 'Could not sign out. Try again.'); schedule(); return; } onboarding.reset(); state.seen.clear(); state.msg = {}; state.user = null; state.devices = null; state.tab = 'signin'; render(); }
 
 function render() {
+  onboarding.stopScan();
   modelGeneration++; modelCleanup?.(); modelCleanup = null;
   photoCleanup?.(); photoCleanup = null;
   const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'Safe Home'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'Safe Home shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
-    h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
-  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), ...(preview ? [boxOverview()] : state.user ? appView() : guestView())), foot));
-  if (state.user || preview) { startBox(); updateOverview(); }
+    h('p', { class: 'fine' }, 'Contact permission is shown under Manage this box.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
+  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), msgEl('session'), ...(preview ? [boxOverview()] : state.user ? appView() : guestView())), foot));
+  if (state.user || preview) {startBox();updateOverview();}
   if (!preview) households.sync();
   if(state.user){const photo=h('details',{class:'card',id:'profile',open:location.hash==='#profile'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.user) refresh(); });
-if (preview) { state.devices = [previewDevice]; render(); }
+if (preview) {state.devices=[previewDevice];render();}
 const first = preview ? {ok:false} : await api('/api/customer/me');
-if (first.ok) { state.user = first.data; render(); await refresh(); schedule(); } else if (!preview) render();
+if (first.ok) { state.user = first.data; render(); await refresh(); schedule(); } else if(!preview) render();
