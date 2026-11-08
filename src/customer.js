@@ -6,7 +6,7 @@ import { matchCustomerAddress } from './customer-location.js';
 import { withDatabase } from '../lib/mongodb.js';
 import { HttpError, badRequest, notFound } from './http.js';
 import { sha256Hex, isAdmin } from './auth.js';
-import { passwordHash, equal, sameOrigin, issueCustomerSession, readCustomerSession, customerCookie } from './operator-session.js';
+import { passwordHash, equal, sameOrigin, issueCustomerSession, readCustomerSession, customerCookie, authenticationAccount } from './operator-session.js';
 
 export const FAIL_TEXT = 'Those details do not match an available device.';
 export const LOGIN_FAIL_TEXT = 'Email or password is incorrect.';
@@ -312,7 +312,7 @@ const routes = {
       if (serial && !await takeAttempt(db, await rateKey(ctx.env, 'cust-serial', serial), 5, now)) return tooMany();
       const deps = await depsFor(ctx);
       const accounts = db.collection('customer_accounts');
-      const existing = await accounts.findOne({ _id: email });
+      const existing = await authenticationAccount(db, 'customer', email);
       // Hash on every path so timing does not reveal whether the email is registered.
       const salt = existing?.salt || crypto.randomUUID();
       const hash = await passwordHash(password, salt);
@@ -320,21 +320,23 @@ const routes = {
       const wantsDevice = body.serial !== undefined || body.code !== undefined;
       if (!wantsDevice) {
         if (existing) return reply({ error: 'Use sign in for an existing account.' }, 400);
-        try { await accounts.insertOne({ _id: email, hash, salt, contactName, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
+        const created = { _id: email, hash, salt, contactName, createdAt: now, sessionGeneration:crypto.randomUUID(), termsVersion: '2026-11-07', termsAcceptedAt: now };
+        try { await accounts.insertOne(created); }
         catch { return reply({ error: FAIL_TEXT }, 400); }
         await audit(deps, db, {actor:await customerActor(email),action:'customer.register',details:{newAccount:true,acceptedTerms:true,termsVersion:'2026-11-07'}});
-        const token = await issueCustomerSession(ctx.env, email);
+        const token = await issueCustomerSession(ctx.env, email, {verifiedAccount:created,db});
         return reply({ authenticated: true, linked: false }, 201, { 'Set-Cookie': customerCookie(token) });
       }
       let link;
       try { link = await claimDevice(db, { email, serial, code: body.code, contactName, consent: body.consent, nickname }, deps); }
       catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
+      const verifiedAccount = existing || { _id: email, hash, salt, createdAt: now, sessionGeneration:crypto.randomUUID(), termsVersion: '2026-11-07', termsAcceptedAt: now };
       if (!existing) {
-        try { await accounts.insertOne({ _id: email, hash, salt, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
+        try { await accounts.insertOne(verifiedAccount); }
         catch { await unlinkQuiet(db, link); return reply({ error: FAIL_TEXT }, 400); }
       }
       await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing, termsVersion: '2026-11-07', acceptedTerms: true }, exercise: link.exercise });
-      const token = await issueCustomerSession(ctx.env, email);
+      const token = await issueCustomerSession(ctx.env, email, {verifiedAccount,db});
       return reply({ authenticated: true, linked: true, id: link._id }, 201, { 'Set-Cookie': customerCookie(token) });
     });
   },
@@ -348,10 +350,10 @@ const routes = {
     if (!email || typeof body.password !== 'string' || body.password.length > 512) return reply({ error: 'Enter your email and password.' }, 400);
     return run(ctx, async db => {
       if (!await takeAttempt(db, await rateKey(ctx.env, 'cust-ip', clientIp(ctx.request)), 8)) return tooMany();
-      const account = await db.collection('customer_accounts').findOne({ _id: email });
+      const account = await authenticationAccount(db, 'customer', email);
       const hash = await passwordHash(body.password, account?.salt || 'invalid-customer');
       if (!account || !equal(hash, account.hash)) return reply({ error: LOGIN_FAIL_TEXT }, 401);
-      const token = await issueCustomerSession(ctx.env, email);
+      const token = await issueCustomerSession(ctx.env, email, {verifiedAccount:account,db});
       return reply({ authenticated: true }, 200, { 'Set-Cookie': customerCookie(token) });
     });
   },

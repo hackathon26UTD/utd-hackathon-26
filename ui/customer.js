@@ -1,8 +1,11 @@
+import {openDeviceHistory} from './device-history.js';
+import {mountProfilePhoto} from './profile-photo.js';
 import {customerSettings} from './customer-settings.js';
 import {startProductKit} from './product-kit.js';
 startProductKit();
 // Customer side of HomeBeacon. All text is set with textContent; the server returns an allowlisted view only.
 const root = document.getElementById('customer');
+let photoCleanup = null;
 const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
 const POLL_MS = 10000;
 const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
@@ -81,7 +84,7 @@ function guestView() {
     h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Sign up'), tab('signin', 'Sign in')),
     link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add device to connect your HomeBeacon.'),
     h('section', { class: 'card' }, link ? regForm : inForm),
-    link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/demo' }, 'Explore the demo'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
+    link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/simulations' }, 'Explore simulations'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
   ];
 }
 
@@ -97,6 +100,7 @@ function deviceCard(d) {
       h('h3', null, m.title), m.body && h('p', null, m.body),
       h('button', { type: 'button', onclick: () => ack(d, m) }, 'Got it'))),
     h('div', { class: 'help ' + d.help.status }, h('strong', null, 'Help status'), h('p', null, d.help.text), d.help.note && h('p', null, d.help.note), d.help.updatedAt && h('p', { class: 'fine' }, 'Updated ', ago(d.help.updatedAt))),
+    !d.exercise && h('button',{type:'button',onclick:()=>openDeviceHistory(d.id,{customer:true})},'History and usual readings'),
     state.confirm === d.id
       ? h('div', { class: 'row' }, h('span', null, 'Unlink this device and delete your contact name from it?'), h('button', { type: 'button', class: 'danger', onclick: () => unlink(d) }, 'Yes, unlink'), h('button', { type: 'button', onclick: () => { state.confirm = null; renderDevices(); } }, 'Keep'))
       : h('button', { type: 'button', class: 'link', onclick: () => { state.confirm = d.id; renderDevices(); } }, 'Unlink this device'));
@@ -152,11 +156,13 @@ async function enter() {
 async function signOut() { stop(); await api('/api/customer/logout', 'POST'); state.user = null; state.devices = null; state.tab = 'signin'; render(); }
 
 function render() {
+  photoCleanup?.(); photoCleanup = null;
   const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'HomeBeacon'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'HomeBeacon shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
     h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
   root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, ...(state.user ? appView() : guestView())), foot));
+  if(state.user){const photo=h('details',{class:'card'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.user) refresh(); });
 const first = await api('/api/customer/me');

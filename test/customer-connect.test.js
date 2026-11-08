@@ -19,13 +19,17 @@ import {
 } from "../src/customer-self-service.js";
 import {
   passwordHash,
-  issueCustomerSession,
+  issueCustomerSession as issueCustomerBound,
+  authenticationAccount,
   customerCookie,
   readCustomerSession,
 } from "../src/operator-session.js";
 import { sha256Hex } from "../src/auth.js";
 import { setupBeacon } from "../src/beacon.js";
 import { handle } from "../src/app.js";
+async function issueCustomerSession(settings,email) {
+  return issueCustomerBound(settings,email,{verifiedAccount:await authenticationAccount(db,'customer',email),db});
+}
 const origin = "https://home.test",
   email = "owner@example.test",
   other = "other@example.test",
@@ -350,7 +354,7 @@ test("real MCP SDK initializes, lists tools and returns only owned reports witho
   );
   await sdk.connect(transport);
   const tools = await sdk.listTools();
-  assert.equal(tools.tools.length, 3);
+  assert.equal(tools.tools.length, 5);
   assert.ok(tools.tools.every((t) => t.annotations.readOnlyHint));
   const list = await sdk.callTool({
     name: "homebeacon_list_devices",
