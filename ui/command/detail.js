@@ -243,7 +243,7 @@ ${observations ? `<dl class="dr-observation-summary" aria-label="Latest sensor o
   }
 
   function actionsHtml(p, risk) {
-    return `<h4 class="dr-actions-h">Actions</h4><div class="actions"><button class="primary" id="d-send"${writeOff()}>Send message to this home</button><button id="follow"${writeOff()}>Record follow-up</button>${ctx.demo ? '' : '<button data-data-tool="location">Location image</button><button data-data-tool="stats">History and averages</button><button data-data-tool="response">Preview responder message</button><button data-data-tool="settings">Board message polling</button>'}</div>${ctx.demo ? '<p class="soft-note">Exercise mode is read only. Sending and notes are turned off.</p>' : ''}<p><small>${esc(ADVISORY_LINE)} It does not confirm damage, occupancy or entry conditions.</small></p>`;
+    return `<h4 class="dr-actions-h">Actions</h4><div class="actions"><button id="follow"${writeOff()}>Record follow-up</button>${ctx.demo ? '' : '<button data-data-tool="location">Location image</button><button data-data-tool="stats">History and averages</button><button data-data-tool="response">Preview responder message</button>'}</div>${ctx.demo ? '<p class="soft-note">Notes are unavailable in simulations.</p>' : ''}<p><small>${esc(ADVISORY_LINE)} It does not confirm damage, occupancy or entry conditions.</small></p>`;
   }
 
   // ---- other device tabs ----
@@ -271,7 +271,7 @@ ${power ? `<dl class="mini"><div><dt>Mains</dt><dd>${power.mains === true ? 'Con
 
   function messagesTab(p, D) {
     const msgs = D?.data?.messages || [];
-    return `<div class="actions"><button class="primary" id="d-send"${writeOff()}>New message</button></div>` + (msgs.length ? `<ul class="log-list">${msgs.map(m => { const st = messageState(m, p.id); return `<li><strong>${esc(m.title)}</strong> <span class="chip st-${esc(st)}">${esc(MSG_STATE_TEXT[st] || st)}</span><br>${esc(m.body || '')}<br><small>${esc(m.severity || 'info')} · ${m.customerVisible ? 'customer can see' : 'device only'} · ${esc(dateTimeText(m.createdAt))}</small>${st === 'queued' || st === 'delivered' ? `<br><button class="small" data-cancel="${esc(m.id)}"${writeOff()}>Cancel</button>` : ''}</li>`; }).join('')}</ul>` : '<p class="muted">No messages sent to this device.</p>');
+    return (msgs.length ? `<ul class="log-list">${msgs.map(m => { const st = messageState(m, p.id); return `<li><strong>${esc(m.title)}</strong> <span class="chip st-${esc(st)}">${esc(MSG_STATE_TEXT[st] || st)}</span><br>${esc(m.body || '')}<br><small>${esc(m.severity || 'info')} · ${m.customerVisible ? 'customer can see' : 'device only'} · ${esc(dateTimeText(m.createdAt))}</small>${st === 'queued' || st === 'delivered' ? `<br><button class="small" data-cancel="${esc(m.id)}"${writeOff()}>Cancel</button>` : ''}</li>`; }).join('')}</ul>` : '<p class="muted">No messages sent to this device.</p>');
   }
 
   function customerTab(p, link, help, D) {
@@ -294,7 +294,7 @@ ${history.length ? `<h3>History</h3><ul class="log-list">${history.slice(-6).rev
 ${r.outage && OUTAGE_TEXT[r.outage] ? `<p class="soft-note">${esc(OUTAGE_TEXT[r.outage])}</p>` : ''}
 ${r.hotspot?.is && r.hotspot.reasons?.length ? `<h3>Why this is a hot spot</h3><ul class="reasons">${r.hotspot.reasons.map(t => `<li>${esc(typeof t === 'string' ? t : t.text)}</li>`).join('')}</ul>` : ''}
 ${r.correlations?.length ? `<h3>Area context</h3><ul class="reasons">${r.correlations.map(x => `<li>${esc(x.text)}</li>`).join('')}</ul>` : ''}
-<div class="actions"><button class="primary" id="r-send"${writeOff()}>Send message to this area</button><button id="r-zoom">Zoom to area</button><button id="r-logs">View area logs</button><button id="r-clear">Back to homes</button></div>
+<div class="actions"><button id="r-zoom">Zoom to area</button><button id="r-logs">View area logs</button><button id="r-clear">Back to homes</button></div>
 ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slice(0, 40).map(p => `<li><button class="link-button" data-pick="${esc(p.id)}">${esc(p.name || p.id)}</button> ${tag(displayStatus(p).status)}</li>`).join('')}</ul>` : ''}
 <p><small>${esc(r.advisory || ADVISORY)}</small></p>`;
   }
@@ -321,8 +321,6 @@ ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slic
       toast(r.ok ? 'Message cancelled.' : failText(r.status, 'Cancelling', r.error), { error: !r.ok });
       return loadDetail(S.selectedId, { quiet: true });
     }
-    if (t.id === 'd-send') return ctx.openMessage({ type: 'device', deviceIds: [S.selectedId] });
-    if (t.id === 'r-send') return ctx.openMessage({ type: 'region', region: S.selectedRegion });
     if (t.id === 'follow') { $('#follow-status').textContent = ''; $('#follow-dialog').showModal(); return; }
     if (t.id === 'open-logs') return ctx.showLogs({ deviceId: S.selectedId });
     if (t.id === 'r-logs') return ctx.showLogs({ region: S.selectedRegion });

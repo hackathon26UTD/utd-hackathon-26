@@ -99,7 +99,10 @@ test('system agent receives source status through the existing read tool and can
     if (message.tool_calls[0].function.name === 'save_review_checkpoint') message.tool_calls[0].function.arguments = JSON.stringify({ summary: 'SIMULATED: recorded water observation with stale regional warning for review.', evidenceIds: ['reading:1', 'context:nws:1'], nextAction: 'review_water_observation' });
     return message;
   } });
-  assert.equal(readPayload.externalContext.sources.find(s => s.id === 'nws').status, 'stale');
+  const sourceColumns = readPayload.externalContext.sourceColumns;
+  const sourceRow = readPayload.externalContext.sources.find(s => s[sourceColumns.indexOf('id')] === 'nws');
+  assert.equal(sourceRow[sourceColumns.indexOf('status')], 'stale');
+  assert.equal(sourceRow[sourceColumns.indexOf('sourceDataProvided')], true);
   assert.deepEqual(result.checkpoint.evidenceIds, ['reading:1', 'context:nws:1']);
   assert.deepEqual(result.checkpoint.policies, evidence.policies);
   assert.equal(result.checkpoint.hardwareApplied, false); assert.equal(result.checkpoint.messagesSent, false);

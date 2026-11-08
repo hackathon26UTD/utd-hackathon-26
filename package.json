@@ -21,6 +21,7 @@
     "firmware:build": "node scripts/firmware.mjs build",
     "provision": "node scripts/provision-boxes.mjs",
     "system:demo": "node scripts/system-demo.mjs",
+    "review:demo": "node scripts/nemotron-review-demo.mjs",
     "nvidia:check": "node scripts/check-nvidia.mjs",
     "data": "node scripts/data-admin.mjs",
     "mesh-test": "node scripts/mesh-test.mjs",
@@ -61,6 +62,7 @@
     "@modelcontextprotocol/sdk": "1.32.2",
     "maplibre-gl": "6.16.0",
     "mongodb": "7.8.0",
+    "three": "0.187.0",
     "zod": "4.6.7"
   }
 }

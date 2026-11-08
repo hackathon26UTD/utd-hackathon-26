@@ -113,6 +113,7 @@ export const opsAgent = wrap(async (ctx, url) => {
     }
     try {
       const result = await investigateSystem({ evidence, budget, goalHours, externalContext,
+        interpretationSource: engine === 'simulator' ? 'simulator_not_ai' : 'model_unverified',
         complete: engine === 'simulator' ? simulatedCompletion(evidence) : input => nemotronCompletion(ctx.env, input, ctx.fetcher),
         recordStep: step => runs.updateOne({ _id: id, state: 'running' }, { $push: { trace: step } }),
       });

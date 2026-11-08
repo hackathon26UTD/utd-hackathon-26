@@ -1,3 +1,7 @@
+November 8 device onboarding (branch `feat/device-onboarding`, release verification pending): interrupted inventory/customer/fleet job resumed. Read [ONBOARDING.md](docs/ONBOARDING.md), CLI-ONBOARDING.md and latest WORKLOG. The pre-registered Uno Q hub now receives actual USB-assisted controller reports; no customer is auto-linked. Root agent startup remains blocked by sudo password; Wi-Fi is down.
+
+November 8 workflow cleanup (PR #59, merged 48a55f2, production verified): latest request removes replay controls/animation and redundant simulation history text. The workflow now uses native scrolling, and unsupported device/area send actions are removed. Read [WORKFLOW_CANVAS.md](docs/WORKFLOW_CANVAS.md) and the latest WORKLOG.
+
 November 8 production/demo follow-up (PR #58, merged b210de8, production verified): compact End demo banner returns to the protected live workspace. The real Uno Q controller now reports system values through USB and the host. Read [UNOQ_PRODUCTION.md](docs/UNOQ_PRODUCTION.md) for its identity, start/stop procedure and remaining sensor/Wi-Fi/location gaps. Release evidence is in WORKLOG.
 
 November 8 operations readiness (branch `feat/ops-readiness`, not deployed): DB speed-ups, `npm run hb` CLI, Uno Q agent, Resend email, NVIDIA grounding harness. Read [docs/TOMORROW.md](docs/TOMORROW.md) first for the demo day checklist, verified vs unverified items and fallbacks.
