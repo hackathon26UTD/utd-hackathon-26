@@ -1,15 +1,282 @@
+import {exerciseProperties} from '../domain/exercise.js';
+
+const pill=(kind,label)=>`<span class="pill p-${kind}"><i class="sym" aria-hidden="true"></i>${label}</span>`;
+const arrow='<span class="arrow" aria-hidden="true">&rarr;</span>';
+
+/* ---------- Scene data: the one place scenario facts live ---------- */
+const KEYS=['normal','power','water','restore'];
+const SCENES={
+  normal:{tab:'Normal',beat:'The block is quiet.',text:'All three boxes report to the operator view. Reports arrive while a connection is available.',
+    next:'Nothing to do yet. Press Play, or pick Power lost to see what a dropped connection looks like.',lamp:'on',
+    homes:{A:{power:'on',link:'up',water:'dry'},B:{power:'on',link:'up',water:'dry'},C:{power:'on',link:'up',water:'dry'}},
+    chain:['Each box reads power, water and the network link.','Each box writes what it reads to its own record.','Three homes are reporting. Nothing is flagged.'],now:0},
+  power:{tab:'Power lost',beat:'The local record continues.',text:'Home A lost mains power. In this exercise its box keeps writing to its own record and cannot reach the operator view.',
+    next:'Treat Home A as unknown until it reports again. Its last report stays on screen, marked old.',lamp:'off',
+    homes:{A:{power:'off',link:'waiting',water:'dry'},B:{power:'on',link:'up',water:'dry'},C:{power:'on',link:'up',water:'dry'}},
+    chain:['Home A reads that mains power is gone. The box is designed to keep writing on its backup cell. This has not been tested.','In this exercise Home A keeps writing. The entries stay on the box until a link returns.','Home A shows WAITING. Homes B and C still report.'],now:1},
+  water:{tab:'Water detected',beat:'A reason to take a closer look.',text:'Home B’s water contact reads wet and its report arrived. Home C has sent nothing. A water report is a sensor reading, not confirmed damage and not a dispatch.',
+    next:'Review Home B first. Home C has no data, so do not count it as safe.',lamp:'off',
+    homes:{A:{power:'off',link:'waiting',water:'dry'},B:{power:'on',link:'up',water:'wet'},C:{power:'unknown',link:'none',water:'unknown'}},
+    chain:['Home B reads its water contact as wet.','Home B writes the reading with its time. Home A still writes offline.','Home B moves to the top. Home C shows NO DATA, which is not the same as safe.'],now:2},
+  restore:{tab:'Reconnected',beat:'The missing chapter arrives.',text:'Home A reconnected. Its stored entries arrive with their original times, so the order of events stays readable.',
+    next:'Read Home A’s replayed record in order. Home B’s water reading still needs a person to check.',lamp:'on',
+    homes:{A:{power:'on',link:'up',water:'dry'},B:{power:'on',link:'up',water:'wet'},C:{power:'on',link:'up',water:'dry'}},
+    chain:['Home A has power and a link again.','Home A sends the entries it stored, oldest first.','The gap in Home A’s timeline fills in. Home C reports again, and its earlier silence stays on the record as a gap.'],now:1}
+};
+const LINK={up:['ok','CONNECTED'],waiting:['wait','WAITING'],none:['none','NO DATA']};
+const POWER={on:'ON',off:'OFF',unknown:'UNKNOWN'};
+const LINKTXT={up:'UP',waiting:'DOWN',none:'UNKNOWN'};
+const WATER={dry:'DRY',wet:'WET',unknown:'UNKNOWN'};
+const IDS=['A','B','C'];
+const HX={A:90,B:330,C:570};
+
+const STARS=[[30,30],[120,70],[190,28],[260,90],[330,40],[400,86],[470,30],[540,76],[610,34],[680,92],[740,48],[800,100],[880,34],[920,80],[150,130],[600,130],[360,138],[30,170],[900,150],[700,20]];
+const house=id=>`<g class="home" id="home-${id}" transform="translate(${HX[id]} 0)" data-power="on" data-link="up" data-water="dry">
+<rect class="body" x="0" y="240" width="160" height="90" rx="2"/><path class="roof" d="M-10 244 80 186 170 244Z"/>
+<rect class="win" x="22" y="262" width="34" height="30" rx="2"/><rect class="win" x="104" y="262" width="34" height="30" rx="2"/><rect class="door" x="68" y="284" width="26" height="46"/>
+<text class="q" x="80" y="312" text-anchor="middle">?</text>
+<path class="flood" d="M-6 284q16-8 32 0t32 0t32 0t32 0t32 0t32 0V330H-6Z"/><g class="wl"><path d="M-34 284H-6"/><text x="-38" y="288" text-anchor="end">WATER</text></g>
+<g class="mains" transform="translate(80 152)"><circle r="17"/><path class="bolt" d="M3 -10 -7 3H-1L-3 10 7 -3H1Z"/><path class="slash" d="M-12 12 12 -12"/></g>
+<g class="box" transform="translate(150 298)"><rect width="30" height="22" rx="4"/><circle class="led" cx="9" cy="11" r="3.5"/><rect class="slot" x="17" y="8" width="8" height="6" rx="1"/></g><circle class="ring" cx="165" cy="309" r="24"/>
+<text class="lbl" x="80" y="356" text-anchor="middle">HOME ${id}</text><text class="st" x="80" y="376" text-anchor="middle">CONNECTED</text></g>`;
+const SIGS={A:'M270 309C330 250 330 90 560 76S830 90 845 182',B:'M510 309C560 270 560 130 690 112S830 120 845 182',C:'M750 309C790 270 780 220 845 182'};
+const operator=`<g transform="translate(790 0)"><line class="ant" x1="55" y1="230" x2="55" y2="190"/><circle class="tip" cx="55" cy="184" r="7"/><rect class="opbody" x="0" y="230" width="110" height="100" rx="2"/>${IDS.map((id,i)=>`<g transform="translate(10 ${240+i*28})"><rect class="orow" width="90" height="22" rx="3"/><rect class="chip" id="chip-${id}" data-link="up" x="6" y="5" width="12" height="12" rx="6"/><text class="otx" x="26" y="15">HOME ${id}</text></g>`).join('')}<text class="lbl" x="55" y="356" text-anchor="middle">OPERATOR<tspan class="vw"> VIEW</tspan></text></g>`;
+const sceneSvg=`<svg viewBox="0 0 960 400" role="img" aria-labelledby="sc-t sc-d"><title id="sc-t">Three homes and an operator view at dusk</title><desc id="sc-d">Illustration of three homes, each with a small box on its wall, and an operator view on the right. Lines show which boxes are reaching the operator view. The table beside the scene gives the same facts as text.</desc>
+<rect class="sky" width="960" height="400"/>${STARS.map(([x,y])=>`<circle class="star" cx="${x}" cy="${y}" r="${(x+y)%3?1.2:1.8}"/>`).join('')}
+<circle class="moon" cx="880" cy="80" r="22"/><circle class="moon-cut" cx="890" cy="73" r="19"/>
+<rect class="ground" y="330" width="960" height="70"/><path class="ground-line" d="M0 330H960"/>
+<g class="lamp"><polygon class="cone" points="40,262 8,330 72,330"/><line class="lamp-pole" x1="40" y1="330" x2="40" y2="268"/><circle class="lamp-head" cx="40" cy="262" r="9"/></g>
+<g class="lamp2"><polygon class="cone" points="540,262 508,330 572,330"/><line class="lamp-pole" x1="540" y1="330" x2="540" y2="268"/><circle cx="540" cy="262" r="9" fill="#FFB547"/></g>
+${IDS.map(house).join('')}${operator}
+${IDS.map(id=>`<path class="sig" id="sig-${id}" data-link="up" d="${SIGS[id]}"/>`).join('')}<g id="pkts"></g></svg>`;
+
+/* ---------- Page ---------- */
+const TABS=[['top','Scene'],['record','Record'],['how','How'],['map','Map'],['device','Device'],['data','Data'],['limits','Limits']];
+
+function stage(){
+  return `<div class="stage night" id="stage" data-state="normal">
+<div class="stage-bar"><div class="seg" role="tablist" aria-label="Scenario">${KEYS.map((k,i)=>`<button role="tab" id="tab-${k}" data-k="${k}" aria-selected="${i===0}" aria-controls="scene-panel" tabindex="${i===0?0:-1}">${SCENES[k].tab}</button>`).join('')}</div>
+<div class="stage-ctrl"><button class="mb mb-outline" id="step" aria-label="Step to the next state" type="button">Step <span class="arrow" aria-hidden="true">&#9654;&#9654;</span></button><button class="mb mb-primary" id="play" type="button" aria-label="Play the outage scenario"><span id="play-sym" aria-hidden="true">&#9654;</span><span id="play-txt">Play</span></button></div></div>
+<div class="stage-body" id="scene-panel" role="tabpanel" aria-labelledby="tab-normal">
+<figure class="scene" data-lamp="on" data-state="normal">${sceneSvg}<ul class="legend"><li>${pill('ok','Connected')}<span>The box reached the operator view recently.</span></li><li>${pill('wait','Waiting')}<span>The box is not getting through. Its record continues on the box.</span></li><li>${pill('none','No data')}<span>Nothing recent. This is not the same as safe.</span></li></ul><figcaption>${pill('plain','Exercise scene')}<span>Illustration. Synthetic homes. Motion runs only while playing.</span></figcaption></figure>
+<div class="readout"><div class="next"><span class="next-l">NEXT STEP</span><p id="next"></p></div>
+<div><p class="beat" id="beat"></p></div><p class="beat-text" id="beat-text"></p>
+<div class="tbl-wrap" role="region" aria-label="Home status table" tabindex="0"><table><thead><tr><th scope="col">Home</th><th scope="col">Power</th><th scope="col">Water</th><th scope="col">State</th></tr></thead><tbody>${IDS.map(id=>`<tr><th scope="row" class="rh">HOME ${id}</th><td class="v" id="c-p-${id}"></td><td class="v" id="c-w-${id}"></td><td id="c-s-${id}"></td></tr>`).join('')}</tbody></table></div>
+</div></div>
+<ol class="chain" aria-label="Signal chain">${[['Home box','Reads the home'],['Local record','Keeps the log'],['Operator view','Shows the block']].map(([t],i)=>`<li id="ch-${i}"><span class="badge" aria-hidden="true">0${i+1}</span><h3>${t} <span class="now">NOW</span></h3><p id="ch-p-${i}"></p></li>`).join('')}</ol></div>`;
+}
+
+function mapSection(){
+  return `<section class="sec g-lav" id="map" aria-labelledby="map-h"><div class="wrap"><div class="sec-head" data-n="03"><p class="kicker">${pill('plain','Exercise data')} Made-up homes. Area names are only labels for orientation. No real home is shown.</p><h2 id="map-h">The recovery map, as an exercise.</h2><p class="lede">An operator sees a list and a map of the same homes. Pick a status to filter. Pick a home to read why it sits where it does.</p></div>
+<div class="map-tools"><div class="seg map-tabs" role="tablist" aria-label="Filter homes" id="map-tabs"></div><span class="kicker" style="margin:0" id="map-count"></span></div>
+<div class="map-grid"><div class="map-pane"><svg id="map-svg" viewBox="0 0 640 460" role="img" aria-label="Schematic map of the 32 exercise homes. The table lists every home with the same information."></svg><div class="map-note"><span>Schematic layout. Not a basemap. Times are invented and reset on each visit.</span><span aria-hidden="true">${pill('alert','Review first')} ${pill('wait','Check')} ${pill('none','No data')} ${pill('plain','No alert')}</span></div></div>
+<div class="map-side"><div class="detail" aria-live="polite"><span class="detail-l">SELECTED HOME</span><p id="detail"></p></div><div class="scroll tbl-wrap" role="region" aria-label="Exercise homes" tabindex="0" style="border:0;border-radius:0"><table><thead><tr><th scope="col">Home</th><th scope="col">Area</th><th scope="col">Status</th><th scope="col">Last report (exercise clock)</th></tr></thead><tbody id="map-rows"></tbody></table></div></div></div></div></section>`;
+}
+
+const cut=`<svg viewBox="0 0 560 400" role="img" aria-labelledby="cu-t cu-d"><title id="cu-t">Cutaway of a possible home box</title><desc id="cu-d">A concept drawing of a small enclosure opened to show five parts, numbered one to five. The numbered list beside it describes each part.</desc>
+<rect x="40" y="50" width="480" height="280" rx="22" fill="#16152B" stroke="#B7B2D1" stroke-width="2"/>
+<path d="M40 130V72a22 22 0 0 1 22-22H520V70" fill="none" stroke="#FFB547" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round"/>
+<rect x="70" y="90" width="250" height="190" rx="8" fill="#2A2850" stroke="#3D3A6B" stroke-width="1.5"/>
+<g fill="#16152B" stroke="#B7B2D1" stroke-width="1.2"><rect x="92" y="112" width="70" height="52" rx="4"/><rect x="180" y="112" width="52" height="38" rx="4"/><rect x="92" y="184" width="44" height="36" rx="4"/></g>
+<g stroke="#3D3A6B" stroke-width="2" fill="none"><path d="M162 138H180M114 164V184M232 131H290V250H136"/></g>
+<rect x="196" y="190" width="94" height="58" rx="4" fill="#FFB547"/><rect x="206" y="200" width="74" height="10" rx="2" fill="#16152B"/><rect x="206" y="220" width="40" height="10" rx="2" fill="#16152B"/>
+<rect x="346" y="100" width="136" height="90" rx="12" fill="#1E1D3A" stroke="#8FD7A6" stroke-width="2"/><rect x="482" y="130" width="12" height="30" rx="3" fill="#8FD7A6"/><path d="M370 130H414M370 150H440M370 170H400" stroke="#8FD7A6" stroke-width="3" stroke-linecap="round"/>
+<path d="M440 100V60M440 60l14-14M440 60 426 46" stroke="#FF8A5C" stroke-width="3" stroke-linecap="round" fill="none"/>
+<circle cx="478" cy="248" r="9" fill="#FFB547"/><circle cx="478" cy="248" r="17" fill="none" stroke="#FFB547" stroke-width="1.5"/>
+<g fill="#16152B" stroke="#B7B2D1" stroke-width="2"><circle cx="110" cy="320" r="11"/><circle cx="160" cy="320" r="11"/><circle cx="210" cy="320" r="11"/></g>
+<g font-size="13" font-weight="500" text-anchor="middle" fill="#FFB547"><g stroke="#FFB547" stroke-width="1.2" fill="none"><path d="M160 342V366"/><path d="M360 120 330 84"/><path d="M243 190V80"/><path d="M440 60 470 30"/><path d="M478 266V366"/></g>
+${[[160,376,1],[330,72,2],[243,68,3],[480,24,4],[478,376,5]].map(([x,y,n])=>`<circle cx="${x}" cy="${y}" r="13" fill="#16152B" stroke="#FFB547" stroke-width="1.5"/><text x="${x}" y="${y+4.5}">${n}</text>`).join('')}</g></svg>`;
+
+const LEDGER=[['rec','Mains power','On or off, and when it changed.'],['rec','Network link','Up or down, and when it changed.'],['rec','Water contact','Wet or dry at the sensor.'],['rec','Battery','Charge level of the backup cell.'],['rec','Temperature','One probe, one place in the home.'],['rec','Air alarm','Whether a smoke or CO alarm sounded, if the box is set up to detect it. Not built yet.'],['no','Who is home','It does not track or guess occupancy.'],['no','Safe to enter','No reading can promise that.'],['no','Damage','No loss estimate and no probability.'],['no','Coverage','It does not speak for any insurer or policy.'],['no','Dispatch','It does not call or send anyone.']];
+const PARTS=[['Sensor inputs','Wires for mains power, a water contact and a temperature probe. Each reading is stamped with a time.'],['Backup cell','Meant to let the box keep writing when mains power drops. How long it lasts has not been measured.'],['Local storage','Meant to hold the record on the box itself, so a dead network does not erase it. Not tested in a home.'],['Link to the block','A short-range link to a neighborhood hub or the home network. The exact radio is not chosen.'],['Status light','Says whether the box is reading and whether it can reach the block. One light, one plain meaning.']];
+
+const SOURCES=[['National Weather Service alerts','Active warnings and watches, with areas.','ok','IN PROTOTYPE'],['USGS earthquakes','Quakes from the last day.','ok','IN PROTOTYPE'],['OpenFEMA declarations','Declared disasters by state.','ok','IN PROTOTYPE'],['USGS water gauges','River height at gauges.','wait','TESTED ONLY'],['Open-Meteo','Rain and river-flow forecasts.','wait','TESTED ONLY'],['National Weather Service forecasts','Hourly forecast for a point.','wait','TESTED ONLY'],['FEMA shelters and flood zones','Open shelters and flood-zone maps.','none','PLANNED']];
+
+const FAQ=[['Does a quiet box mean the home is safe?','No. A box that stops reporting is shown as no data, and its last known reading stays on screen marked as old. Silence is never treated as safe.'],['Does a water reading mean there is damage?','No. It means one contact read wet at one moment. A person has to check before anyone calls it damage.'],['What happens when the network is down?','By design, the box keeps its own record and sends the stored entries, with their original times, when a link returns. This has not been tested in a real home.'],['Does HomeBeacon say who is home?','No. It does not track people, and it does not claim a home is empty or occupied.'],['Is this connected to emergency services or an insurer?','No. Nothing here dispatches anyone or decides coverage. It is a picture for people who are already helping.'],['What is public and what needs a sign-in?','This site and the exercise are public and use made-up data. The portal is for signed-in operators.']];
+
+const steps=[['Observe','Each box reads three things: mains power, water and the network link.','By design, a failed sensor shows as unknown, not as normal.',`<svg viewBox="0 0 320 130" aria-hidden="true"><rect x="40" y="46" width="64" height="48" rx="6" fill="#FFFDF8" stroke="#1B1A2E" stroke-width="2"/><circle cx="58" cy="70" r="5" fill="#B83A12"/><path d="M104 70H150M150 70l-8-8M150 70l-8 8" stroke="#1B1A2E" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M190 100V50M190 50l-9 14M190 50l9 14" stroke="#2E6B3F" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M226 100q10-12 20 0t20 0t20 0" stroke="#5A566B" stroke-width="3" fill="none"/><path d="M230 40q10-8 20 0M222 30q18-16 36 0" stroke="#8A5200" stroke-width="3" fill="none" stroke-linecap="round"/></svg>`],['Keep','The box writes each reading, with its time, to its own record. A lost connection does not erase it.','If the box loses power and its backup cell runs down, the record stops. The gap is shown as a gap.',`<svg viewBox="0 0 320 130" aria-hidden="true"><g fill="#FFFDF8" stroke="#1B1A2E" stroke-width="2"><rect x="70" y="26" width="180" height="22" rx="4"/><rect x="70" y="54" width="180" height="22" rx="4"/><rect x="70" y="82" width="180" height="22" rx="4"/></g><g fill="#1B1A2E"><rect x="82" y="34" width="40" height="6" rx="2"/><rect x="82" y="62" width="64" height="6" rx="2"/><rect x="82" y="90" width="52" height="6" rx="2"/></g><circle cx="232" cy="65" r="5" fill="#B83A12"/></svg>`],['Review','An operator reads the block as a list and a map. Each home says why it is where it is.','By design, a box that has not reported shows how long ago, marked unconfirmed.',`<svg viewBox="0 0 320 130" aria-hidden="true"><rect x="50" y="22" width="220" height="86" rx="8" fill="#FFFDF8" stroke="#1B1A2E" stroke-width="2"/><path d="M50 46H270" stroke="#D9D0BC" stroke-width="2"/><g fill="#1B1A2E"><rect x="66" y="58" width="60" height="6" rx="2"/><rect x="66" y="76" width="44" height="6" rx="2"/><rect x="66" y="92" width="72" height="6" rx="2"/></g><path d="M214 56l10 18-20 0z" fill="#8A5200"/><rect x="180" y="82" width="12" height="12" rx="6" fill="none" stroke="#5A566B" stroke-width="2" stroke-dasharray="3 2"/><rect x="232" y="82" width="12" height="12" transform="rotate(45 238 88)" fill="#B83A12"/></svg>`]];
+
 export function mountMarketing({brand,footer}){
-const app=document.querySelector('#app');
-const houses=[{x:90,y:280,id:'A'},{x:300,y:160,id:'B'},{x:510,y:270,id:'C'}];
-const house=({x,y,id})=>`<g class="scene-house house-${id}" transform="translate(${x} ${y})"><path d="M0 0 85 -49 170 0 85 49Z" fill="#dae6df" stroke="#9ab8b0"/><path d="M20 -14 85 24 85 -60 20 -98Z" fill="#e6eee9" stroke="#8ca8a1"/><path d="M85 24 150 -14 150 -98 85 -60Z" fill="#a4bfb4" stroke="#78998f"/><path d="M0 -93 74 -174 170 -93 85 -44Z" fill="#264c49"/><path d="M0 -93 74 -174 85 -130 20 -85Z" fill="#35635a"/><path d="M105 -35 130 -49 130 -82 105 -68Z" fill="#e9f6c8" class="window"/><path d="M38 -42 61 -29 61 -65 38 -78Z" fill="#e9f6c8" class="window"/><path d="M75 -62 85 -56 96 -62 85 -68Z" fill="#21665f"/><g class="box"><path d="M145 -23 160 -15 160 -35 145 -43Z" fill="#182f3b"/><path d="M160 -15 171 -21 171 -41 160 -35Z" fill="#31565b"/><circle cx="153" cy="-30" r="2.5" fill="#c8efb6"/></g><path class="flood" d="M0 0 85 -49 170 0 85 49Z" fill="#428fa7" opacity="0"/><text x="85" y="78" text-anchor="middle" fill="#526974" font-size="12" font-family="sans-serif">Home ${id}</text></g>`;
-app.innerHTML=`<div class="marketing"><header class="market-header"><a href="/" class="market-brand" aria-label="HomeBeacon home">${brand}</a><nav aria-label="Main navigation" class="market-nav"><a href="#how-it-works">How it works</a><a href="#command">Command center</a><a href="#hardware">The black box</a></nav><div class="market-actions"><a class="market-demo" href="/demo">Explore demo</a><a class="button primary" href="/portal">Open portal <span aria-hidden="true">↗</span></a></div></header><main id="main"><section class="market-hero"><div class="hero-copy"><div class="project-note"><span></span>Built for the moments after</div><h1>When the power<br>goes out.<br>The story stays.</h1><p>A black box for your home. Local records during an outage. A shared picture for the people helping a neighborhood recover.</p><div class="hero-actions"><a class="button primary" href="/demo">Explore the command center <span aria-hidden="true">↗</span></a><a class="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a></div><div class="hero-footnote"><span class="mini-beacon" aria-hidden="true">⌂</span><span>Designed to keep observing.<br><strong>Even when the connection stops.</strong></span></div></div><div class="hero-stage"><div class="scene-top"><span>One neighborhood. A shared picture.</span><span class="concept-label">Interactive concept</span></div><div class="scene-perspective"><svg class="neighborhood" viewBox="0 0 780 540" role="img" aria-labelledby="scene-title scene-description"><title id="scene-title">Neighborhood black box network</title><desc id="scene-description">Three illustrated homes connect through local records to a recovery command center. Use the scenario buttons below for a text explanation.</desc><defs><pattern id="scene-grid" width="32" height="32" patternUnits="userSpaceOnUse" patternTransform="skewY(-28)"><path d="M32 0H0V32" fill="none" stroke="#bdd0c7" stroke-width=".5"/></pattern><linearGradient id="ground" x2="1" y2="1"><stop stop-color="#e4eee7"/><stop offset="1" stop-color="#f0f4ed"/></linearGradient></defs><ellipse cx="390" cy="310" rx="370" ry="175" fill="url(#ground)"/><path d="M30 310 390 100 750 310 390 520Z" fill="url(#scene-grid)"/><g class="roads" fill="none" stroke="#fff" stroke-width="18"><path d="M70 390 640 60"/><path d="M160 130 730 460"/></g><g fill="none" stroke="#c5d5cb" stroke-width="1"><path d="M70 377 640 47M70 403 640 73"/><path d="M149 137 719 467M171 123 741 453"/></g><g class="scene-links" fill="none" stroke="#397e70" stroke-width="2" stroke-dasharray="5 7"><path class="signal" d="M248 250Q350 420 620 415"/><path class="signal" d="M460 130Q610 190 620 415"/><path class="signal" d="M670 240Q740 350 620 415"/></g>${houses.map(house).join('')}<g class="scene-hub" transform="translate(580 410)"><path d="M0 0 40 -23 80 0 40 23Z" fill="#b9d1c5"/><path d="M12 -8 40 8 40 -35 12 -51Z" fill="#182f3b"/><path d="M40 8 68 -8 68 -51 40 -35Z" fill="#31565b"/><path d="M12 -51 40 -67 68 -51 40 -35Z" fill="#46746b"/><circle cx="28" cy="-29" r="4" fill="#d8f3c7"/><text x="40" y="52" text-anchor="middle" fill="#526974" font-size="12">Local gateway</text></g><g class="scene-packet"><circle cx="400" cy="340" r="6" fill="#21665f" stroke="white" stroke-width="3"/></g></svg></div><div class="scene-reading"><span class="reading-icon" aria-hidden="true">⌁</span><div><small id="scenario-label">All systems reporting</small><strong id="scenario-value">The quiet before the storm.</strong></div><span id="scenario-indicator" class="status-light"></span></div><div class="scenario-controls" role="group" aria-label="Explore an outage scenario"><button data-scenario="normal" aria-pressed="true">Connected</button><button data-scenario="power" aria-pressed="false">Power lost</button><button data-scenario="water" aria-pressed="false">Water detected</button><button data-scenario="restore" aria-pressed="false">Reconnected</button></div><div class="scene-caption"><span id="scene-explanation" role="status">The boxes observe power, connectivity and water. Reports reach the command center while a connection is available.</span><button id="play-scenario" aria-label="Play the outage scenario">Play scenario ▷</button></div></div></section><section class="observation-strip" aria-label="What HomeBeacon observes"><span>Small signals.<br><strong>A clearer picture.</strong></span><span>↯ Power</span><span>≋ Water</span><span>⌁ Connection</span><span>▱ Battery</span><span>◷ Time</span></section><section id="how-it-works" class="market-process"><div class="section-intro"><p class="section-kicker">From the home to the neighborhood</p><h2>A connection can disappear.<br>The evidence shouldn’t.</h2><p>Recovery starts with knowing what happened, what was last reported, and which homes still need a check.</p></div><div class="process-flow"><article><span class="step-number">01 / Observe</span><div class="process-symbol" aria-hidden="true">⌂<span>↯ ≋ ⌁</span></div><h3>Start at the source.</h3><p>The box records sensor observations at the home. Every event gets a timestamp, so a report has a place in the story.</p></article><article><span class="step-number">02 / Retain</span><div class="process-symbol records-symbol" aria-hidden="true"><i></i><i></i><i></i></div><h3>Keep a local record.</h3><p>When external power or internet fails, the hardware is designed to preserve observations locally and reduce nonessential work.</p></article><article><span class="step-number">03 / Review</span><div class="process-symbol review-symbol" aria-hidden="true">◎<span>● ● ●</span></div><h3>Give teams a place to look.</h3><p>Connected reports become a shared map. Operators inspect the evidence, compare conditions, and record the next human step.</p></article></div></section><section id="command" class="market-command"><div class="command-intro"><div><p class="section-kicker">The command center</p><h2>Every home has a story.<br>See the neighborhood.</h2></div><p>Move from a regional view to an individual observation. Keep reported conditions, missing signals, and human follow-up in the same workspace.</p></div><div class="command-preview"><div class="preview-browser"><span class="browser-lights" aria-hidden="true">● ● ●</span><span>HomeBeacon / Recovery operations</span><a href="/demo">Open interactive demo ↗</a></div><a class="preview-image" href="/demo" aria-label="Open the interactive HomeBeacon command center"><img src="/images/command-center.png" alt="HomeBeacon exercise command center with a neighborhood map, prioritized home list and selected property observations" loading="lazy" width="1440" height="1208"><span class="preview-open">Explore the command center ↗</span></a><div class="preview-note">Exercise preview. Homes and readings are fictional. Street maps are real.</div></div><div class="command-features"><article><h3>Priorities with context.</h3><p>Review critical observations, power interruptions, and stale signals. Missing data stays unknown.</p></article><article><h3>Views for the question.</h3><p>Filter the map by recorded conditions. The NVIDIA-ready connection can suggest views when a team model is connected.</p></article><article><h3>A human next step.</h3><p>Record a contact attempt, request an inspection, or document an evacuation report with its source.</p></article></div></section><section id="hardware" class="market-hardware"><div class="hardware-object" aria-hidden="true"><div class="device-shadow"></div><div class="device-body"><span class="device-mark">⌂</span><span class="device-name">HomeBeacon</span><span class="device-led"></span><div class="device-vents">||||||||||||||</div><span class="device-caption">LOCAL RECORD / ACTIVE</span></div><span class="device-annotation annotation-a">Local observation</span><span class="device-annotation annotation-b">Battery-aware operation</span><span class="device-annotation annotation-c">Durable event record</span></div><div class="hardware-copy"><p class="section-kicker">The home black box</p><h2>Small enough to stay.<br>Built to keep a record.</h2><p>Our prototype pairs compact sensor boards with local storage and a neighborhood gateway. The goal is simple: preserve useful observations when the usual connection cannot be counted on.</p><ul><li>Power and connection status</li><li>Water and temperature observations</li><li>Local timestamps and replay after reconnection</li><li>Battery-aware operation during outages</li></ul><p class="hardware-limit">Hardware and endurance are under development. This prototype is not a certified alarm or a replacement for emergency services.</p></div></section><section class="market-faq" id="questions"><div><p class="section-kicker">A few practical questions</p><h2>Know what the<br>signals mean.</h2></div><div class="faq-list"><details><summary>Does a missing signal mean a home is safe?</summary><p>No. A missing report means the current condition is unknown. Last-known critical observations stay visible for review.</p></details><details><summary>What happens if the internet goes down?</summary><p>The hardware is designed to store observations locally. Reports can replay when connectivity returns. Battery backup alone does not restore internet service.</p></details><details><summary>Is this an emergency dispatch system?</summary><p>No. HomeBeacon is a student prototype for observations and follow-up. It does not contact responders, confirm safe entry, or make insurance decisions.</p></details><details><summary>Can I try the command center?</summary><p>Yes. Open the exercise without an account, or use the shared demo login on the sign-in page. Demo access is isolated from live device data.</p></details></div></section><section class="market-final"><div><p>Start with a neighborhood.</p><h2>See what a signal<br>can tell you.</h2></div><div><a class="button" href="/demo">Explore the exercise ↗</a><a class="text-link" href="/portal">Open operator portal ↗</a></div></section></main><div class="market-footer-top">${brand}<p>Local observations.<br>A shared picture for recovery.</p><a href="#main">Back to top ↑</a></div>${footer}</div>`;
-const scenarios={normal:['All systems reporting','The quiet before the storm.','The boxes observe power, connectivity and water. Reports reach the command center while a connection is available.'],power:['External power interrupted','The local record continues.','In this concept scenario, Home A loses mains power. The box switches to its backup supply and records the interruption locally.'],water:['Water sensor triggered','A reason to take a closer look.','A water observation raises review priority. It is a sensor report, not a confirmed damage assessment or an automatic dispatch.'],restore:['Connection restored','The missing chapter arrives.','Stored observations replay after reconnection. Their original timestamps help an operator understand the sequence.']};
-let timers=[],playing=false,packetFrames=new Set();const reduced=matchMedia('(prefers-reduced-motion: reduce)');
-function clearPackets(){packetFrames.forEach(cancelAnimationFrame);packetFrames.clear();document.querySelector('.scene-packet').replaceChildren();}
-function sendPackets(key){clearPackets();if(reduced.matches||key==='power'||key==='water')return;const group=document.querySelector('.scene-packet');group.style.opacity='1';document.querySelectorAll('.signal').forEach((path,i)=>{const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');dot.setAttribute('r','5');dot.setAttribute('fill','#21665f');dot.setAttribute('stroke','white');dot.setAttribute('stroke-width','2');group.append(dot);const start=performance.now()+i*230,length=path.getTotalLength();function frame(now){if(reduced.matches)return;const progress=Math.max(0,Math.min(1,(now-start)/1800));const point=path.getPointAtLength(progress*length);dot.setAttribute('cx',point.x);dot.setAttribute('cy',point.y);dot.style.opacity=progress<.98?'1':'0';if(progress<1){const id=requestAnimationFrame(t=>{packetFrames.delete(id);frame(t);});packetFrames.add(id);}}const id=requestAnimationFrame(t=>{packetFrames.delete(id);frame(t);});packetFrames.add(id);});}
-function showScenario(key){sendPackets(key);const values=scenarios[key];document.querySelector('.hero-stage').dataset.state=key;document.querySelector('#scenario-label').textContent=values[0];document.querySelector('#scenario-value').textContent=values[1];document.querySelector('#scene-explanation').textContent=values[2];document.querySelectorAll('[data-scenario]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.scenario===key)));if(!reduced.matches){document.querySelector('.scene-reading').animate([{transform:'translateY(8px)'},{transform:'translateY(0)'}],{duration:420,easing:'cubic-bezier(.2,.8,.2,1)'});document.querySelectorAll('.signal').forEach((path,i)=>path.animate([{strokeDashoffset:84},{strokeDashoffset:0}],{duration:1300,delay:i*140,iterations:2}));}}
-function stop(){clearPackets();document.querySelector('.hero-stage').getAnimations({subtree:true}).forEach(a=>a.cancel());timers.forEach(clearTimeout);timers=[];playing=false;document.querySelector('#play-scenario').textContent='Play scenario ▷';document.querySelector('#play-scenario').setAttribute('aria-label','Play the outage scenario');}
-document.querySelectorAll('[data-scenario]').forEach(b=>b.onclick=()=>{stop();showScenario(b.dataset.scenario);});document.querySelector('#play-scenario').onclick=()=>{if(playing){stop();return;}playing=true;document.querySelector('#play-scenario').textContent='Pause scenario Ⅱ';document.querySelector('#play-scenario').setAttribute('aria-label','Pause the outage scenario');['normal','power','water','restore'].forEach((s,i)=>timers.push(setTimeout(()=>showScenario(s),i*3200)));timers.push(setTimeout(stop,12800));};
-if(!reduced.matches){document.querySelectorAll('.scene-house,.scene-hub').forEach((el,i)=>el.animate([{opacity:0,translate:'0 25px'},{opacity:1,translate:'0 0'}],{duration:900,delay:180+i*140,fill:'backwards',easing:'cubic-bezier(.16,1,.3,1)'}));document.querySelector('.hero-copy').animate([{opacity:0,transform:'translateY(18px)'},{opacity:1,transform:'translateY(0)'}],{duration:900,easing:'cubic-bezier(.16,1,.3,1)'});const stage=document.querySelector('.hero-stage');stage.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||reduced.matches)return;const r=stage.getBoundingClientRect();stage.style.setProperty('--tilt-x',((e.clientY-r.top)/r.height-.5)*-4+'deg');stage.style.setProperty('--tilt-y',((e.clientX-r.left)/r.width-.5)*4+'deg');});stage.addEventListener('pointerleave',()=>{stage.style.setProperty('--tilt-x','0deg');stage.style.setProperty('--tilt-y','0deg');});}
-reduced.addEventListener('change',()=>{if(reduced.matches){stop();document.getAnimations().forEach(a=>a.cancel());}});
+  const app=document.querySelector('#app');
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+  app.innerHTML=`<div class="marketing mk">
+<header class="hdr"><div class="wrap hdr-in"><a href="/" class="mk-brand" aria-label="HomeBeacon home">${brand}</a>
+<nav class="seg" aria-label="Sections" id="sec-nav">${TABS.map(([id,l])=>`<a href="#${id}" data-s="${id}">${l}</a>`).join('')}</nav>
+<div class="hdr-act"><a class="mb mb-outline" href="/customer">My device</a><a class="mb mb-outline" href="/demo">Exercise</a><a class="mb mb-primary" href="/portal">Portal ${arrow}</a></div></div></header>
+<main id="main">
+<section class="hero" id="top" aria-labelledby="hero-h"><div class="wrap">
+<div class="hero-head"><div><p class="kicker">${pill('plain','Exercise scene')} Made-up homes. No live data.</p><h1 id="hero-h">When the grid drops, the house <em>keeps notes</em>.</h1></div>
+<div class="hero-side"><p class="lede">HomeBeacon is a small box for a home, now a prototype. It is designed to log power, water and the network link, keep the log on the box, and share it with a neighborhood recovery team when it can.</p><div class="cta-row"><a class="mb mb-primary" href="/demo">Open the exercise ${arrow}</a><a class="mb mb-link" href="#record">What it records</a></div></div></div>
+${stage()}</div></section>
+
+<section class="sec g-ember" id="record" aria-labelledby="rec-h"><div class="wrap"><div class="sec-head" data-n="01"><p class="kicker">The black box</p><h2 id="rec-h">What it is designed to write down. What it never claims.</h2><p class="lede">A record is only useful if it is honest about its edges. The box is designed to state what it measured and leave the rest blank. Readings below are the design. The sample record is invented.</p></div>
+<div class="ledger tbl-wrap" role="region" aria-label="What the box is designed to record and what it never claims" tabindex="0"><table><thead><tr><th scope="col">Kind</th><th scope="col">Item</th><th scope="col">What it means</th></tr></thead><tbody>${LEDGER.map(([k,i,d])=>`<tr data-k="${k}"><td>${k==='rec'?pill('ok','Designed to record'):pill('alert','Never claims')}</td><th scope="row" class="rh">${i}</th><td>${d}</td></tr>`).join('')}</tbody></table></div>
+<div class="unknown-note">${pill('none','No data')}<p>A box that has not reported is <strong>unknown</strong>. HomeBeacon keeps its last reading on screen, marks it old, and never turns silence into a green light.</p></div>
+<div class="rec-grid"><div class="sample"><div class="sample-h"><span>Sample record, Home A</span>${pill('plain','Exercise data')}</div><div class="tbl-wrap" role="region" aria-label="Sample record" tabindex="0" style="border:0;border-radius:0"><table><thead><tr><th scope="col">Time</th><th scope="col">Reading</th><th scope="col">Value</th><th scope="col">Reached the block</th></tr></thead><tbody>
+<tr><td class="v">T+00:00</td><td>Mains power</td><td class="v">ON</td><td>${pill('ok','Connected')}</td></tr>
+<tr><td class="v">T+41:12</td><td>Mains power</td><td class="v">OFF</td><td>${pill('ok','Connected')}</td></tr>
+<tr><td class="v">T+41:30</td><td>Network link</td><td class="v">DOWN</td><td>${pill('wait','Waiting')}</td></tr>
+<tr><td class="v">T+58:03</td><td>Battery</td><td class="v">LOW</td><td>${pill('wait','Waiting')}</td></tr>
+<tr><td class="v">T+96:47</td><td>Mains power</td><td class="v">ON</td><td>${pill('wait','Waiting')}</td></tr>
+<tr><td class="v">T+97:20</td><td>Network link</td><td class="v">UP</td><td>${pill('ok','Connected')}</td></tr></tbody></table></div></div>
+<figure class="shot"><img src="/images/demo-detail.png" width="600" height="759" loading="lazy" alt="Crop of the exercise command center showing one selected home with power, internet, water, battery and temperature readings. The readings are synthetic."><figcaption>${pill('plain','Exercise data')}<span>Crop of the public exercise at /demo. One made-up home. Not a live reading.</span></figcaption></figure></div></div></section>
+
+<section class="sec g-sand" id="how" aria-labelledby="how-h"><div class="wrap"><div class="sec-head" data-n="02"><p class="kicker">How it works</p><h2 id="how-h">Observe. Keep. Review.</h2><p class="lede">Three steps, and each one says what happens when it fails.</p></div>
+<ol class="steps">${steps.map(([t,p,f,svg],i)=>`<li class="step"><div class="step-t"><span class="badge" aria-hidden="true">0${i+1}</span><span class="kicker" style="margin:0">Step ${i+1}</span></div>${svg}<div class="step-b"><h3>${t}</h3><p>${p}</p><div class="fail">${pill('wait','If it fails')}<p>${f}</p></div></div></li>`).join('')}</ol></div></section>
+
+${mapSection()}
+
+<section class="sec device night" id="device" aria-labelledby="dev-h"><div class="wrap"><div class="sec-head" data-n="04"><p class="kicker">${pill('plain','Concept')} Not a finished product</p><h2 id="dev-h">Inside the box.</h2><p class="lede">A drawing of what the box could hold. The team&rsquo;s prototype uses off-the-shelf development boards, not this enclosure.</p></div>
+<div class="dev-grid"><div class="cut">${cut}<div class="cut-cap">${pill('plain','Concept illustration')}<span>Not to scale. Not tested.</span></div><p class="dev-limit">No battery life, radio range or safety certification is claimed. Those numbers do not exist yet.</p></div>
+<div><ol class="parts">${PARTS.map(([t,p],i)=>`<li><span class="badge" aria-hidden="true">0${i+1}</span><div><h3>${t}</h3><p>${p}</p></div></li>`).join('')}</ol></div></div></div></section>
+
+<section class="sec alt" id="data" aria-labelledby="data-h"><div class="wrap"><div class="sec-head" data-n="05"><p class="kicker">Data sources</p><h2 id="data-h">Public feeds give context. Boxes give readings.</h2><p class="lede">Official feeds describe the area around a home. Only a box in the home can report on that home.</p></div>
+<div class="data-wrap"><div class="tbl-wrap" role="region" aria-label="Data sources" tabindex="0"><table><thead><tr><th scope="col">Source</th><th scope="col">What it gives</th><th scope="col">Status</th></tr></thead><tbody>${SOURCES.map(([s,w,k,l])=>`<tr><td class="src">${s}</td><td>${w}</td><td>${pill(k,l)}</td></tr>`).join('')}</tbody></table></div></div>
+<p class="data-note">Status checked November 7, 2026. In prototype means it is wired in and shown to operators. Tested only means we called the feed and read the answer, but it is not shown yet. Planned means not tried. Agency names belong to their owners. No endorsement is implied. Statuses are a snapshot and can be out of date.</p></div></section>
+
+<section class="sec" id="limits" aria-labelledby="lim-h"><div class="wrap"><div class="lim-grid"><div class="lim-l" data-n="06"><p class="kicker">Limits</p><h2 id="lim-h">What this is not, yet.</h2>
+<ul class="nots" style="margin-top:32px">${[['Not certified hardware.'],['Not installed in any real home.'],['No battery life figure.'],['Model analysis is off on this public site.'],['No real-world results. The exercise data is synthetic.']].map(([t])=>`<li>${pill('none','Not yet')}<span>${t}</span></li>`).join('')}</ul></div>
+<div><p class="kicker">Questions</p><div class="faq">${FAQ.map(([q,a])=>`<details><summary>${q}</summary><p>${a}</p></details>`).join('')}</div></div></div></div></section>
+
+<section class="final night" aria-labelledby="fin-h"><div class="wrap"><div class="final-in"><div><h2 id="fin-h">See the block from the operator&rsquo;s chair.</h2><p>The exercise is public and uses made-up homes. Nothing in it is live.</p></div><div class="cta-row"><a class="mb mb-primary" href="/demo">Open the exercise ${arrow}</a><a class="mb mb-outline" href="/portal">Portal</a></div></div></div></section>
+</main>${footer}</div>`;
+
+  const $=s=>app.querySelector(s);
+  initNav($);
+  initStage($,reduced);
+  initMap($,reduced);
+}
+
+function initNav($){
+  const links=[...document.querySelectorAll('#sec-nav a')];
+  const mark=id=>links.forEach(a=>{if(a.dataset.s===id)a.setAttribute('aria-current','true');else a.removeAttribute('aria-current');});
+  mark('top');
+  if(!('IntersectionObserver' in window))return;
+  const seen=new Map();
+  const io=new IntersectionObserver(es=>{es.forEach(e=>seen.set(e.target.id,e.isIntersecting?e.intersectionRatio:0));let best='top',v=0;seen.forEach((r,id)=>{if(r>v){v=r;best=id;}});if(v>0)mark(best);},{rootMargin:'-96px 0px -40% 0px',threshold:[0,.1,.3,.6]});
+  TABS.forEach(([id])=>{const el=document.getElementById(id);if(el)io.observe(el);});
+}
+
+function initStage($,reduced){
+  const st=$('#stage'),tabs=[...st.querySelectorAll('[role=tab]')],playBtn=$('#play'),panel=$('#scene-panel');
+  let idx=0,playing=false,timer=0,raf=new Set(),first=true;
+  const setCell=(el,html)=>{if(el.innerHTML===html)return false;el.innerHTML=html;if(!reduced.matches&&!first)el.animate([{background:'rgba(255,181,71,.28)'},{background:'transparent'}],{duration:350});return true;};
+  const text=(el,t)=>{if(el.textContent!==t)el.textContent=t;};
+  function show(k,quiet){
+    const s=SCENES[k];idx=KEYS.indexOf(k);st.dataset.state=k;
+    tabs.forEach(t=>{const on=t.dataset.k===k;t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;});
+    panel.setAttribute('aria-labelledby','tab-'+k);
+    text($('#next'),s.next);text($('#beat'),s.beat);text($('#beat-text'),s.text);
+    $('.scene').dataset.lamp=s.lamp;$('.scene').dataset.state=k;
+    IDS.forEach(id=>{
+      const h=s.homes[id],g=$('#home-'+id);
+      g.dataset.power=h.power;g.dataset.link=h.link;g.dataset.water=h.water;
+      text(g.querySelector('.st'),LINK[h.link][1]);
+      $('#sig-'+id).dataset.link=h.link;$('#chip-'+id).dataset.link=h.link;
+      setCell($('#c-p-'+id),POWER[h.power]);
+      setCell($('#c-w-'+id),h.water==='wet'?pill('alert','WET'):WATER[h.water]);
+      setCell($('#c-s-'+id),pill(...LINK[h.link]));
+    });
+    s.chain.forEach((c,i)=>{text($('#ch-p-'+i),c);$('#ch-'+i).dataset.now=String(s.now===i);});
+    first=false;
+    if(playing&&!quiet)packets();else clearPackets();
+    st.querySelector('#next').closest('.next').setAttribute('aria-live',playing?'off':'polite');
+  }
+  function clearPackets(){raf.forEach(cancelAnimationFrame);raf.clear();$('#pkts').replaceChildren();}
+  function packets(){
+    clearPackets();if(reduced.matches)return;
+    const ns='http://www.w3.org/2000/svg',g=$('#pkts'),dots=[];
+    IDS.forEach((id,i)=>{
+      const path=$('#sig-'+id);if(path.dataset.link!=='up')return;
+      const dot=document.createElementNS(ns,'circle');dot.setAttribute('r','5');dot.setAttribute('class','pkt');dot.style.opacity='0';g.append(dot);
+      dots.push({dot,path,len:path.getTotalLength(),delay:i*320});
+    });
+    const t0=performance.now(),dur=1700,gap=500;
+    const frame=now=>{
+      dots.forEach(d=>{const t=now-t0-d.delay;if(t<0){d.dot.style.opacity='0';return;}const p=(t%(dur+gap))/dur;
+        if(p<=1){const pt=d.path.getPointAtLength(p*d.len);d.dot.setAttribute('cx',pt.x);d.dot.setAttribute('cy',pt.y);d.dot.style.opacity='1';}else d.dot.style.opacity='0';});
+      raf.clear();raf.add(requestAnimationFrame(frame));
+    };
+    raf.add(requestAnimationFrame(frame));
+  }
+  function setPlay(on){
+    playing=on;
+    playBtn.setAttribute('aria-label',on?'Pause the outage scenario':'Play the outage scenario');
+    $('#play-txt').textContent=on?'Pause':'Play';$('#play-sym').innerHTML=on?'&#10074;&#10074;':'&#9654;';
+  }
+  function stop(){clearTimeout(timer);setPlay(false);clearPackets();st.querySelector('.next').setAttribute('aria-live','polite');}
+  function advance(){
+    if(idx>=KEYS.length-1){stop();return;}
+    show(KEYS[idx+1]);timer=setTimeout(advance,3800);
+  }
+  playBtn.onclick=()=>{
+    if(playing){stop();return;}
+    setPlay(true);
+    if(idx>=KEYS.length-1)show(KEYS[0],true);
+    show(KEYS[idx]);
+    timer=setTimeout(advance,3800);
+  };
+  $('#step').onclick=()=>{stop();show(KEYS[(idx+1)%KEYS.length]);};
+  tabs.forEach(t=>{
+    t.onclick=()=>{stop();show(t.dataset.k);};
+    t.onkeydown=e=>{
+      const n=tabs.length;let j=null;
+      if(e.key==='ArrowRight')j=(idx+1)%n;else if(e.key==='ArrowLeft')j=(idx+n-1)%n;else if(e.key==='Home')j=0;else if(e.key==='End')j=n-1;
+      if(j===null)return;e.preventDefault();stop();show(KEYS[j]);tabs[j].focus();
+    };
+  });
+  reduced.addEventListener('change',()=>{if(reduced.matches)clearPackets();});
+  show('normal');
+}
+
+function initMap($,reduced){
+  const now=Date.now(),props=exerciseProperties(now);
+  const CATS={critical:['alert','REVIEW FIRST'],warning:['wait','CHECK'],unknown:['none','NO DATA'],normal:['plain','NO ALERT']};
+  const ORDER={critical:0,warning:1,unknown:2,normal:3};
+  const W=640,H=460,pad=36;
+  const xs=props.map(p=>p.coordinates[0]),ys=props.map(p=>p.coordinates[1]);
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const px=p=>pad+(p.coordinates[0]-x0)/(x1-x0)*(W-2*pad),py=p=>H-pad-(p.coordinates[1]-y0)/(y1-y0)*(H-2*pad);
+  const AREAS={};props.forEach(p=>{if(!AREAS[p.area])AREAS[p.area]='Area '+String.fromCharCode(65+Object.keys(AREAS).length);});const area=p=>AREAS[p.area];
+  const ago=p=>Math.max(1,Math.round((now-Date.parse(p.observedAt))/60000));
+  const sorted=[...props].sort((a,b)=>ORDER[a.severity]-ORDER[b.severity]||ago(a)-ago(b));
+  const count=k=>props.filter(p=>k==='all'||p.severity===k).length;
+  const FILTERS=[['all','All'],['critical','Review first'],['warning','Check'],['unknown','No data']];
+  let filter='all',sel=sorted[0].id;
+  const tabsEl=$('#map-tabs');
+  tabsEl.innerHTML=FILTERS.map(([k,l],i)=>`<button role="tab" data-f="${k}" aria-selected="${i===0}" tabindex="${i===0?0:-1}" type="button">${l} ${count(k)}</button>`).join('');
+  const svg=$('#map-svg');
+  const grid=[];for(let i=1;i<8;i++)grid.push(`<path class="g" d="M${i*80} 0V${H}"/>`);for(let i=1;i<6;i++)grid.push(`<path class="g" d="M0 ${i*77}H${W}"/>`);
+  const shape=(p,x,y)=>{
+    if(p.severity==='critical')return `<path d="M${x} ${y-10}L${x+10} ${y}L${x} ${y+10}L${x-10} ${y}Z" fill="#B83A12" stroke="#FFFDF8" stroke-width="2"/>`;
+    if(p.severity==='warning')return `<path d="M${x} ${y-10}L${x+10} ${y+8}L${x-10} ${y+8}Z" fill="#8A5200" stroke="#FFFDF8" stroke-width="2"/>`;
+    if(p.severity==='unknown')return `<circle cx="${x}" cy="${y}" r="8" fill="#FFFDF8" stroke="#5A566B" stroke-width="2" stroke-dasharray="3 2"/>`;
+    return `<circle cx="${x}" cy="${y}" r="5" fill="#1B1A2E" stroke="#FFFDF8" stroke-width="2"/>`;
+  };
+  svg.innerHTML=`${grid.join('')}<path class="creek" d="M-10 330C120 300 200 380 330 340S520 250 650 290"/><path class="road" d="M0 120C160 150 300 90 440 140S600 150 650 110"/><path class="road" d="M200 0C230 120 190 260 250 470"/>
+<g id="pts">${props.map(p=>`<g class="pt" data-id="${p.id}" transform="translate(${px(p).toFixed(1)} ${py(p).toFixed(1)}) scale(1.5)">${shape(p,0,0)}</g>`).join('')}</g><circle class="mk-sel" id="mk-sel" r="20" cx="-50" cy="-50"/>`;
+  const rows=$('#map-rows');
+  function render(){
+    const vis=sorted.filter(p=>filter==='all'||p.severity===filter);
+    if(!vis.find(p=>p.id===sel))sel=vis[0]?.id;
+    rows.innerHTML=vis.map(p=>`<tr data-id="${p.id}" data-sel="${p.id===sel}"><td><button class="rowbtn" type="button" aria-pressed="${p.id===sel}" data-id="${p.id}">${p.id}</button></td><td>${area(p)}</td><td>${pill(...CATS[p.severity])}</td><td class="v">${ago(p)} min${p.stale?' '+pill('wait','Stale'):''}</td></tr>`).join('');
+    svg.querySelectorAll('.pt').forEach(g=>{const p=props.find(q=>q.id===g.dataset.id);g.style.opacity=vis.includes(p)?'1':'.18';});
+    $('#map-count').textContent=`Showing ${vis.length} of ${props.length}`;
+    detail();
+  }
+  function detail(){
+    const p=props.find(q=>q.id===sel),el=$('#detail'),ring=$('#mk-sel');
+    if(!p){el.textContent='No home in this filter.';ring.setAttribute('cx',-50);return;}
+    const why=p.reasons.join('. ')+'.';
+    const tail=p.severity==='normal'?' No alert is not the same as safe.':p.severity==='unknown'?' Nothing recent. Treat as unknown.':p.stale?' This report is old.':'';
+    el.textContent=`Exercise home ${p.id}, ${area(p)}. ${CATS[p.severity][1]}. ${why} Exercise last report: ${ago(p)} min before the exercise snapshot.${tail}`;
+    ring.setAttribute('cx',px(p).toFixed(1));ring.setAttribute('cy',py(p).toFixed(1));
+  }
+  const pick=id=>{sel=id;render();};
+  rows.addEventListener('click',e=>{const b=e.target.closest('[data-id]');if(b){pick(b.dataset.id);rows.querySelector(`button[data-id="${b.dataset.id}"]`)?.focus();}});
+  svg.addEventListener('click',e=>{const g=e.target.closest('.pt');if(g)pick(g.dataset.id);});
+  const tabs=[...tabsEl.querySelectorAll('button')];
+  const go=k=>{filter=k;tabs.forEach(t=>{const on=t.dataset.f===k;t.setAttribute('aria-selected',String(on));t.tabIndex=on?0:-1;});render();};
+  tabs.forEach((t,i)=>{t.onclick=()=>go(t.dataset.f);t.onkeydown=e=>{let j=null;const n=tabs.length;if(e.key==='ArrowRight')j=(i+1)%n;else if(e.key==='ArrowLeft')j=(i+n-1)%n;else if(e.key==='Home')j=0;else if(e.key==='End')j=n-1;if(j===null)return;e.preventDefault();go(tabs[j].dataset.f);tabs[j].focus();};});
+  render();
 }

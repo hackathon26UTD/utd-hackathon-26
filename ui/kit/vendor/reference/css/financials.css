@@ -1,0 +1,282 @@
+/* ============================================================================
+   Financials: the page frame.  js/financials/page.js (window.FinancialsPage)
+
+   The head ("Financials" and one sentence), the six underline tabs, each
+   tab's head row (its name, one sentence, its one filled action) and the host
+   each tab's view mounts into. The views style themselves (financials-insights.css,
+   financials-transactions.css, and the shared controls, charts and table
+   sheets). The head is the shared `.crm-pagehead` and the tab row is the
+   shared `.crm-tabs` (css/argus-crm.css): Documents' title and Documents'
+   underline, with the underline sitting ON the row's hairline.
+
+   Tokens only (--crm-*, --ground-*); no raw colour in any rule here.
+
+   ⛔ FULL WIDTH, AND NO GUTTER OF ITS OWN (2026-09-22 rebuild).
+   The old page capped itself at 1720px; this one takes the whole sheet, as the
+   owner asked ("expand into the empty space"). It does NOT add a side gutter:
+   `.portal-main` already pays one (--sheet-pad, 16px), and a page that adds
+   its own is exactly what put the old Financials title 113px right of every
+   other page (docs/superpowers/specs/2026-09-17-portal-page-chrome-standard.md,
+   pinned by __tests__/page-chrome-standard.contract.test.js). Mercury's 24px
+   is its sheet's gutter; ours is the sheet's 16px, so the Financials title
+   lines up with Documents' and the rest.
+
+   🪤 No class here contains "card" or "panel": shell-theme.css repaints
+   `.portal-main [class*='card']` and `[class*='panel']` with its own surface.
+
+   🪤🪤 AND NONE CONTAINS "-page", WHICH IS WHY THE ROOT IS `.fin-frame`.
+   shell-theme.css sets `body.light-mode [class*='-page'] p` to 65% ink and
+   `... h1, h2, h3` to #1a1a1a, both !important. The root was `.fin-page` for
+   a day, and in light mode every paragraph and heading of every tab sat under
+   it: the Money in / Money out totals, the failure lines and the amber
+   warnings all painted the same grey. Only the shared `.crm-pagehead` (the
+   title, the same on every page) may match. Pinned by
+   __tests__/financials-page.test.js.
+   ============================================================================ */
+
+.fin-frame {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* 8px here and the sheet's 16px: the 24px Mercury leaves under the last
+       row of cards. 40px here stacked with the cards' own 24px left 81px of
+       empty page at the foot of every Insights tab. */
+    margin: 0 0 var(--crm-s-2);
+    padding: 0;
+    color: var(--crm-fg);
+}
+
+/* Title row: the page's title and its one sentence, as Inventory's head. */
+.fin-frame__head {
+    min-height: 40px;
+}
+
+.fin-frame__titles {
+    min-width: 0;
+}
+
+/* ── A tab's head row (2026-09-24 rebuild) ──────────────────────────────
+   Every tab but the landing opens with it: the tab's name, one plain sentence
+   of what it is for, and its ONE filled action on the right (Export on
+   Spending and Money in). No explainer paragraph under it. */
+/* The help banner under a tab's head (page.js tabBanner). */
+.fin-help {
+    margin: 4px 0 16px;
+}
+
+.fin-tabhead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--crm-s-4);
+    margin-bottom: var(--crm-s-4);
+}
+
+.fin-tabhead__words {
+    min-width: 0;
+}
+
+.fin-tabhead__title {
+    margin: 0;
+    font-size: var(--crm-t-h);
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--ground-ink);
+}
+
+.fin-tabhead__lead {
+    margin: var(--crm-s-1) 0 0;
+    font-size: var(--crm-t-body);
+    line-height: var(--crm-lh-body);
+    color: var(--ground-ink-3);
+}
+
+.fin-tabhead__act {
+    display: flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+    flex-shrink: 0;
+}
+
+.fin-tabhead__act:empty {
+    display: none;
+}
+
+/* Export while there is nothing to save (the cashflow read failed): greyed
+   out, never a live door that answers "nothing loaded" (page.js syncExport,
+   contract section 6). */
+.fin-frame__export:disabled,
+.fin-frame__export:disabled:hover {
+    background: var(--ground-chip);
+    border-color: var(--ground-line-2);
+    color: var(--crm-fg-muted);
+    opacity: 0.55;
+    cursor: default;
+}
+
+/* Export failures and the like. One line, muted, under the title. */
+.fin-frame__status {
+    margin: var(--crm-s-2) 0 0;
+    font-size: var(--crm-t-body);
+    line-height: var(--crm-lh-body);
+    color: var(--crm-fg-muted);
+}
+
+.fin-frame__status[hidden] {
+    display: none;
+}
+
+/* The underline tabs. The row and its hairline are the primitive's; this only
+   places it. */
+.fin-tabs {
+    margin-top: var(--crm-s-5);
+}
+
+/* A tab keeps the width of its label; a narrow screen scrolls the row (the
+   primitive hides its scrollbar). Without this, flex shrank every tab to the
+   global 44px button minimum at 390px: "Transactions" ran into "Expenses" and
+   the underline stopped short of its label.
+
+   And the selected tab is 600, the rest 400, so a switch used to widen one
+   label and push every tab after it about 4px. Each tab reserves its bold
+   width with an invisible copy of its label (data-label, set by page.js),
+   kept out of the accessibility tree by the `/ ''` alt text. The underline is
+   ::after and absolutely placed, so it is untouched. */
+.fin-tabs > .fin-tab {
+    flex-shrink: 0;
+    display: inline-flex;
+    flex-direction: column;
+    /* Start, not centre: the first label stays on the title's left edge. */
+    align-items: flex-start;
+    /* A <button> takes the browser's own face (Arial headless, the system UI
+       face on a Mac), not the page's: .crm-tab sets a size but no family, and
+       this page is not under #argus-content, whose reset hands buttons the
+       page font. Every chip, KPI and row around the tabs is Inter. */
+    font-family: inherit;
+}
+
+.fin-tabs > .fin-tab::before {
+    content: attr(data-label);
+    content: attr(data-label) / '';
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* The view. 16px from the tab row's hairline to the toolbar, as Mercury's
+   title row sits 16px above its toolbar. No overflow rule: the table's hover
+   block reaches 8px past its columns, and the toolbar's sticky band needs the
+   sheet as its scroller. */
+.fin-view {
+    min-width: 0;
+    padding-top: var(--crm-s-4);
+}
+
+.fin-view:focus {
+    outline: none;
+}
+
+.fin-view__host {
+    min-width: 0;
+}
+
+/* The Expenses ledger and the till count, in one framed block like every
+   table on the page: a 1px border, 12px corners, the raised ground. */
+.fin-view__framed {
+    padding: var(--crm-s-5);
+    border: 1px solid var(--ground-line);
+    border-radius: var(--crm-r-md);
+    background: var(--ground-raised);
+}
+
+/* Spending and Money in: the trend notes and the chart are one framed block,
+   as their breakdown boxes below already are. */
+.fin-view__host .fi-grid {
+    padding: var(--crm-s-6);
+    border: 1px solid var(--ground-line);
+    border-radius: var(--crm-r-md);
+    background: var(--ground-raised);
+}
+
+/* The ledger draws its own "Expenses / Every dollar out, by account." eyebrow.
+   Here the tab label already says it, so the inner copy is hidden HERE rather
+   than removed from js/inventory/expenses.js: Inventory still mounts the same
+   module and still needs its heading. (Moved from css/dashboard.css with the
+   old page's rules, 2026-09-23; page.js keeps the host id for it.) */
+#argus-os-fin-expenses .inv-section-eyebrow {
+    display: none;
+}
+
+/* A tab that is still arriving (the Inventory bundle behind Expenses and Till
+   counts can take a moment). Replaced by the module as soon as it draws. */
+.fin-frame__loading {
+    margin: 0;
+    padding: var(--crm-s-6) 0;
+    font-size: var(--crm-t-body-lg);
+    color: var(--crm-fg-muted);
+}
+
+/* A tab that could not open. A sentence and a way to try again: never an empty
+   tab that reads as "no money moved". */
+.fin-frame__failed {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--crm-s-2);
+    padding: var(--crm-s-6);
+    border: 1px dashed var(--crm-border-strong);
+    border-radius: var(--crm-r-md);
+}
+
+.fin-frame__failed-title {
+    margin: 0;
+    font-size: var(--crm-t-body-lg);
+    font-weight: 600;
+    color: var(--crm-fg);
+}
+
+.fin-frame__failed-note {
+    margin: 0;
+    font-size: var(--crm-t-body);
+    line-height: var(--crm-lh-body);
+    color: var(--crm-fg-muted);
+    max-width: 62ch;
+}
+
+.fin-frame__retry {
+    margin-top: var(--crm-s-2);
+}
+
+/* The could-not-load page js/argus-os-stubs.js draws when this script itself
+   is missing. */
+.fin-unavailable {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-5);
+}
+
+.fin-unavailable__note {
+    margin: 0;
+    font-size: var(--crm-t-body-lg);
+    line-height: var(--crm-lh-body);
+    color: var(--crm-fg-muted);
+}
+
+@media (max-width: 720px) {
+    .fin-tabs {
+        margin-top: var(--crm-s-4);
+    }
+
+    .fin-tabhead {
+        flex-direction: column;
+    }
+
+    .fin-view__framed,
+    .fin-view__host .fi-grid {
+        padding: var(--crm-s-4);
+    }
+}

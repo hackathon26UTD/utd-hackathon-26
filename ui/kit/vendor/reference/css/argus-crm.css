@@ -1,0 +1,2557 @@
+/* ============================================================================
+   ARGUS CRM PRIMITIVES  —  the shared component vocabulary
+   ============================================================================
+
+   WHY THIS FILE EXISTS
+   --------------------
+   Before this, every module invented its own card:
+
+     Inventory  .inv-card    → --inv-bg-2 / --inv-glass-border / --inv-radius
+     Labor      .lab-card    → --glass-bg / --glass-border / 12px
+     LP         .ov-card     → --bg2 / --border / 14px
+     LP (dup)   .ov-card     → a SECOND, conflicting block in the same file
+
+   Nothing was shared, so nothing looked related. argus.css alone carries 288
+   hardcoded hex colours against 819 var() uses — including NINE different reds
+   (#ef4444, #ff3131, #f87171, #ff5252, #ff8080, #fca5a5, --red #a81616,
+   --red-b #c0391a, and the brand --argus-accent-red #dc2626). That is the
+   measured cause of "doesn't match any type of color we want to use".
+
+   This file is the fix: ONE token set, ONE component vocabulary. Modules adopt
+   `crm-*` classes and stop authoring their own card/button/chip CSS.
+
+   DESIGN INTENT
+   -------------
+   CRM-grade, not security-console: soft rounded surfaces, generous padding,
+   pill buttons, calm neutrals, ONE confident accent, elevation via shadow
+   rather than neon glow. Deliberately restrained — this should read as
+   considered and durable, not decorated.
+
+   RULES FOR CONTRIBUTORS
+   ----------------------
+   1. NEVER write a raw hex in a component rule. Use the semantic tokens below.
+      If you need a colour that doesn't exist, add it HERE as a token first.
+   2. NEVER animate width/height/top/left/box-shadow/filter. Transform and
+      opacity only — these run on the compositor. See MOTION below.
+   3. Every interactive element needs a :focus-visible ring. No exceptions.
+   4. Sizes come from the space/type/radius scales. No magic numbers.
+
+   Colour source of truth is the master ladder in css/main.css (--argus-bg*,
+   --argus-accent-red, --argus-maroon). This file derives from it and MUST NOT
+   redefine it.
+   ============================================================================ */
+
+:root {
+    /* ── RADIUS ────────────────────────────────────────────────────────────
+       Bubbly but not childish. Cards sit at md/lg; controls at sm; anything
+       that reads as a "tag" or "action" goes fully pill. */
+    --crm-r-xs: 6px;
+    --crm-r-sm: 8px;
+    --crm-r-md: 12px;
+    --crm-r-lg: 16px;
+    --crm-r-xl: 20px;
+    --crm-r-pill: 999px;
+
+    /* ── SPACE (4px base) ──────────────────────────────────────────────────
+       CRM tools breathe. Card padding starts at --crm-s-5 (20px), never 14. */
+    --crm-s-1: 4px;
+    --crm-s-2: 8px;
+    --crm-s-3: 12px;
+    --crm-s-4: 16px;
+    --crm-s-5: 20px;
+    --crm-s-6: 24px;
+    --crm-s-7: 32px;
+    --crm-s-8: 40px;
+
+    /* ── TYPE ──────────────────────────────────────────────────────────────
+       Replaces the ad-hoc 9.5 / 11.5 / 12.5 / 13 / 30px sprawl in argus.css.
+       Every size here is a whole pixel — fractional type is what made the old
+       cards look hand-tuned rather than systematic. */
+    --crm-t-eyebrow: 11px; /* uppercase card labels */
+    --crm-t-caption: 12px; /* meta, timestamps */
+    --crm-t-body: 13px; /* default body */
+    --crm-t-body-lg: 14px; /* emphasised body, list titles */
+    --crm-t-title: 16px; /* card titles */
+    --crm-t-h: 20px; /* section headings */
+    /* Page titles. Added for the canvas page: reusing --crm-t-h (20px) put the
+       page title one step off the panel head (16px), so "Employees" and
+       "Roster" read as siblings and the page had no top of hierarchy. */
+    --crm-t-page: 28px;
+    --crm-t-metric: 32px; /* KPI numbers */
+    --crm-t-metric-lg: 40px; /* hero KPI */
+
+    --crm-lh-tight: 1.15;
+    --crm-lh-snug: 1.35;
+    --crm-lh-body: 1.5;
+
+    /* ── MOTION ────────────────────────────────────────────────────────────
+       One easing, three durations. `transition: all` is banned — it forces the
+       browser to watch every animatable property, and on the Intel NUC boxes
+       these stores run it shows. */
+    --crm-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    --crm-dur-fast: 120ms;
+    --crm-dur: 180ms;
+    --crm-dur-slow: 260ms;
+
+    /* ── ELEVATION ─────────────────────────────────────────────────────────
+       Soft, neutral, directional. NOT the coloured glow the LP module used —
+       glow reads as "gamer HUD", shadow reads as "product". */
+    --crm-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+    --crm-shadow-2: 0 2px 4px rgba(0, 0, 0, 0.4), 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+    --crm-shadow-3: 0 8px 24px rgba(0, 0, 0, 0.36), 0 2px 6px rgba(0, 0, 0, 0.24);
+
+    /* ── SURFACES ──────────────────────────────────────────────────────────
+       Aliased onto the master ladder so a brand recolour flows through. */
+    --crm-surface: var(--argus-bg-2, #232323);
+    --crm-surface-raised: var(--argus-bg-3, #292929);
+    --crm-surface-sunken: var(--argus-bg-deep, #171717);
+    --crm-border: rgba(255, 255, 255, 0.09);
+    --crm-border-strong: rgba(255, 255, 255, 0.16);
+
+    --crm-fg: #f4f4f5;
+    --crm-fg-muted: rgba(255, 255, 255, 0.62);
+    --crm-fg-dim: rgba(255, 255, 255, 0.4);
+
+    /* ── SEMANTIC STATUS ───────────────────────────────────────────────────
+       Exactly ONE colour per meaning. `-fg` is the readable text/icon tone,
+       `-bg` the tinted fill, `-bd` the border. Component rules only ever
+       reference these three — never the raw ramp. */
+    --crm-danger: #dc2626; /* == --argus-accent-red, the brand red */
+    --crm-danger-fg: #fca5a5;
+    --crm-danger-bg: rgba(220, 38, 38, 0.14);
+    --crm-danger-bd: rgba(220, 38, 38, 0.32);
+
+    --crm-warn: #f59e0b;
+    --crm-warn-fg: #fcd34d;
+    --crm-warn-bg: rgba(245, 158, 11, 0.13);
+    --crm-warn-bd: rgba(245, 158, 11, 0.3);
+
+    --crm-success: #22c55e;
+    --crm-success-fg: #86efac;
+    --crm-success-bg: rgba(34, 197, 94, 0.13);
+    --crm-success-bd: rgba(34, 197, 94, 0.3);
+
+    --crm-info: #60a5fa;
+    --crm-info-fg: #93c5fd;
+    --crm-info-bg: rgba(96, 165, 250, 0.13);
+    --crm-info-bd: rgba(96, 165, 250, 0.3);
+
+    --crm-neutral-bg: rgba(255, 255, 255, 0.06);
+    --crm-neutral-bd: rgba(255, 255, 255, 0.12);
+
+    /* ── CATEGORICAL SERIES (2026-09-21, added for Inventory > Analytics) ──
+       A chart that splits one quantity across N NAMED CATEGORIES needs N
+       tones that carry no meaning of their own. The status tokens above
+       cannot do it: `--crm-danger` on a slice labelled "Snacks" says the
+       snacks are in trouble, and that is the reading an operator takes.
+
+       js/inventory/analytics.js previously carried SIX raw hex values inline
+       (`#fb923c`, `#a78bfa`, `#60a5fa`, `#34d399`, `#f472b6`, `#9ca3af`) for
+       exactly this chart — the "every module brings its own palette" problem
+       the Surface System exists to end. They live here now instead.
+
+       ⛔ ORDERED FOR ADJACENT DISTINGUISHABILITY, not around the hue wheel: a
+       reader compares NEIGHBOURING slices, so 1 and 2 must never be two
+       shades of one colour. Darkened for the light theme below — these values
+       are chosen against #232323 and a 6px bar in them is too pale on white. */
+    --crm-series-1: #2dd4bf;
+    --crm-series-2: #a78bfa;
+    --crm-series-3: #fb923c;
+    --crm-series-4: #60a5fa;
+    --crm-series-5: #f472b6;
+    --crm-series-6: #34d399;
+    --crm-series-7: #fbbf24;
+    --crm-series-8: #94a3b8;
+
+    /* ── METRIC TONES (2026-09-22) — what a figure MEANS ───────────────────
+       A chart is coloured by what it MEASURES, not by whether it is alarming.
+       Owner, looking at a PURCHASE SPEND card drawn in the module teal:
+       "i dont like the green, lets do the dark red, really bright green only
+       for revenue or sales."
+
+       ⛔⛔ THESE ARE NOT THE STATE TOKENS AND MUST NOT STAND IN FOR THEM.
+       `--crm-danger` means SOMETHING IS WRONG. `--crm-spend` means MONEY IS
+       LEAVING, which is what buying stock is on a perfectly good day. A spend
+       chart painted in the danger red claims every delivery is an incident,
+       and an operator who learns to ignore red there will ignore it on the
+       line that matters.
+
+       ⛔ GREEN IS RESERVED. It says money came IN: sales, revenue, margin.
+       Using it for a unit count or a document total spends the one colour on
+       the page that carries a meaning everybody already agrees on.
+
+       ⛔ `--crm-volume` is for the figures that are neither — units, SKUs,
+       documents, counts. Deliberately a neutral: a count is not good news or
+       bad news until something else says so.
+
+       Chosen against #232323; the light theme below darkens each one so a 2px
+       stroke clears 3:1 on white. */
+    --crm-spend: #f43f5e;
+    --crm-spend-soft: rgba(244, 63, 94, 0.14);
+    --crm-revenue: #22c55e;
+    --crm-revenue-soft: rgba(34, 197, 94, 0.16);
+    /* Money in as TEXT (an amount, a figure). The mark green above is sized
+       for a 2px stroke; on this dark ground it already reads 7:1 as text,
+       so the text tone is the same literal. The light block darkens it. */
+    --crm-revenue-text: #22c55e;
+    --crm-volume: #94a3b8;
+    --crm-volume-soft: rgba(148, 163, 184, 0.14);
+    /* Today, on a timeline (Financials' scrubber): Mercury's orange marker. A
+       place in time, not a warning, so it is its own token rather than
+       --crm-warn. Literal in both theme blocks. */
+    --crm-today: #f28f48;
+
+    /* ── CATEGORICAL GROUPS (2026-09-22, Financials) ───────────────────────
+       The five tones a Financials chart splits money across when the split
+       is by NAME (top 4 vendors / categories / sources + "Other"): the
+       stacked bars and their legends. Mercury's Insights uses five muted
+       jewel tones here; these are ours, chosen by the dataviz method, not
+       by eye.
+
+       ⛔ NO GREEN AND NO RED IN THIS SET. Green says money came IN and the
+       dark red says money went OUT (the metric tones above). A "Snacks"
+       segment in either would say something about Snacks that is not true.
+       So the families are plum, ochre, steel blue, copper and teal.
+
+       ⛔ THE ORDER IS THE CVD-SAFETY MECHANISM. Slot N always goes to the
+       Nth group; "Other" always takes slot 5. Never cycle past 5: a sixth
+       group folds into "Other". Validated with the dataviz skill's
+       validate_palette.js (Machado 2009 CVD sim, OKLab dE x100), adjacent
+       pairs, 2026-09-22:
+         dark  on #232323 and #1d1d1d: worst CVD 15.5, normal 22.2, all >= 3:1
+         light on #ffffff and #f3f4f6: worst CVD 15.9, normal 22.5, all >= 3:1
+       Re-run it before changing a single value. */
+    --crm-cat-1: #905da0;
+    --crm-cat-2: #b08d3f;
+    --crm-cat-3: #3b93d5;
+    --crm-cat-4: #a56038;
+    --crm-cat-5: #24a5ab;
+
+    /* Primary action = brand red. The cyan --argus-primary (#00d4ff) is
+       deliberately NOT used here; it is the one token that made LP read as a
+       camera-vendor demo rather than part of this product. */
+    --crm-accent: var(--argus-accent-red, #dc2626);
+    --crm-accent-hover: #ef4444;
+    --crm-accent-fg: #ffffff;
+
+    /* ── MODULE ACCENT (2026-09-18, ARGUS Surface System) ──────────────────
+       The one colour that varies between modules: icon tiles, sparkline
+       strokes, the lit bar, the primary button. Each module root sets it from
+       MODULE_VISUAL_REGISTRY (that is PR 5); this is the default a card gets
+       OUTSIDE any module root — the neutral ink, so an unskinned tile reads
+       as a quiet glyph, never as the wrong module's colour. ⛔ NOT the brand
+       red: inside content, red means danger (css/inventory.css:1468). */
+    --crm-mod: #64748b;
+    --crm-mod-rgb: 100, 116, 139;
+    /* The same accent for THIN marks (a 1.6px sparkline, a 2px chart line):
+       a shade that clears 3:1 on the card it is drawn on. Neutral here; each
+       module sets its own below. */
+    --crm-mod-ink: #64748b;
+    --crm-focus: rgba(220, 38, 38, 0.55);
+
+    /* ── QUIET ACTIONS ─────────────────────────────────────────────────────
+       Owner, 2026-08-30: dashboard primaries should sit near the card
+       surface (the Stripe/Mercury treatment), not fill with the brand red.
+       A primary is discernible by fill + border weight, not hue: the raised
+       surface tone, a strong hairline, full-strength text. Red survives as
+       DANGER, active-state accents, and the focus ring — never as a default
+       action fill. (The marketing site's red CTAs are a separate order.) */
+    --crm-action-bg: var(--argus-bg-3, #292929); /* == --crm-surface-raised */
+    --crm-action-bg-hover: #313131; /* one step brighter */
+    --crm-action-border: rgba(255, 255, 255, 0.22);
+    --crm-action-fg: #f4f4f5; /* == --crm-fg, full strength */
+
+    /* ── THE ONE FILLED CONTROL ────────────────────────────────────────────
+       Owner, 2026-09-03: the Documents vault should read like Mercury's
+       Accounting screen, "nearly pixel for pixel". Mercury carries exactly
+       ONE filled control per view — Export, Go to Integrations, Go to Needs
+       Review — in an indigo, and everything else on the screen stays quiet.
+
+       ⛔ THIS DOES NOT REOPEN RED FILLS AND IT IS NOT A NEW DEFAULT PRIMARY.
+          The quiet --crm-action-* treatment above is still what `.crm-btn`
+          renders. `--crm-cta-*` is for the single hero action on a screen and
+          nothing else: never a row control, never two on one view, never
+          danger. Two filled indigo buttons in one viewport means the screen
+          has stopped saying which action it wants, which is the whole reason
+          the quiet rule exists.
+
+       WINE, NOT INDIGO (owner, 2026-09-22): "we much prefer the types of
+       buttons we have in documents tab ... and change them to dark red, like
+       wine red". The one filled control keeps its job and its rarity; only
+       the colour moved. Wine is a deep, blue-leaning red, far from the bright
+       --crm-danger (#dc2626), so a hero action does not read as an alarm: it
+       is still never used for danger, and danger never uses it. */
+    --crm-cta: #a3283f;
+    --crm-cta-hover: #b5324a;
+    --crm-cta-fg: #ffffff;
+
+    /* A surface that must stay LIGHT in both themes — QR codes are
+       dark-on-light by construction and stop scanning on a dark plate.
+       Deliberately not flipped by body.light-mode; that is its meaning. */
+    --crm-lightplate: #ffffff;
+
+    /* Overlay scrim: the dimmer behind modals and the hover veil over an
+       editable image. Dark in BOTH themes — a scrim sits over content (or a
+       photo), and a light veil over a light page reads as a rendering bug. */
+    --crm-scrim: rgba(0, 0, 0, 0.55);
+
+    /* Native-select chevron. A background-image cannot read currentColor, so
+       the glyph is a token that flips with the theme — the ONE sanctioned way
+       a component gets a per-theme asset without a .light-mode block. */
+    --crm-arrow: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.5)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* ── LIGHT MODE ────────────────────────────────────────────────────────────
+   Only the tokens flip. Not one component rule below is duplicated for light —
+   that is the point of the token layer. */
+body.light-mode {
+    --crm-surface: #ffffff;
+    --crm-surface-raised: #ffffff;
+    /* A real step BELOW the page (the page is #f3f4f6 now): equals
+       --ground-chip. Was #f6f6f7, which is lighter than the new page and
+       would have read as a highlight where a well was meant. */
+    --crm-surface-sunken: #eef0f3;
+    /* ❌ THE NOTE THAT SAT HERE THIS MORNING SAID "THE GROUND STAYS WHITE".
+       It was written against the 2026-09-17 objection to an off-white slab
+       inside ONE tab. The owner has since approved a grey page under EVERY tab
+       (the ARGUS Surface System board), which is a different thing: one
+       ground, not a page in a page. With the page carrying tone and --lift-1
+       under each card, the edge goes back to a trim — 0.16 was a white-on-white
+       compensation and would now read as a drawn box. */
+    --crm-border: rgba(16, 18, 20, 0.1);
+    --crm-border-strong: rgba(16, 18, 20, 0.18);
+
+    --crm-fg: #17191c;
+    --crm-fg-muted: rgba(23, 25, 28, 0.62);
+    --crm-fg-dim: rgba(23, 25, 28, 0.45);
+
+    /* THE LIFT (2026-09-18). Same values as --lift-1/2 in css/main.css, by
+       hand — an alias here would freeze against one theme. A 1px contact layer
+       keeps the edge crisp on low-DPI store screens; the ambient layer floats
+       the card off the grey page. shadow-3 is dialogs and stays heavier. */
+    --crm-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+    --crm-shadow-2: 0 2px 4px rgba(15, 23, 42, 0.06), 0 16px 40px -16px rgba(15, 23, 42, 0.18);
+    --crm-shadow-3: 0 10px 28px rgba(15, 23, 42, 0.14), 0 2px 6px rgba(15, 23, 42, 0.08);
+
+    /* Tints go lighter and the readable tone goes DARKER — the dark-mode `-fg`
+       values (#fca5a5 etc.) are pastels and fail contrast on white. */
+    --crm-danger-fg: #b91c1c;
+    --crm-danger-bg: rgba(220, 38, 38, 0.09);
+    --crm-danger-bd: rgba(220, 38, 38, 0.24);
+
+    --crm-warn-fg: #b45309;
+    --crm-warn-bg: rgba(245, 158, 11, 0.12);
+    --crm-warn-bd: rgba(245, 158, 11, 0.26);
+
+    --crm-success-fg: #15803d;
+    --crm-success-bg: rgba(34, 197, 94, 0.1);
+    --crm-success-bd: rgba(34, 197, 94, 0.26);
+
+    --crm-info-fg: #1d4ed8;
+    --crm-info-bg: rgba(96, 165, 250, 0.12);
+    --crm-info-bd: rgba(96, 165, 250, 0.3);
+
+    --crm-neutral-bg: rgba(16, 18, 20, 0.04);
+    --crm-neutral-bd: rgba(16, 18, 20, 0.1);
+
+    /* The categorical series, darkened for white. Same hues in the same
+       order, so a screenshot taken in one theme still matches the legend
+       read in the other — the ORDER is what carries the meaning, not the
+       exact tone. Declared here as literals rather than aliased onto the
+       dark values: `--x: var(--y)` resolves where it is DECLARED and would
+       freeze the light page on the dark palette (PR #2406). */
+    --crm-series-1: #0d9488;
+    --crm-series-2: #7c3aed;
+    --crm-series-3: #c2410c;
+    --crm-series-4: #2563eb;
+    --crm-series-5: #db2777;
+    --crm-series-6: #059669;
+    --crm-series-7: #b45309;
+    --crm-series-8: #475569;
+
+    /* The metric tones, for white. Spend is a genuinely DARK red here, which
+       is what the owner asked for and what a deep tone has to be to read as
+       deliberate rather than as an alarm on a white card. Literals, not
+       aliases, for the reason stated above the series block. */
+    --crm-spend: #9f1239;
+    --crm-spend-soft: rgba(159, 18, 57, 0.1);
+    --crm-revenue: #16a34a;
+    --crm-revenue-soft: rgba(22, 163, 74, 0.12);
+    /* The mark green measures 2.99:1 as 15px text on the #f3f4f6 page, under
+       4.5:1. Amounts in money-in green use this deeper step (6.5:1 there,
+       Mercury's text green is #036e43 at about 6:1); lines and fills keep
+       --crm-revenue. */
+    --crm-revenue-text: #166534;
+    --crm-volume: #64748b;
+    --crm-volume-soft: rgba(100, 116, 139, 0.1);
+    --crm-today: #e0712a;
+
+    /* The categorical groups, stepped for white: same five hues in the
+       same order as the dark block, each one darker so a mark clears 3:1
+       on the #f3f4f6 page as well as on a white card. Literals, not
+       aliases (PR #2406). */
+    --crm-cat-1: #7c4e8a;
+    --crm-cat-2: #a38131;
+    --crm-cat-3: #2983c5;
+    --crm-cat-4: #924f26;
+    --crm-cat-5: #12959b;
+
+    --crm-action-bg: #ffffff; /* == the light raised card surface */
+    --crm-action-bg-hover: #f4f4f5; /* one step darker */
+    --crm-action-border: rgba(16, 18, 20, 0.26);
+    --crm-action-fg: #17191c;
+    --crm-mod: #475569;
+    --crm-mod-rgb: 71, 85, 105;
+    --crm-mod-ink: #475569;
+
+    /* Deeper wine on a light ground: white on #7b1e30 is ~10:1, and the
+       fill still reads as a colour rather than as near-black beside the
+       quiet dark primaries. Hover goes lighter, as in the dark theme. */
+    --crm-cta: #7b1e30;
+    --crm-cta-hover: #8f2439;
+    --crm-cta-fg: #ffffff;
+
+    --crm-arrow: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(16,18,20,0.55)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* ============================================================================
+   CARD
+   ============================================================================ */
+
+.crm-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-3);
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-r-lg);
+    padding: var(--crm-s-5);
+    box-shadow: var(--crm-shadow-1);
+    /* Hover LIFTS (shadow-1 -> shadow-2) and never moves the border. With the
+       edge at a 0.10 trim, a border-color hover would make a box APPEAR on
+       hover — the exact thing widget-hover-no-box.contract.test.js exists to
+       stop. ⛭ The shadow IS transitioned, against the older note here that
+       shadow transitions were janky on store hardware: that was measured on a
+       long list of cards; #2946 took the same trade on the KPI row, and the
+       transition is dropped under reduced motion below. */
+    transition:
+        box-shadow var(--crm-dur-fast) var(--crm-ease),
+        background var(--crm-dur-fast) var(--crm-ease);
+}
+
+.crm-card--interactive {
+    cursor: pointer;
+}
+.crm-card--interactive:hover {
+    box-shadow: var(--crm-shadow-2);
+}
+
+/* Status rail — a 3px left edge that colour-codes the card without shouting.
+   Uses a pseudo element so it can't disturb the card's own border radius. */
+.crm-card--railed {
+    position: relative;
+    overflow: hidden;
+}
+.crm-card--railed::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--crm-rail, var(--crm-neutral-bd));
+}
+.crm-card[data-tone='danger'] {
+    --crm-rail: var(--crm-danger);
+}
+.crm-card[data-tone='warn'] {
+    --crm-rail: var(--crm-warn);
+}
+.crm-card[data-tone='success'] {
+    --crm-rail: var(--crm-success);
+}
+.crm-card[data-tone='info'] {
+    --crm-rail: var(--crm-info);
+}
+
+.crm-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--crm-s-3);
+}
+
+.crm-card__title {
+    font-size: var(--crm-t-eyebrow);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--crm-fg-muted);
+}
+
+/* One explanatory line under a card title. Added for the Settings hub,
+   whose cards nearly all carry a sentence of "what this controls" — a slot
+   the eyebrow title cannot absorb without shouting. */
+.crm-card__desc {
+    margin: 0;
+    font-size: var(--crm-t-caption);
+    line-height: var(--crm-lh-snug);
+    color: var(--crm-fg-muted);
+}
+
+.crm-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-2);
+}
+
+/* Pushes whatever follows to the card's bottom edge — keeps CTAs aligned
+   across a row of cards with unequal content. */
+.crm-card__foot {
+    margin-top: auto;
+    padding-top: var(--crm-s-2);
+}
+
+/* ============================================================================
+   STAT / KPI
+   ============================================================================
+   A number alone is not "value impacting" — it needs a unit and a comparison.
+   The delta slot is part of the primitive so no module is tempted to fake one
+   with demo-only copy (which is exactly what the old LP KPI strip did: real
+   tenants saw an em-dash on all five tiles). */
+
+.crm-stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-1);
+}
+
+/* ⛔ 2026-09-18 — THE FIGURES ARE SANS AGAIN, AND HEAVY. The owner, on the
+ * Inventory KPI row: "the font for the KPI cards should be bold and
+ * different, not this weird font". The serif could not be bold: css/fonts.css
+ * declares Fraunces at 300/400/500/600 ONLY, so every figure in the app was
+ * pinned at 500-560 and anything heavier synthesises into a slab — which is
+ * why __tests__/kit/type-motion.contract.test.js caps the weight at 600. A
+ * face with no bold cannot answer a request for bold.
+ * This reverses the 2026-09-02 "serif on the figures" decision. The serif is
+ * NOT banned — it keeps the titles and the LP lede, where it reads as
+ * considered. It is off the NUMBERS. Inter carries 400-900 in one variable
+ * file, so 800 costs no extra download. tabular-nums survives everywhere it
+ * was: a ticking counter must not reflow, and that is true in any family. */
+.crm-stat__value {
+    display: flex;
+    align-items: baseline;
+    gap: var(--crm-s-2);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: var(--crm-t-metric);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: var(--crm-lh-tight);
+    color: var(--crm-fg);
+    /* Numbers must not reflow as they tick — tabular figures keep the column
+       steady on a 10s refresh. */
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.crm-stat__unit {
+    font-size: var(--crm-t-body);
+    font-weight: 500;
+    color: var(--crm-fg-muted);
+    letter-spacing: 0;
+}
+
+/* A KPI that could not be read. It must not look like a measurement: same
+   slot, but body-sized and muted, so "Not loaded" reads as an admission
+   rather than as a value. The alternative — rendering 0, or a dash styled
+   like a number — is the shape that let getOtaHealth report a failed read as
+   "healthy, 0 failures". */
+.crm-stat__value--unknown {
+    font-size: var(--crm-t-body-lg);
+    font-weight: 500;
+    color: var(--crm-fg-dim);
+    letter-spacing: 0;
+}
+
+.crm-stat__delta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--crm-s-1);
+    font-size: var(--crm-t-caption);
+    font-weight: 600;
+    color: var(--crm-fg-muted);
+}
+.crm-stat__delta[data-dir='up'] {
+    color: var(--crm-success-fg);
+}
+.crm-stat__delta[data-dir='down'] {
+    color: var(--crm-danger-fg);
+}
+/* "up is good" is domain-specific: more incidents is bad, more traffic is
+   good. Callers set data-intent to override the colour mapping. */
+.crm-stat__delta[data-intent='bad'] {
+    color: var(--crm-danger-fg);
+}
+.crm-stat__delta[data-intent='good'] {
+    color: var(--crm-success-fg);
+}
+.crm-stat__delta[data-intent='neutral'] {
+    color: var(--crm-fg-muted);
+}
+
+.crm-stat__note {
+    font-size: var(--crm-t-caption);
+    color: var(--crm-fg-dim);
+    line-height: var(--crm-lh-snug);
+}
+
+/* ── KPI trend: the sparkline and its delta chip ──────────────────────────
+   Owner, 2026-08-31: "make these KPIs more involved, maybe a tiny graph next
+   to it like the main KPIs on dashboard overview."
+
+   Only rendered when a real series arrived — `LaborCanvas.sparkline` returns
+   null for a missing or single-point history, so these rules are inert on a
+   KPI whose trend we cannot honestly draw, and the card keeps its old shape. */
+.crm-stat__row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--crm-s-3);
+    min-width: 0;
+}
+
+.crm-spark {
+    display: block;
+    flex: none;
+    overflow: visible;
+}
+
+/* The stroke must not thicken when the box scales: geometry scales, the line
+   does not. Same reason the chart is drawn in real pixel space. */
+.crm-spark__line {
+    fill: none;
+    /* ⚠️ `--crm-info` (#60a5fa) DOES NOT FLIP — it is one value for both themes,
+       picked to read on a dark card. Measured 2026-09-18 on a white card it is
+       2.54:1, under the 3:1 a line that carries data needs, so the light-mode
+       sparkline was a pale wash. `--crm-info-fg` is the same hue with a light
+       counterpart (#93c5fd dark / #1d4ed8 light): 8.4:1 and 8.6:1.
+       ⛭ Changed on the PRIMITIVE, not shadowed inside a module. Labor's KPI
+       cards are the other caller and had the same washed-out line. */
+    stroke: var(--crm-mod-ink);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.crm-spark__area {
+    fill: rgba(var(--crm-mod-rgb), 0.1);
+    stroke: none;
+}
+
+.crm-spark__tip {
+    fill: var(--crm-mod-ink);
+    stroke: var(--crm-surface);
+    stroke-width: 1.4;
+}
+
+.crm-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--crm-s-1);
+    align-self: flex-start;
+    padding: 2px var(--crm-s-2);
+    border-radius: 8px;
+    font-size: var(--crm-t-caption);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg-muted);
+}
+
+.crm-trend__arrow {
+    font-size: 9px;
+    line-height: 1;
+}
+
+/* A direction is only coloured when the KPI declared which way is good.
+   Without that, movement is shown and left ungraded. */
+.crm-trend--good {
+    background: var(--crm-success-bg);
+    color: var(--crm-success-fg);
+}
+
+.crm-trend--bad {
+    background: var(--crm-danger-bg);
+    color: var(--crm-danger-fg);
+}
+
+body.light-mode .crm-trend--good {
+    color: #15803d;
+}
+
+body.light-mode .crm-trend--bad {
+    color: #b91c1c;
+}
+
+/* ============================================================================
+   KPI CARD  —  the box the stat sits in
+   ============================================================================
+   `.crm-stat` above is the CONTENTS of a KPI: figure, unit, delta, note. It has
+   never had a box, so every module drew its own, and they diverged the way the
+   header of this file describes for `.crm-card`:
+
+     Documents   .crm-card            --crm-r-lg / --crm-s-5 / --crm-shadow-1
+     Inventory   .inv-kpi-v2          the same three, since #2946
+     Calls       .lyra-kpi-card       12px / 22px / no shadow / a 14px blur
+     LP          .ov-kpi + .lp-kpi    two more, in one sheet
+
+   Four boxes for one component. This is the box, once, in the shared layer.
+
+   ⛭ WHY THIS IS NOT A FIFTH. The geometry below is character-for-character the
+   geometry `.inv-kpi-v2` landed on in #2946 — every value is the same token.
+   Inventory is deliberately NOT edited to use this class: renaming a class that
+   a merged 27-test guard asserts by name is churn with no visual result, and
+   the two rules cannot drift because they read the same four tokens. The
+   convergence to make later is one selector, not a redesign.
+
+   ⛔ NOT TAKEN FROM DOCUMENTS: the hover. `.crm-card--interactive` moves its
+   border-color, and __tests__/widget-hover-no-box.contract.test.js forbids that
+   on a KPI — owner, 2026-08-10: "when hovering over widgets, there isnt a box,
+   it should be an invisible border like how apple does things." The boundary
+   never moves; the card lifts. */
+.crm-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-3);
+    min-width: 0;
+    padding: var(--crm-s-5);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-r-lg);
+    /* ⛔⛔ `--ui-card` FIRST, AND THIS CLASS'S NAME IS WHY.
+       `css/shell-theme.css:7200` repaints `.portal-main [class*='card']` with
+       `--ui-card` at (0,3,1), beating anything this sheet writes — so every
+       card in the portal renders `--ui-card` no matter what its own rule says.
+       `.crm-kpi` has no "card" in its name and therefore escapes that rule,
+       which sounds like a win and is not: the two tokens are DIFFERENT COLOURS.
+       Measured on staging 2026-09-18, dark: `--crm-surface` is `#1d1d1d` and
+       `--ui-card` is `#232323`, and this card rendered `#1d1d1d` beside a
+       `.lyra-card` at `#232323` — two grounds, six pixels apart, on the same
+       row. (Found by measuring the first draft of this very rule, which said
+       `--crm-surface`. `.inc-kpi` in css/argus.css had shipped the same bug for
+       longer.)
+       ⛭ The fallback keeps it correct outside the portal shell, where nothing
+       defines `--ui-card` and `--crm-surface` is the right answer. */
+    background: var(--ui-card, var(--crm-surface));
+    box-shadow: var(--crm-shadow-1);
+    /* ⛭ box-shadow IS transitioned here, against `.crm-card`'s note that shadow
+       transitions were janky on store hardware — that was a card in a long
+       scrolling list; this is a row of six, one of which is under the cursor at
+       a time. Dropped entirely under reduced motion below. */
+    transition:
+        box-shadow var(--crm-dur-fast) var(--crm-ease),
+        background var(--crm-dur-fast) var(--crm-ease);
+}
+
+.crm-kpi:hover {
+    box-shadow: var(--crm-shadow-2);
+}
+
+/* ── KPI v3 (2026-09-18) — head row: label left, icon tile right ─────────
+   Owner: "the KPI cards are boring". The reference's card carries FIVE things
+   and nothing else: a sentence-case label, a tinted icon tile, a heavy figure,
+   a semantic delta pill, and the comparison it was measured against. The
+   label drops the uppercase eyebrow — it read as fine print at 11px and told
+   the reader to look elsewhere for the important thing. */
+.crm-kpi__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--crm-s-3);
+    min-width: 0;
+}
+.crm-kpi__label {
+    font-size: var(--crm-t-body-lg);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    color: var(--crm-fg-muted);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+/* The tile: a 36px rounded square tinted from the module accent. It is the
+   card's IDENTITY, not its data, so it stays when the figure is empty — a
+   card that says "No sales history" still says which card it is. */
+.crm-kpi__tile {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(var(--crm-mod-rgb), 0.12);
+    color: var(--crm-mod);
+}
+.crm-kpi__tile svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+/* Figure and picture share a baseline row, so a sparkline reads as belonging to
+   the number rather than floating under it. */
+.crm-kpi__row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--crm-s-3);
+    min-width: 0;
+}
+
+.crm-kpi__value {
+    font-size: var(--crm-t-metric);
+    font-weight: 600;
+    line-height: var(--crm-lh-tight);
+    letter-spacing: -0.02em;
+    color: var(--crm-fg);
+    /* A KPI that ticks on a refresh must not reflow its neighbours. */
+    font-variant-numeric: tabular-nums;
+}
+
+/* ⛔ A FIGURE THAT COULD NOT BE READ MUST NOT LOOK LIKE A MEASUREMENT.
+   Same slot, body-sized and muted, so WORDS in the figure slot — "No sales
+   history", "Not connected" — read as an admission and never as a value. This
+   is `.crm-stat__value--unknown`'s rule under the spelling
+   `.inv-kpi-v2__value.is-empty` already uses. */
+.crm-kpi__value.is-empty {
+    font-size: var(--crm-t-body-lg);
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--crm-fg-muted);
+}
+
+/* ⛭ THE OTHER EMPTY STATE, AND IT IS NOT THE SAME ONE. An em dash is not a
+   digit and no reader mistakes it for a measurement, so unlike `is-empty` it
+   does not need shrinking out of the figure slot — a 14px dash on a 6-card row
+   just looks like the card failed to load. It keeps figure size and takes the
+   muted tone, which is what says "not a value".
+   ⚠️ --crm-fg-muted, NOT --crm-fg-dim. Measured 2026-09-18 on --crm-surface:
+   muted is 6.9:1 dark / 4.9:1 light, dim is 3.8:1 dark. Dim would clear the 3:1
+   large-text bar at 32px and fail any grader that reads ink at 4.5:1, which is
+   the shape __tests__/portal-muted-ink-clears-aa.contract.test.js exists for. */
+.crm-kpi__value.is-none {
+    color: var(--crm-fg-muted);
+}
+
+/* The unit rides the figure's baseline rather than sitting in it — "4.8" is the
+   measurement and "/5" is the scale it was taken on. */
+.crm-kpi__unit {
+    margin-left: 2px;
+    font-size: var(--crm-t-title);
+    font-weight: 500;
+    letter-spacing: 0;
+    color: var(--crm-fg-muted);
+}
+
+/* What would fill this card. Sits after the movement chip when there is one, so
+   a card with data reads "▲12.3%  Answered since midnight" and a card without
+   reads just the definition. */
+.crm-kpi__note {
+    color: var(--crm-fg-muted);
+}
+
+/* The line under the figure. Two jobs, and which one it is doing depends
+   entirely on whether there is a figure: with data it carries the comparison,
+   without data it says what would fill the card. Both are one muted caption. */
+.crm-kpi__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+    flex-wrap: wrap;
+    font-size: var(--crm-t-caption);
+    line-height: var(--crm-lh-snug);
+    color: var(--crm-fg-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ⛔⛔ THE ENTRANCE DOES NOT TOUCH OPACITY, AND THAT IS NOT A STYLE CHOICE.
+   `crm-step-in`, thirty lines of this same file away, is the FIFTH location
+   catalogued at css/main.css:3366 where an `opacity: 0` first frame left real
+   content invisible: on a background tab the compositor pauses the animation at
+   frame zero, and LP's action list — "Agent offline, restart it on the store
+   PC" — sat transparent in a blank band. Each of the five needed its own
+   `body[data-visible='hidden'] { animation: none !important }` rescue rule.
+
+   A card that slides without fading needs no rescue rule. Paused at frame zero
+   it is a fully legible card sitting 6px low, which nobody will ever file a bug
+   about. The failure class is removed rather than guarded against, so there is
+   no sixth entry on that list and no rule for a future refactor to drop.
+
+   ⛭ `both` is also gone with it: with no delay it bought nothing, and backwards
+   fill is the specific mechanism that made `crm-step-in`'s first frame stick. */
+@keyframes crm-kpi-in {
+    from {
+        transform: translateY(6px);
+    }
+    to {
+        transform: none;
+    }
+}
+
+.crm-kpi {
+    animation: crm-kpi-in var(--crm-dur-slow) var(--crm-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* ⛔ `animation: none`, never a property reset — the travel is dropped, the
+       destination never is. Here the destination is `transform: none`, which is
+       also the card's resting style, so removing the animation lands it exactly
+       where the animation would have. */
+    .crm-kpi {
+        animation: none;
+        transition: none;
+    }
+}
+
+/* ============================================================================
+   BUTTON
+   ============================================================================ */
+
+.crm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--crm-s-2);
+    /* 32px min target. The old .ov-cta was 6px/13px padding on 12px text —
+       roughly 28px tall, below a comfortable touch/click target. */
+    min-height: 32px;
+    padding: var(--crm-s-2) var(--crm-s-4);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font: inherit;
+    font-size: var(--crm-t-body);
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    text-decoration: none;
+    transition:
+        background-color var(--crm-dur) var(--crm-ease),
+        border-color var(--crm-dur) var(--crm-ease),
+        color var(--crm-dur) var(--crm-ease),
+        transform var(--crm-dur-fast) var(--crm-ease);
+}
+.crm-btn:active {
+    transform: translateY(1px);
+}
+.crm-btn:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 2px;
+}
+.crm-btn[disabled],
+.crm-btn[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Quiet primary (owner, 2026-08-30). Was `--crm-accent` filled; the weight now
+   comes from the fill + the strongest border in the row, not from hue. The
+   ladder reads: primary = filled + strong border + full fg · secondary =
+   outlined, muted fg · ghost = borderless. Hover moves colour only; the red
+   focus ring on .crm-btn stays — focus is an accent, not an action fill. */
+.crm-btn--primary {
+    background: var(--crm-action-bg);
+    border-color: var(--crm-action-border);
+    color: var(--crm-action-fg);
+}
+.crm-btn--primary:hover:not([disabled]) {
+    background: var(--crm-action-bg-hover);
+}
+
+/* ⛔ ONE PER SCREEN. See the --crm-cta note in the token block: this is the
+   single hero action (Mercury's Export / Go to Needs Review), not a primary.
+   If you are reaching for a second one in the same view, one of them is not
+   the hero and should be .crm-btn--primary. */
+.crm-btn--cta {
+    background: var(--crm-cta);
+    border-color: var(--crm-cta);
+    color: var(--crm-cta-fg);
+}
+.crm-btn--cta:hover:not([disabled]) {
+    background: var(--crm-cta-hover);
+    border-color: var(--crm-cta-hover);
+}
+
+.crm-btn--secondary {
+    background: transparent;
+    border-color: var(--crm-border-strong);
+    color: var(--crm-fg-muted);
+}
+.crm-btn--secondary:hover:not([disabled]) {
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg);
+}
+
+.crm-btn--ghost {
+    background: transparent;
+    color: var(--crm-fg-muted);
+}
+.crm-btn--ghost:hover:not([disabled]) {
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg);
+}
+
+.crm-btn--danger {
+    background: var(--crm-danger);
+    color: #fff;
+}
+.crm-btn--danger:hover:not([disabled]) {
+    background: var(--crm-accent-hover);
+}
+
+.crm-btn--sm {
+    min-height: 28px;
+    padding: var(--crm-s-1) var(--crm-s-3);
+    font-size: var(--crm-t-caption);
+}
+
+.crm-btn__icon {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    /* SVG icons are painted by `stroke`, not `color` — once any rule sets
+       stroke directly, a `color` rule can never win at any specificity. */
+    stroke: currentColor;
+    fill: none;
+}
+
+/* ============================================================================
+   CHIP  —  status pills
+   ============================================================================ */
+
+.crm-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--crm-s-1);
+    padding: 3px var(--crm-s-3);
+    border-radius: 6px;
+    border: 1px solid var(--crm-neutral-bd);
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg-muted);
+    font-size: var(--crm-t-caption);
+    font-weight: 600;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+/* A status chip whose tone changes in place eases between colours. Written
+   with two classes' weight (`.crm-chip[data-tone]` is a class and an
+   attribute) so `body.light-mode *`, which resets `transition` on everything,
+   cannot flatten it back to a snap. */
+.crm-chip[data-tone] {
+    transition:
+        background-color var(--crm-dur) var(--crm-ease),
+        border-color var(--crm-dur) var(--crm-ease),
+        color var(--crm-dur) var(--crm-ease);
+}
+.crm-chip[data-tone='danger'] {
+    color: var(--crm-danger-fg);
+    background: var(--crm-danger-bg);
+    border-color: var(--crm-danger-bd);
+}
+.crm-chip[data-tone='warn'] {
+    color: var(--crm-warn-fg);
+    background: var(--crm-warn-bg);
+    border-color: var(--crm-warn-bd);
+}
+.crm-chip[data-tone='success'] {
+    color: var(--crm-success-fg);
+    background: var(--crm-success-bg);
+    border-color: var(--crm-success-bd);
+}
+.crm-chip[data-tone='info'] {
+    color: var(--crm-info-fg);
+    background: var(--crm-info-bg);
+    border-color: var(--crm-info-bd);
+}
+
+.crm-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: currentColor;
+}
+
+/* ============================================================================
+   TASK ROW  —  the setup / to-do checklist
+   ============================================================================
+   The old LP checklist rendered state as a bare text glyph ('✓' / '○' / '!')
+   in a span. That is the single cheapest-looking element in the module. This
+   replaces it with a real status medallion, a title/description pair, and a
+   right-aligned action — the HubSpot onboarding-task shape. */
+
+.crm-tasks {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-2);
+}
+
+.crm-task {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: center;
+    gap: var(--crm-s-3);
+    padding: var(--crm-s-3);
+    border-radius: var(--crm-r-md);
+    border: 1px solid transparent;
+    background: var(--crm-neutral-bg);
+    transition:
+        background-color var(--crm-dur) var(--crm-ease),
+        border-color var(--crm-dur) var(--crm-ease);
+}
+.crm-task:hover {
+    border-color: var(--crm-border);
+}
+
+.crm-task__mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex: none;
+    border: 1.5px solid var(--crm-neutral-bd);
+    color: var(--crm-fg-dim);
+}
+.crm-task__mark svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.5;
+}
+
+.crm-task[data-state='done'] .crm-task__mark {
+    background: var(--crm-success-bg);
+    border-color: var(--crm-success-bd);
+    color: var(--crm-success-fg);
+}
+.crm-task[data-state='issue'] .crm-task__mark {
+    background: var(--crm-danger-bg);
+    border-color: var(--crm-danger-bd);
+    color: var(--crm-danger-fg);
+}
+.crm-task[data-state='info'] .crm-task__mark {
+    background: var(--crm-info-bg);
+    border-color: var(--crm-info-bd);
+    color: var(--crm-info-fg);
+}
+/* A completed task should recede, not compete with what's still open. */
+.crm-task[data-state='done'] {
+    background: transparent;
+}
+.crm-task[data-state='done'] .crm-task__title {
+    color: var(--crm-fg-muted);
+}
+
+.crm-task__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.crm-task__title {
+    font-size: var(--crm-t-body-lg);
+    font-weight: 600;
+    color: var(--crm-fg);
+    line-height: var(--crm-lh-snug);
+}
+.crm-task__desc {
+    font-size: var(--crm-t-caption);
+    color: var(--crm-fg-dim);
+    line-height: var(--crm-lh-snug);
+}
+
+.crm-task__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+}
+
+/* ── STEP CARDS ────────────────────────────────────────────────────────────
+   The onboarding shape used by Greenhouse / Linear / HubSpot: a ROW of large,
+   near-square cards, one per step, instead of a stack of thin list rows.
+
+   Why the shape earns its space: a stacked list reads as a backlog — items you
+   owe someone — and gets longer and more oppressive the more there is to do. A
+   row of step cards reads as a PATH with an end you can see, which is the whole
+   psychological trick of a good onboarding flow. It also gives each step room
+   for a real icon, a sentence of "why", and its own action, none of which fit
+   legibly on a 48px row.
+
+   `.crm-tasks--steps` opts a container in; `.crm-task` inside it restyles from
+   a grid row into a card. The DOM is identical either way, so a surface can
+   switch presentation without the renderer knowing.
+
+   Auto-fit rather than a fixed count because the step count is conditional
+   (setup items appear and disappear with tenant state) — a hardcoded
+   repeat(4) would strand a lone card on a second row. */
+.crm-tasks--steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--crm-step-min, 250px), 1fr));
+    gap: var(--crm-s-3);
+    /* Equal boxes, and they must STAY equal. grid-auto-rows:1fr makes every row
+       the same height and stretch makes every card fill it, so four steps are
+       one set of identical tiles rather than four different shapes. */
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+}
+
+/* IN STEPS MODE THE WRAPPER IS THE CARD.
+   This is the fix for the sizing problem that two earlier attempts could not
+   solve. The guide strip is a sibling of .crm-task inside .crm-task-wrap, so
+   while .crm-task was the card the strip hung OUTSIDE it — which meant a step
+   with a guide and a step without could never be the same height (measured
+   236/236/236/280), and the strips staggered whenever a card ran taller.
+   Promoting the wrapper to card status puts the guide inside the box it
+   explains, so every tile is one rectangle and the grid can size them all
+   identically. */
+.crm-tasks--steps .crm-task-wrap {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-r-lg);
+    padding: var(--crm-s-4);
+    overflow: hidden;
+    /* ONBOARDING WASH. A soft accent gradient marks these as setup surfaces
+       rather than reporting ones — the reason the row reads as a flow at a
+       glance. Kept to ~6% so it tints rather than colours; the module's own
+       cards stay flat, which is what makes the difference legible.
+       Direction follows the reading order, so the row has a sense of travel. */
+    background:
+        linear-gradient(
+            140deg,
+            rgba(var(--crm-step-tint), 0.1) 0%,
+            rgba(var(--crm-step-tint), 0.02) 46%,
+            transparent 78%
+        ),
+        var(--crm-surface-raised);
+    /* Composited-only: colour is static, the entrance animates transform +
+       opacity, and hover moves the border. Nothing here repaints on a loop. */
+    transition:
+        border-color var(--crm-dur) var(--crm-ease),
+        transform var(--crm-dur) var(--crm-ease);
+}
+.crm-tasks--steps .crm-task-wrap:hover {
+    border-color: var(--crm-border-strong);
+    transform: translateY(-2px);
+}
+/* Tint per state — the wash carries the same meaning as the medallion, so an
+   at-risk step reads as one before you get to the words. */
+.crm-tasks--steps .crm-task-wrap {
+    /* GREEN for setup. Onboarding is progress, and the wash reading the same
+       green as the completion meter above it makes the row and the bar one
+       idea. Red is reserved for a step that is actually FAILING (below), which
+       is what keeps the alert colour meaningful. */
+    --crm-step-tint: 34, 197, 94;
+}
+.crm-tasks--steps .crm-task-wrap:has(.crm-task[data-state='issue']) {
+    /* An actual fault DOES get the alert red — that distinction is the point. */
+    --crm-step-tint: 220, 38, 38;
+}
+.crm-tasks--steps .crm-task-wrap:has(.crm-task[data-state='info']) {
+    --crm-step-tint: 96, 165, 250;
+}
+
+/* ENTRANCE. Steps arrive in reading order so the row assembles as a path
+   instead of appearing all at once. transform + opacity only, so it runs on the
+   compositor; 6 steps at 45ms is done in ~270ms, below the point where a user
+   would call it slow. `backwards` holds the pre-state during the delay so no
+   card flashes at full opacity before its turn.
+
+   ⛔ AND `backwards` IS ALSO WHY THIS CAN HIDE A PAGE. It applies the `from`
+   keyframe before the animation starts, so a hidden tab that freezes the
+   animation at frame zero leaves every step fully transparent while it still
+   occupies its box. Measured on the Loss Prevention overview 2026-09-07: three
+   437×171 task cards — "Agent offline, restart it on the store PC" among them —
+   invisible in a blank band under SETUP & HEALTH. main.css carries the guard
+   (`body[data-visible='hidden'] .crm-tasks--steps .crm-task-wrap { animation:
+   none }`) and the full write-up; it is the fifth time this repo has shipped
+   this bug, so do not remove that rule when touching this one.
+
+   The `from` opacity stays 0 here (unlike lyra-fadeIn, which now floors at
+   0.55) because with `backwards` a non-zero floor means every later card sits
+   visible-but-dim through its own delay, which is the "all at once" look the
+   stagger exists to avoid. The guard is what keeps it safe. */
+@keyframes crm-step-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+.crm-tasks--steps .crm-task-wrap {
+    animation: crm-step-in var(--crm-dur-slow) var(--crm-ease) backwards;
+}
+.crm-tasks--steps .crm-task-wrap:nth-child(1) {
+    animation-delay: 0ms;
+}
+.crm-tasks--steps .crm-task-wrap:nth-child(2) {
+    animation-delay: 45ms;
+}
+.crm-tasks--steps .crm-task-wrap:nth-child(3) {
+    animation-delay: 90ms;
+}
+.crm-tasks--steps .crm-task-wrap:nth-child(4) {
+    animation-delay: 135ms;
+}
+.crm-tasks--steps .crm-task-wrap:nth-child(5) {
+    animation-delay: 180ms;
+}
+.crm-tasks--steps .crm-task-wrap:nth-child(n + 6) {
+    animation-delay: 225ms;
+}
+.crm-tasks--steps .crm-task {
+    /* The WRAPPER is the card now (see above), so the row itself is just the
+       content stack: no surface of its own, no padding, no border. */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    flex: 1;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    gap: var(--crm-s-3);
+}
+/* The near-square proportion lives on the card (the wrapper). A min rather than
+   a fixed height so a long step title cannot clip; grid-auto-rows:1fr then
+   levels every tile in the row to the tallest, which is what makes them
+   identical rather than merely similar. */
+.crm-tasks--steps .crm-task-wrap {
+    min-height: 190px;
+}
+.crm-tasks--steps .crm-task__mark {
+    width: 30px;
+    height: 30px;
+}
+.crm-tasks--steps .crm-task__mark svg {
+    width: 15px;
+    height: 15px;
+}
+.crm-tasks--steps .crm-task__title {
+    font-size: var(--crm-t-title);
+    line-height: var(--crm-lh-snug);
+    letter-spacing: -0.01em;
+}
+.crm-tasks--steps .crm-task__text {
+    gap: var(--crm-s-2);
+}
+/* Push the action to the card's bottom edge so a row of steps has its actions
+   on one baseline regardless of how long each description runs. */
+.crm-tasks--steps .crm-task__actions {
+    margin-top: auto;
+    align-self: stretch;
+}
+
+/* ── THE STEP ACTION IS TEXT, NOT A PILL ──────────────────────────────────
+   A filled pill inside a tinted card is one too many surfaces: the card is
+   already the affordance, so the button was competing with it rather than
+   sitting in it. It stays a real <button> for keyboard and screen readers —
+   only the paint changes.
+
+   Three things move on hover, all cheap: the label lifts its glow, the arrow
+   travels, and the underline wipes in from the left on a scaleX transform
+   (composited — animating `width` here would relayout the card every frame). */
+.crm-tasks--steps .crm-task__actions .crm-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+    min-height: 0;
+    padding: 2px 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--crm-accent-hover);
+    font-size: var(--crm-t-body-lg);
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    transition:
+        color var(--crm-dur) var(--crm-ease),
+        text-shadow var(--crm-dur) var(--crm-ease);
+}
+/* The travelling arrow. A pseudo element rather than markup so the renderer
+   stays unaware of the treatment. */
+.crm-tasks--steps .crm-task__actions .crm-btn::after {
+    content: '→';
+    font-size: 1.05em;
+    line-height: 1;
+    transition: transform var(--crm-dur) var(--crm-ease);
+}
+/* The underline, drawn once and revealed by transform. */
+.crm-tasks--steps .crm-task__actions .crm-btn::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.55;
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--crm-dur) var(--crm-ease);
+}
+.crm-tasks--steps .crm-task__actions .crm-btn:hover,
+.crm-tasks--steps .crm-task__actions .crm-btn:focus-visible {
+    color: #fff;
+    /* The glow keys off the ACCENT, not --crm-step-tint. The tint is the card's
+       wash (green for setup) and the link is red; glowing a red link green was
+       the result of sharing one variable for two unrelated jobs.
+       A one-off hover transition, NOT an animation loop — the two permanent
+       text-shadow/filter loops this module used to run are exactly what the
+       performance pass removed. */
+    text-shadow: 0 0 14px rgba(239, 68, 68, 0.8);
+}
+.crm-tasks--steps .crm-task__actions .crm-btn:hover::after,
+.crm-tasks--steps .crm-task__actions .crm-btn:focus-visible::after {
+    transform: translateX(3px);
+}
+.crm-tasks--steps .crm-task__actions .crm-btn:hover::before,
+.crm-tasks--steps .crm-task__actions .crm-btn:focus-visible::before {
+    transform: scaleX(1);
+}
+.crm-tasks--steps .crm-task__actions .crm-btn:active {
+    transform: none; /* the pill's press-nudge would read as a glitch on text */
+}
+/* On light surfaces the glow needs a darker base or it washes out to nothing. */
+body.light-mode .crm-tasks--steps .crm-task__actions .crm-btn:hover,
+body.light-mode .crm-tasks--steps .crm-task__actions .crm-btn:focus-visible {
+    color: var(--crm-accent);
+    text-shadow: 0 0 12px rgba(var(--crm-step-tint), 0.4);
+}
+/* A finished step recedes to a quiet tile — it is context, not work. Done
+   steps keep their place in the path (that is the point of a path) but stop
+   competing for attention with the ones still open. */
+.crm-tasks--steps .crm-task[data-state='done'] {
+    background: transparent;
+    border-color: var(--crm-border);
+    min-height: 0;
+    /* Collapse to a compact tile: no room reserved for an action it does not
+       have, which is where most of the dead space in a step row comes from. */
+    grid-template-rows: auto auto;
+    padding: var(--crm-s-3) var(--crm-s-4);
+}
+.crm-tasks--steps .crm-task[data-state='done'] .crm-task__title {
+    font-size: var(--crm-t-body-lg);
+}
+/* The guide sits under its own card, full width of that column. */
+.crm-tasks--steps .crm-task__guide {
+    margin: var(--crm-s-2) 0 0;
+}
+
+/* A task plus its inline guide are one unit: the guide strip expands directly
+   under the row it explains, rather than opening a modal that hides the list
+   the user is working through. */
+.crm-task-wrap {
+    display: flex;
+    flex-direction: column;
+}
+.crm-task__guide {
+    /* Indent to the task title so the guide reads as belonging to that row and
+       not to the list. 22px medallion + the row's 12px gap + 12px row padding. */
+    margin: 0 0 var(--crm-s-2) calc(22px + var(--crm-s-3) + var(--crm-s-3));
+}
+/* coachStrip returns an empty container when no registry entry matches the
+   surface; never let that reserve vertical space. */
+.crm-task__guide[data-empty='true'] {
+    display: none;
+}
+
+/* ============================================================================
+   PROGRESS  —  setup completion
+   ============================================================================
+   Animating `width` triggers layout on every frame. Transform on a full-width
+   fill runs on the compositor instead, so this stays smooth on a NUC. */
+
+.crm-progress {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-2);
+}
+.crm-progress__track {
+    position: relative;
+    /* Thicker: at 6px the bar read as a hairline and the checkpoint dots had
+       nowhere to sit. 10px carries them and gives the meter presence. */
+    height: 10px;
+    border-radius: 8px;
+    background: var(--crm-neutral-bg);
+    /* NOT overflow:hidden any more — the dots sit ON the bar and are allowed to
+       overhang it slightly, which is what makes them read as stops rather than
+       as gaps punched in the fill. */
+}
+/* Checkpoint dots. Positioned by percentage from JS; translate pulls each one
+   back by half its own width so the first and last sit flush with the ends. */
+.crm-progress__dot {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    border-radius: 50%;
+    background: var(--crm-surface-sunken);
+    border: 2px solid var(--crm-neutral-bd);
+    transform: translateY(-50%);
+    transition:
+        background-color var(--crm-dur) var(--crm-ease),
+        border-color var(--crm-dur) var(--crm-ease);
+}
+/* A reached checkpoint sits ON the green fill, so colouring it green made it
+   vanish. It takes the track's own background as a punched centre with a green
+   ring — visible against the fill AND against the empty track. */
+.crm-progress__dot.is-done {
+    background: var(--crm-surface-sunken);
+    border-color: var(--crm-success);
+    border-width: 3px;
+}
+.crm-progress__fill {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--crm-success);
+    /* The fill sits UNDER the dots now that the track no longer clips. */
+    z-index: 0;
+    transform-origin: left center;
+    transform: scaleX(var(--crm-progress, 0));
+    transition: transform var(--crm-dur-slow) var(--crm-ease);
+}
+.crm-progress__label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--crm-s-2);
+    font-size: var(--crm-t-caption);
+    color: var(--crm-fg-muted);
+}
+.crm-progress__count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--crm-fg);
+}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================
+   An empty state is a product surface, not an error. It says what will appear
+   here and gives the one action that makes it appear. */
+
+.crm-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--crm-s-2);
+    padding: var(--crm-s-2) 0;
+}
+.crm-empty__icon {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--crm-r-sm);
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg-dim);
+}
+.crm-empty__icon svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+}
+.crm-empty__title {
+    font-size: var(--crm-t-body-lg);
+    font-weight: 600;
+    color: var(--crm-fg);
+}
+.crm-empty__body {
+    font-size: var(--crm-t-body);
+    color: var(--crm-fg-dim);
+    line-height: var(--crm-lh-body);
+}
+
+/* ============================================================================
+   SKELETON  —  loading
+   ============================================================================
+   Replaces the bare `el.textContent = 'Loading…'` the LP overview used while
+   ten endpoints resolved. A skeleton holds the layout so the page doesn't jump
+   when data lands (which is also a CLS win). */
+
+.crm-skeleton {
+    border-radius: var(--crm-r-sm);
+    background: var(--crm-neutral-bg);
+    position: relative;
+    overflow: hidden;
+}
+.crm-skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+    animation: crm-shimmer 1.4s var(--crm-ease) infinite;
+}
+@keyframes crm-shimmer {
+    100% {
+        transform: translateX(100%);
+    }
+}
+.crm-skeleton--text {
+    height: 12px;
+}
+.crm-skeleton--metric {
+    height: 30px;
+    width: 60%;
+}
+.crm-skeleton--line {
+    height: 10px;
+    width: 80%;
+}
+
+/* ============================================================================
+   SECTION HEADER
+   ============================================================================ */
+
+.crm-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--crm-s-3);
+    margin-bottom: var(--crm-s-3);
+}
+.crm-section__title {
+    font-size: var(--crm-t-h);
+    font-weight: 600;
+    color: var(--crm-fg);
+    letter-spacing: -0.01em;
+}
+.crm-section__sub {
+    font-size: var(--crm-t-body);
+    color: var(--crm-fg-muted);
+    margin-top: 2px;
+}
+
+/* ============================================================================
+   GRID
+   ============================================================================
+   Auto-fit rather than a hardcoded repeat(4). The old .ov-grid locked to four
+   columns and only had one breakpoint, so at ~1100px the cards were 190px wide
+   and the 32px KPI numbers wrapped. */
+
+.crm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--crm-col, 240px), 1fr));
+    gap: var(--crm-s-4);
+}
+.crm-grid--halves {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: var(--crm-s-4);
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+/* Not one stylesheet in this app honoured reduced motion before now. */
+@media (prefers-reduced-motion: reduce) {
+    .crm-card {
+        transition: none;
+    }
+    .crm-skeleton::after {
+        animation: none;
+    }
+    /* The step entrance is decorative — drop it entirely rather than shorten
+       it, and land the cards in their final state. Hover feedback stays (it is
+       a response to the user's own action, not ambient motion) but stops
+       moving. */
+    .crm-tasks--steps .crm-task-wrap {
+        animation: none;
+    }
+    .crm-tasks--steps .crm-task-wrap:hover {
+        transform: none;
+    }
+    .crm-tasks--steps .crm-task__actions .crm-btn::after,
+    .crm-tasks--steps .crm-task__actions .crm-btn::before {
+        transition-duration: 1ms;
+    }
+    .crm-btn,
+    .crm-card,
+    .crm-task,
+    .crm-progress__fill {
+        transition-duration: 1ms;
+    }
+    .crm-btn:active {
+        transform: none;
+    }
+}
+
+.crm-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ============================================================================
+   CANVAS PAGE  —  page / tabs / panel head / toolbar / table
+   ============================================================================
+   The second surface pattern in this system. Where .crm-card composes a
+   DASHBOARD, this composes a PAGE: one title, a row of tabs, and a single
+   working surface underneath. No widgets, no grid of cards. It exists because
+   Labor's employee area was a grid of cards per section, which reads as a
+   dashboard for data you are meant to WORK IN rather than glance at.
+
+   The tab row is deliberately understated: text, a colour change, and a 2px
+   underline that sits ON the hairline separating the row from the panel. No
+   pills, no boxes, no background fills. The active tab is the only coloured
+   thing in the row, so the eye lands on it without a container telling it to.
+
+   ⚠ Motion is transform/opacity only (rule 2). The underline is a
+   pseudo-element that scales on the X axis rather than an animated width.
+   ============================================================================ */
+
+/* One measure for every ARGUS surface (owner, 2026-08-13: "the header notes
+   should apply to all sections of argus, we need the same type of format all
+   around").
+
+   This is the shared page frame — Inventory, Labor, Review and anything else
+   built on the canvas render through it — so it has to match what Loss
+   Prevention now uses, or LP is wide and left-aligned while its siblings sit in
+   a narrow column. Measured before this change, at a 1484px window: every
+   surface capped to 1062px of content, and the gap from the rail ranged from
+   14px (Review) to 43px (Inventory) to 140px (Labor).
+
+   Left-aligned explicitly. `margin-left: 0` is stated rather than assumed
+   because a centred ancestor is exactly how LP ended up 246px from the rail. */
+.crm-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-5);
+    max-width: 1720px;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.crm-pagehead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--crm-s-4);
+    flex-wrap: wrap;
+}
+
+/* ⛭ THE PAGE TITLE IS DOCUMENTS' PAGE TITLE (owner, 2026-09-17).
+ *
+ * "for header format and size, lets use Documents, where the header is placed
+ * and how large." Documents renders `.doc-head__title` as Inter 600 at 28px,
+ * and it was the ONLY screen doing so — the other six rendered Fraunces 520
+ * from this rule. Measured on staging the same day: four title sizes (26 / 28 /
+ * 32) across three faces (Inter / Fraunces / system-ui) over ten screens.
+ *
+ * ❌ SUPERSEDES the display serif added here on 2026-09-02. That note said
+ * Fraunces "brings the page title in line with the marketing site"; the owner
+ * has now picked the other side. Fraunces stays the brand display face
+ * everywhere else it is set per-surface (auth, onboarding, the clip workspace)
+ * — docs/ARGUS_BRAND.md is unchanged. This rule alone flips.
+ *
+ * ⛔ IF THAT RULING IS EVER REVERSED, THIS IS THE ONE LINE TO CHANGE. The
+ * six screens that used to render Fraunces do so through this declaration and
+ * nothing else, so `font-family`/`font-weight` here is the whole switch. It is
+ * deliberately not spread across the modules for exactly that reason.
+ *
+ * ⛔ The weight is 600, not 650. 650 is what Financials and Employees shipped
+ * locally and it renders Inter as a slab at 28px next to a 13px sub. */
+.crm-pagehead__title {
+    font-family:
+        'Inter',
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        sans-serif;
+    font-size: var(--crm-t-page);
+    font-weight: 600;
+    line-height: var(--crm-lh-tight);
+    color: var(--crm-fg);
+    letter-spacing: -0.02em;
+}
+
+.crm-pagehead__sub {
+    margin-top: var(--crm-s-2);
+    font-size: var(--crm-t-body);
+    line-height: var(--crm-lh-body);
+    color: var(--crm-fg-muted);
+    max-width: 62ch;
+}
+
+.crm-pagehead__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+    flex-shrink: 0;
+}
+
+/* The tab row. The hairline is on the CONTAINER so it spans the full width
+   even when the tabs themselves do not, which is what makes the underline read
+   as a selected tab rather than a floating dash. */
+.crm-tabs {
+    display: flex;
+    align-items: stretch;
+    /* 26px, not the --crm-s-5 20px it used to be. Loss Prevention and Inventory
+       had BOTH already overridden this to a hardcoded 26px in their own sheets
+       (css/argus.css, css/inventory.css) while Calls and Employees inherited 20 —
+       the one control every module is supposed to render identically, rendered
+       two ways. Promoted to the primitive so all four (and Review) agree, and
+       the two overrides are deleted rather than a third and fourth added. */
+    gap: 26px;
+    border-bottom: 1px solid var(--crm-border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.crm-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.crm-tab {
+    position: relative;
+    appearance: none;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: var(--crm-t-body-lg);
+    line-height: var(--crm-lh-snug);
+    color: var(--crm-fg-muted);
+    padding: var(--crm-s-3) 0 calc(var(--crm-s-3) + 1px);
+    transition: color var(--crm-dur-fast) var(--crm-ease);
+}
+
+.crm-tab::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    /* Ink, matching the label above it — see the note on .crm-tab.is-active. */
+    background: var(--crm-fg);
+    border-radius: 2px 2px 0 0;
+    transform: scaleX(0);
+    transition: transform var(--crm-dur) var(--crm-ease);
+}
+
+.crm-tab:hover {
+    color: var(--crm-fg);
+}
+
+/* ⛭ THE SELECTED TAB IS INK, NOT RED (owner, 2026-09-17: "how the sub tabs come
+ * up" — with Documents named as the screen to match).
+ *
+ * ⛔ A SELECTED TAB IS NOT AN ERROR. The restyle spec locked "colour only where
+ * it means something. Red returns to meaning 'wrong' rather than 'button'"
+ * (2026-09-04), and this rule was the largest remaining violation: Loss
+ * Prevention, Inventory, Calls and the Review frame all painted the current tab
+ * --crm-accent while Documents painted it --crm-fg. Red now means danger here
+ * and nothing else.
+ *
+ * The weight step to 600 is what replaces the hue as the "you are here" signal,
+ * and it is Documents' (.doc-tab.is-active). Hierarchy through weight rather
+ * than colour is the same rule the table standard runs on.
+ *
+ * ⛔ `[aria-selected='true']` IS NOT DECORATION — IT IS WHY EMPLOYEES CAN ADOPT
+ * THIS ROW WITH NO JS CHANGE. `js/employees/shell.js` goTab() stamps only
+ * `aria-selected`; it never adds `.is-active`. A class-only rule would have left
+ * every Employees tab rendering as inactive, which is a silent, total failure of
+ * the control. Every other caller already sets BOTH, so this costs them nothing
+ * — and a tablist that is correct for a screen reader is now also correct on
+ * screen, which is the right way round. */
+.crm-tab.is-active,
+.crm-tab[aria-selected='true'] {
+    color: var(--crm-fg);
+    font-weight: 600;
+}
+
+.crm-tab.is-active::after,
+.crm-tab[aria-selected='true']::after {
+    transform: scaleX(1);
+}
+
+.crm-tab:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 3px;
+    border-radius: var(--crm-r-xs);
+}
+
+/* A tab may carry a count, and it is a FILLED PILL — Documents' `.doc-tab__n`,
+   the "103" on Mercury's Accounting screen. It is the only thing on the strip
+   carrying a background, so it reads as a quantity rather than as more label.
+
+   ⛔ IT USED TO BE PLAIN TEXT THAT TURNED RED ON THE ACTIVE TAB, and the reason
+   it was plain is recorded at js/inventory/order.js:504 — a filled badge came
+   out "red-on-red" when the active tab was --crm-accent. The active tab is ink
+   now, so that objection is gone with it, and the two count treatments in the
+   portal collapse to one. */
+.crm-tab__count {
+    margin-left: var(--crm-s-2);
+    font-size: var(--crm-t-eyebrow);
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg-muted);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+}
+
+.crm-tab.is-active .crm-tab__count,
+.crm-tab[aria-selected='true'] .crm-tab__count {
+    background: var(--crm-neutral-bd);
+    color: var(--crm-fg);
+}
+
+/* ── A SECOND LEVEL OF TABS ───────────────────────────────────────────────
+   Some sections have views inside them (LP's Analyze holds Clip Review and
+   Tracking). Those need to read as subordinate to the module's own tab row
+   without becoming a different component: a second treatment is how you end up
+   with two tab styles and no rule for which means what.
+
+   So this is a SIZE variant and nothing else — one step down in type and
+   padding, same colour, same underline, same states. The hierarchy comes from
+   scale and position, which is the only part of a tab row that can carry it
+   without adding a colour. */
+.crm-tabs--sub {
+    gap: var(--crm-s-4);
+    /* A lighter rule than the section row's. Two identical hairlines 60px apart
+       read as two peer navigations; the second one has to recede for the levels
+       to be legible at a glance. It stays present because the underline needs a
+       line to sit on — that is what makes it a selected tab and not a dash. */
+    border-bottom-color: color-mix(in srgb, var(--crm-border) 55%, transparent);
+}
+
+.crm-tabs--sub .crm-tab {
+    font-size: var(--crm-t-body);
+    padding: var(--crm-s-2) 0 calc(var(--crm-s-2) + 2px);
+}
+
+.crm-panelhead__title {
+    font-size: var(--crm-t-title);
+    line-height: var(--crm-lh-tight);
+    color: var(--crm-fg);
+}
+
+.crm-panelhead__sub {
+    margin-top: var(--crm-s-2);
+    font-size: var(--crm-t-body);
+    line-height: var(--crm-lh-body);
+    color: var(--crm-fg-muted);
+    max-width: 68ch;
+}
+
+.crm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--crm-s-3);
+    flex-wrap: wrap;
+}
+
+.crm-search {
+    position: relative;
+    flex: 1 1 320px;
+    min-width: 0;
+}
+
+.crm-search__icon {
+    position: absolute;
+    left: var(--crm-s-3);
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--crm-fg-dim);
+    pointer-events: none;
+}
+
+.crm-search__input {
+    width: 100%;
+    font-size: var(--crm-t-body);
+    color: var(--crm-fg);
+    background: var(--crm-surface);
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-r-md);
+    padding: var(--crm-s-3) var(--crm-s-3) var(--crm-s-3) calc(var(--crm-s-6) + var(--crm-s-1));
+    transition:
+        border-color var(--crm-dur-fast) var(--crm-ease),
+        background-color var(--crm-dur-fast) var(--crm-ease);
+}
+
+.crm-search__input::placeholder {
+    color: var(--crm-fg-dim);
+}
+
+.crm-search__input:hover {
+    border-color: var(--crm-border-strong);
+}
+
+.crm-search__input:focus {
+    outline: none;
+    border-color: var(--crm-accent);
+    background: var(--crm-surface-raised);
+}
+
+.crm-search__input:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 1px;
+}
+
+/* The working surface. A single bordered plane rather than one card per row:
+   rows are a list to scan, and giving each its own elevation turns a table
+   into a pile. */
+.crm-table-wrap {
+    border: 1px solid var(--crm-border);
+    border-radius: var(--crm-r-lg);
+    background: var(--crm-surface);
+    overflow: hidden;
+}
+
+.crm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--crm-t-body);
+}
+
+.crm-table thead th {
+    text-align: left;
+    /* Sentence case, 13px: the one table header (see .kit .kit-table th). */
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--crm-fg-dim);
+    background: var(--crm-surface-sunken);
+    border-bottom: 1px solid var(--crm-border);
+    padding: var(--crm-s-3) var(--crm-s-4);
+    white-space: nowrap;
+}
+
+.crm-table tbody td {
+    padding: var(--crm-s-3) var(--crm-s-4);
+    border-bottom: 1px solid var(--crm-border);
+    color: var(--crm-fg);
+    vertical-align: middle;
+}
+
+.crm-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.crm-table tbody tr.is-clickable {
+    cursor: pointer;
+    transition: background-color var(--crm-dur-fast) var(--crm-ease);
+}
+
+.crm-table tbody tr.is-clickable:hover {
+    background: var(--crm-surface-raised);
+}
+
+.crm-table tbody tr.is-clickable:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: -2px;
+}
+
+.crm-table__primary {
+    display: flex;
+    align-items: center;
+    gap: var(--crm-s-3);
+}
+
+.crm-table__name {
+    font-weight: 600;
+    color: var(--crm-fg);
+}
+
+.crm-table__meta {
+    font-size: var(--crm-t-caption);
+    color: var(--crm-fg-muted);
+}
+
+.crm-table__num {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Per-column alignment + a muted "not set" cell, for callers that build
+   rows from data (SettingsUI.table). Additive utilities, not variants. */
+.crm-table th.is-center,
+.crm-table td.is-center {
+    text-align: center;
+}
+.crm-table th.is-right,
+.crm-table td.is-right {
+    text-align: right;
+}
+.crm-table td.is-muted {
+    color: var(--crm-fg-dim);
+}
+
+/* The panel below the tabs. Owns the rhythm between its head, toolbar and
+   table so a section does not have to space them by hand. */
+.crm-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-4);
+}
+
+/* ⛔⛔ THE FIFTH TIME THIS REPO HAS BLANKED A SURFACE WITH AN ENTRY ANIMATION.
+   Read the `argusPageIn` block in css/main.css (~2545) before touching this —
+   it names the other four: the auth hero, the LP sub-nav, `.lyra-panel` and
+   `.argus-range-picker`. The shape is always identical:
+
+     animation: <name> ... both;   +   @keyframes { from { opacity: 0 } }
+
+   `fill-mode: both` applies the `from` keyframe BEFORE the animation runs. Pause
+   it at frame zero and the element is not dimmed, it is GONE — while the DOM
+   measures perfectly, hit-tests correctly, and reports `visibility: visible`.
+
+   📏 MEASURED 2026-09-05 on the live Countryside dashboard. The whole Review
+   Center rendered as a bare title over white. `.rev-grid` reported
+   1214x483 at y=259, `elementFromPoint` returned its cards, every colour
+   resolved to dark-on-white — and the panel above it was pinned at
+   `opacity: 0`, `animation-play-state: paused`, `fill-mode: both`. Nothing in
+   the console. `.crm-panel` is the shared frame for every CRM-skinned module,
+   so this could blank any of them, which is exactly how "the product feels
+   half-finished" gets reported instead of "there is a bug".
+
+   TWO GUARDS, AND THE SECOND IS THE REAL ONE:
+
+   1. `body:not([data-visible='hidden'])` — our own pause rule
+      (css/main.css ~3187) then has nothing to freeze, because the animation is
+      not applied at all while the tab is hidden.
+   2. ⛔ A NON-ZERO FLOOR, WHICH IS THE ACTUAL SAFETY NET. main.css records the
+      measurement: with that body gate provably NOT matching, a page still sat
+      at opacity 0 for 300ms+, because the BROWSER throttles animations whenever
+      `document.visibilityState === 'hidden'` — which no CSS of ours controls and
+      no selector of ours can guard. Starting at 0.55 means the worst a frozen
+      animation can produce is a slightly dim panel, never an empty one.
+
+   ⛭ Do not "clean this up" back to `from { opacity: 0 }`. The 6px settle still
+   carries the motion; the opacity ramp was never the part you could see. */
+@media (prefers-reduced-motion: no-preference) {
+    body:not([data-visible='hidden']) .crm-panel {
+        /* One motion for every tab switch. Without it a tab change is an instant
+           content swap under a tab row that DID animate, so the underline slides
+           and the page below it jumps: the two halves of the same interaction
+           disagree. Transform and opacity only (rule 2), 6px so it reads as
+           settling rather than sliding in from somewhere. */
+        animation: crm-panel-in var(--crm-dur) var(--crm-ease) both;
+    }
+}
+
+@keyframes crm-panel-in {
+    from {
+        opacity: 0.55;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ⛔ Honour the OS setting. A page that re-animates on every tab click is
+   exactly the kind of motion that triggers vestibular symptoms, and this one
+   fires on a navigation the user makes constantly. */
+@media (prefers-reduced-motion: reduce) {
+    .crm-panel {
+        animation: none;
+    }
+    .crm-tab::after {
+        transition: none;
+    }
+}
+
+/* A filter row of chips. The chips themselves are the existing primitive; this
+   only groups them and gives the selected one a state, which .crm-chip has
+   never had (it was display-only until a filter needed to be pressable). */
+.crm-chipgroup {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+    flex-wrap: wrap;
+}
+
+/* Unpressed = ghost: transparent until you engage it, same ladder logic as
+   the buttons. The neutral tint the status .crm-chip wears would make an
+   unpressed OPTION look like a filled state. */
+.crm-chipgroup .crm-chip {
+    cursor: pointer;
+    appearance: none;
+    background: transparent;
+    border-color: transparent;
+    transition:
+        color var(--crm-dur-fast) var(--crm-ease),
+        background-color var(--crm-dur-fast) var(--crm-ease),
+        border-color var(--crm-dur-fast) var(--crm-ease);
+}
+
+.crm-chipgroup .crm-chip:hover {
+    color: var(--crm-fg);
+    background: var(--crm-neutral-bg);
+}
+
+/* Selected is the QUIET action treatment (owner, 2026-08-30) — the same
+   --crm-action-* set the primary button wears: raised-surface fill, strong
+   hairline, full fg. Three earlier treatments were wrong, all caught in the
+   browser. A solid accent fill put THREE reds on the page at once (primary
+   button, active tab, selected filter). A bare `--crm-surface-raised` fill
+   broke LIGHT mode — #ffffff against a neutral-grey unselected chip read as
+   the palest one in the row (the action tokens fix that with the BORDER,
+   which carries the state on white). And the full fg-INVERSION (black pill
+   on light, white on dark) out-shouted every button on the page once the
+   primaries went quiet — a filter's current value is a setting, not the
+   loudest thing on screen. */
+.crm-chipgroup .crm-chip[aria-pressed='true'] {
+    color: var(--crm-action-fg);
+    background: var(--crm-action-bg);
+    border-color: var(--crm-action-border);
+}
+
+.crm-chipgroup .crm-chip:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 2px;
+}
+
+/* Skeleton shaped like table rows rather than a single block, so the loading
+   state and the loaded state occupy the same height. */
+.crm-skel-table {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-4);
+    padding: var(--crm-s-4);
+}
+
+.crm-skel-table .crm-skeleton {
+    height: 18px;
+}
+
+.crm-skel-table .crm-skeleton:nth-child(odd) {
+    width: 82%;
+}
+
+.crm-skel-table .crm-skeleton:nth-child(even) {
+    width: 64%;
+}
+
+.crm-empty--padded {
+    padding: var(--crm-s-6) var(--crm-s-4);
+    align-items: flex-start;
+}
+
+/* ── Eligibility pills ───────────────────────────────────────────────────────
+   ⛔ THESE HAD NO STYLESHEET RULE AT ALL. `.lab-elig` was authored in the
+   roster card in May and never existed in any CSS file, so "21+" and "18+"
+   rendered as two bare words with no pill, no border and no pass/fail colour.
+   They are a legal statement about what a person may sell, and the difference
+   between eligible and not was carried ENTIRELY by a class that styled nothing.
+
+   Kept as tokens, not raw hex, and the state is on the pill rather than on a
+   neighbouring icon so it cannot drift away from the label it qualifies. */
+.lab-elig-row {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--crm-s-2);
+}
+
+.lab-elig {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px var(--crm-s-2);
+    border-radius: var(--crm-r-sm);
+    border: 1px solid var(--crm-neutral-bd);
+    background: var(--crm-neutral-bg);
+    color: var(--crm-fg-dim);
+    font-size: var(--crm-t-caption);
+    font-weight: 700;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.lab-elig.is-ok {
+    color: var(--crm-success-fg);
+    background: var(--crm-success-bg);
+    border-color: var(--crm-success-bd);
+}
+
+/* Not an alarm. Someone under 21 is not a fault condition, they simply cannot
+   ring alcohol, so this is muted and struck rather than red. Using --crm-danger
+   here would put a warning colour on most of a young staff roster. */
+.lab-elig.is-no {
+    color: var(--crm-fg-dim);
+    background: transparent;
+    border-color: var(--crm-border);
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+/* ============================================================================
+   LP SPECIFICITY BRIDGE
+   ============================================================================
+   argus.css opens with a scoped universal reset:
+
+       #argus-content *, #argus-content *::before, #argus-content *::after {
+           box-sizing: border-box; margin: 0; padding: 0;
+       }
+
+   `#argus-content *` scores (1,0,0). Every primitive above is a plain class at
+   (0,1,0), so INSIDE the LP module that reset silently wins and strips the
+   padding and margins off all of them. Measured before this block existed:
+   .crm-btn padding 0px (authored 8px 16px), .crm-task padding 0px (authored
+   12px), .crm-card__foot padding-top 0px — buttons rendered as bare text with a
+   pill border collapsed onto the glyphs.
+
+   So the box properties are restated here at (1,1,0) to clear the reset. ONLY
+   the properties the reset actually zeroes are repeated — colour, radius,
+   typography and motion all inherit from the primitives above, so this stays a
+   specificity fix and never becomes a second, drifting copy of the design.
+
+   .settings-lp-host rides along because the master Settings hub renders LP
+   settings OUTSIDE #argus-content and reads the same scoped tokens.
+   ============================================================================ */
+
+:is(#argus-content, .settings-lp-host) .crm-btn {
+    padding: var(--crm-s-2) var(--crm-s-4);
+}
+:is(#argus-content, .settings-lp-host) .crm-btn--sm {
+    padding: var(--crm-s-1) var(--crm-s-3);
+}
+:is(#argus-content, .settings-lp-host) .crm-chip {
+    padding: 3px var(--crm-s-3);
+}
+:is(#argus-content, .settings-lp-host) .crm-task {
+    padding: var(--crm-s-3);
+}
+/* Step-card variants need their own bridge entries: the reset zeroes padding
+   per ELEMENT, so the more specific rules above are stripped just the same.
+   In steps mode the WRAPPER carries the padding (it is the card); the inner
+   .crm-task must be explicitly flattened back to zero or the reset's value is
+   the only thing standing between the content and a double inset. */
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap {
+    padding: var(--crm-s-4);
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task {
+    padding: 0;
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task__guide {
+    margin: var(--crm-s-3) 0 0;
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task__actions .crm-btn {
+    padding: 2px 0;
+}
+/* ⛔ THE ANCHOR. `margin-top: auto` is what pins each step's action to the
+   bottom of its card so a row of steps has its links on ONE baseline. The
+   scoped reset (`#argus-content *  { margin: 0 }`, specificity 1,0,0) was
+   stripping it, so every link floated directly under its own description and
+   the row looked ragged — measured margin-top: 0px on the rendered page. */
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task__actions {
+    margin-top: auto;
+}
+
+/* ── CANVAS PAGE bridge ──────────────────────────────────────────────────────
+   ⛔ CORRECTION (2026-08-11). This block was written claiming "Labor mounts at
+   #argus-os-labor-mount, which is INSIDE #argus-content", on the evidence that
+   the mount "sits ~2.1kB after id=argus-content in index.html". BYTE DISTANCE
+   IN A FILE IS NOT DOM ANCESTRY. Parsing index.html says otherwise:
+
+       #argus-content       ← app-shell > portal-app > portalMain > page-argus
+       argus-os-labor-mount ← app-shell > portal-app > portalMain > page-labor
+
+   `page-argus` and `page-labor` are SIBLING sections. Nothing in Labor is under
+   the (1,0,0) reset, and none of the entries below have ever applied to it —
+   the canvas page has always rendered off its own (0,1,0) rules.
+
+   They stay as FORWARD COVER, not as a fix: the page primitives are meant to be
+   adopted by a second module, LP included, and any host with an id-scoped reset
+   needs every authored box property restated. Each entry restates ONLY such a
+   property. The one that would bite hardest is .crm-tab's padding — without it
+   the labels collapse onto the hairline and the underline sits on the text,
+   which reads as a rendering bug rather than a selected tab. */
+:is(#argus-content, .settings-lp-host) .crm-tab {
+    padding: var(--crm-s-3) 0 calc(var(--crm-s-3) + 1px);
+}
+/* (1,2,0) — the `.crm-tab` entry above is (1,1,0) and does not cover the sub
+   row's own padding, so without this the second-level tabs inherit the full
+   size inside LP and stop reading as subordinate. */
+:is(#argus-content, .settings-lp-host) .crm-tabs--sub .crm-tab {
+    padding: var(--crm-s-2) 0 calc(var(--crm-s-2) + 2px);
+}
+:is(#argus-content, .settings-lp-host) .crm-tab__count {
+    margin-left: var(--crm-s-2);
+}
+:is(#argus-content, .settings-lp-host) .crm-pagehead__sub,
+:is(#argus-content, .settings-lp-host) .crm-panelhead__sub {
+    margin-top: var(--crm-s-2);
+}
+:is(#argus-content, .settings-lp-host) .crm-search__input {
+    padding: var(--crm-s-3) var(--crm-s-3) var(--crm-s-3) calc(var(--crm-s-6) + var(--crm-s-1));
+}
+:is(#argus-content, .settings-lp-host) .crm-table thead th {
+    padding: var(--crm-s-3) var(--crm-s-4);
+}
+:is(#argus-content, .settings-lp-host) .crm-table tbody td {
+    padding: var(--crm-s-3) var(--crm-s-4);
+}
+:is(#argus-content, .settings-lp-host) .crm-skel-table {
+    padding: var(--crm-s-4);
+}
+:is(#argus-content, .settings-lp-host) .crm-empty--padded {
+    padding: var(--crm-s-6) var(--crm-s-4);
+}
+:is(#argus-content, .settings-lp-host) .lab-elig {
+    padding: 2px var(--crm-s-2);
+}
+/* The chipgroup's chips are the shared primitive, already bridged above, but
+   the bridge entry targets `.crm-chip` alone at (1,1,0) while these sit at
+   (1,2,0) via the descendant selector. Restated so the filter chips are not
+   the one pressable thing on the page that collapses onto its own text. */
+:is(#argus-content, .settings-lp-host) .crm-chipgroup .crm-chip {
+    padding: 3px var(--crm-s-3);
+}
+:is(#argus-content, .settings-lp-host) .crm-card__foot {
+    margin-top: auto;
+    padding-top: var(--crm-s-2);
+}
+:is(#argus-content, .settings-lp-host) .crm-empty {
+    padding: var(--crm-s-2) 0;
+}
+:is(#argus-content, .settings-lp-host) .crm-task__guide {
+    margin: 0 0 var(--crm-s-2) calc(22px + var(--crm-s-3) + var(--crm-s-3));
+}
+/* The card itself keeps the LP editorial padding/radius/elevation from
+   argus.css's operations layer — that ranking is deliberate and owner-reviewed,
+   so the primitive deliberately does NOT try to win it back. */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SETUP CARDS — the whole card is the action, and each animates on its own
+   (owner, 2026-08-10: "Setup should have indivudal animations and when hoever
+   each card, theres an animation, and when clicked it takes you, not jsut the
+   setup hot link")
+
+   The previous hover lived on the STRIP, so pointing at one card lit the row.
+   These rules are scoped to the individual .crm-task-wrap, so each card
+   responds only to its own pointer. Transform + opacity only, so the four cards
+   composite instead of relayouting.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable {
+    cursor: pointer;
+    transition:
+        transform 0.24s cubic-bezier(0.34, 1.5, 0.64, 1),
+        box-shadow 0.24s ease;
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.28);
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:active {
+    transform: translateY(-1px) scale(0.99);
+    transition-duration: 0.09s;
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:focus-visible {
+    outline: 2px solid var(--crm-danger-fg, #a81616);
+    outline-offset: 3px;
+}
+/* The card lifts; its action slides a little further, so the pair reads as one
+   gesture with depth rather than a single flat move. */
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap .crm-btn {
+    transition: transform 0.24s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:hover .crm-btn {
+    transform: translateX(3px);
+}
+/* The status mark settles back as the card rises. */
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap .crm-task__mark {
+    transition: transform 0.26s cubic-bezier(0.34, 1.5, 0.64, 1);
+}
+:is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:hover .crm-task__mark {
+    transform: scale(1.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable,
+    :is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap .crm-btn,
+    :is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap .crm-task__mark {
+        transition: none !important;
+    }
+    :is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:hover,
+    :is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:hover .crm-btn,
+    :is(#argus-content, .settings-lp-host) .crm-tasks--steps .crm-task-wrap.is-actionable:hover .crm-task__mark {
+        transform: none;
+    }
+}
+
+/* ── THE MODULE ACCENT, PER MODULE (ARGUS Surface System 5/5, 2026-09-19) ──
+   `--crm-mod` is the one colour that varies between modules: the KPI tile
+   today, chart strokes and the lit bar next. It rides the hook main.js
+   already writes for every module (`body[data-active-module]`), so it
+   reaches everything the module renders, including overlays mounted on
+   <body> such as the Documents viewer. The values ARE the registry colours
+   in js/config.js MODULE_VISUAL_REGISTRY; module-accent.contract.test.js
+   keeps the two equal.
+
+   Each rule also names its `.light-mode` variant: the light block above sets
+   the neutral default on `body.light-mode` at the same specificity, and a
+   later rule only wins a tie when it is actually later. Keep this at the
+   END of the file.
+
+   ⛔ LOSS PREVENTION KEEPS THE NEUTRAL DEFAULT ON PURPOSE. Its registry
+      colour is the brand red, and inside content red means danger
+      (css/inventory.css:1468): a red tile on every LP card would read as
+      six alarms. If the owner wants LP tinted, it needs its own colour. */
+body[data-active-module='hermes'],
+body.light-mode[data-active-module='hermes'] {
+    --crm-mod: #00d4a8;
+    --crm-mod-rgb: 0, 212, 168;
+    --crm-mod-ink: #00d4a8;
+}
+/* Light: the same hue, 70/30 with ink, so a thin line clears 3:1 on white. */
+body.light-mode[data-active-module='hermes'] {
+    --crm-mod-ink: #059b82;
+}
+body[data-active-module='documents'],
+body.light-mode[data-active-module='documents'] {
+    --crm-mod: #5925dc;
+    --crm-mod-rgb: 89, 37, 220;
+    --crm-mod-ink: #5925dc;
+}
+/* Light: the same hue, 70/30 with ink, so a thin line clears 3:1 on white. */
+body.light-mode[data-active-module='documents'] {
+    --crm-mod-ink: #4321a7;
+}
+body[data-active-module='labor'],
+body.light-mode[data-active-module='labor'] {
+    --crm-mod: #0ea5e9;
+    --crm-mod-rgb: 14, 165, 233;
+    --crm-mod-ink: #0ea5e9;
+}
+/* Light: the same hue, 70/30 with ink, so a thin line clears 3:1 on white. */
+body.light-mode[data-active-module='labor'] {
+    --crm-mod-ink: #0e7ab0;
+}

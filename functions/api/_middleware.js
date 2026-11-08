@@ -1,15 +1,33 @@
 import { readSession,sameOrigin } from '../../src/operator-session.js';
 import { isAdmin } from '../../src/auth.js';
+const json=(body,status,extra={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store',...extra}});
+// Device-key requests pass through: the handler checks the key itself. Anything with a device key is never treated as an operator.
+const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs'];
+const DEVICE_GET=['/api/device/messages'];
+// Read-only paths a demo account may GET (exercise data only; handlers filter on the exercise flag).
+const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
 export async function onRequest(context){
-  const {request,env}=context;const path=new URL(request.url).pathname;
-  if(['/api/session','/api/health','/api/ready','/api/weather','/api/recovery'].includes(path))return context.next();
-  if(request.method==='POST'&&['/api/ingest','/api/events','/api/beacon/ingest'].includes(path)&&request.headers.has('X-Device-Key'))return context.next();
+  const {request,env}=context;const path=new URL(request.url).pathname;const method=request.method;
+  // 1) public
+  if(['/api/session','/api/health','/api/ready','/api/weather','/api/recovery','/api/customer/register','/api/customer/login'].includes(path)||(method==='GET'&&path==='/api/customer/me'))return passCustomer(context,path);
+  // 2) device keys
+  if(request.headers.has('X-Device-Key')&&((method==='POST'&&DEVICE_POST.includes(path))||(method==='GET'&&DEVICE_GET.includes(path))))return context.next();
+  // 3) customer paths: never carry operator authority; the handler validates the customer cookie
+  if(path.startsWith('/api/customer/'))return passCustomer(context,path);
+  // 4) admin key
   if(isAdmin(request,env))return context.next();
+  // 5) operator or demo session
   const session=await readSession(request,env);
-  if(!session)return Response.json({error:'Sign in to view this data.'},{status:401,headers:{'Cache-Control':'no-store'}});
-  if(!['GET','HEAD'].includes(request.method)&&!sameOrigin(request))return Response.json({error:'Request origin is not allowed.'},{status:403});
-  if(session.role==='demo'&&!((request.method==='GET'&&['/api/account','/api/command-center'].includes(path))||(request.method==='POST'&&path==='/api/layers')))return Response.json({error:'Demo accounts can view exercise data only.'},{status:403});
+  if(!session)return json({error:'Sign in to view this data.'},401);
+  if(!['GET','HEAD'].includes(method)&&!sameOrigin(request))return json({error:'Request origin is not allowed.'},403);
+  if(session.role==='demo'&&!((method==='GET'&&DEMO_GET.includes(path))||(method==='POST'&&path==='/api/layers')))return json({error:'Demo accounts can view exercise data only.'},403);
   context.data.operator=session;
   const headers=new Headers(request.headers);headers.set('Authorization','Bearer '+env.API_ADMIN_KEY);
   return context.next(new Request(request,{headers}));
+}
+// Strips any Authorization header so an admin key can never ride along into a customer handler.
+function passCustomer(context,path){
+  if(!path.startsWith('/api/customer/')||!context.request.headers.has('Authorization'))return context.next();
+  const headers=new Headers(context.request.headers);headers.delete('Authorization');
+  return context.next(new Request(context.request,{headers}));
 }

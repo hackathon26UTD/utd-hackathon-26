@@ -1,0 +1,217 @@
+/* HomeBeacon kit gallery page chrome. Scaffolding only: every colour is a kit
+   token, every control is a kit class. The parts themselves are drawn by the
+   vendored library (vendor/gallery/ui-library.css holds the cell scaffolding). */
+.hbg {
+    min-height: 100vh;
+    background: var(--kit-bg);
+    color: var(--kit-ink);
+    font-family: var(--font-sans);
+}
+.hbg-head {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 28px;
+    background: var(--kit-surface);
+    border-bottom: 1px solid var(--kit-line);
+}
+.hbg-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+/* the lamp: a small amber beacon, drawn in CSS so it needs no image */
+.hbg-lamp {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--kit-accent);
+    box-shadow:
+        0 0 0 4px var(--kit-accent-tint),
+        0 0 18px 2px var(--kit-accent-line);
+}
+.hbg-eyebrow {
+    font: 600 var(--kit-fs-eyebrow) / 1.2 var(--font-mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--kit-accent-ink);
+}
+.hbg-title {
+    font: 400 22px / 1.15 var(--font-display);
+    letter-spacing: -0.01em;
+    color: var(--kit-ink);
+}
+.hbg-tools {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.hbg-count {
+    font: 500 var(--kit-fs-caption) / 1.2 var(--font-mono);
+    color: var(--kit-ink-3);
+}
+.hbg-toggle {
+    min-width: 150px;
+}
+.hbg-shell {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    align-items: start;
+}
+.hbg-nav {
+    position: sticky;
+    top: 69px;
+    height: calc(100vh - 69px);
+    overflow: auto;
+    padding: 18px 12px 24px 20px;
+    border-right: 1px solid var(--kit-line);
+    background: var(--kit-surface-2);
+}
+.hbg-nav__list {
+    list-style: none;
+    display: grid;
+    gap: 2px;
+}
+.hbg-nav__link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--kit-r-ctl);
+    color: var(--kit-ink-2);
+    text-decoration: none;
+    font-size: var(--kit-fs-body);
+    font-weight: 500;
+}
+.hbg-nav__link:hover {
+    background: var(--kit-nav-bg);
+    color: var(--kit-ink);
+}
+.hbg-nav__n {
+    font: 500 11px / 1 var(--font-mono);
+    color: var(--kit-ink-3);
+}
+.hbg-main {
+    padding: 8px 32px 80px;
+    min-width: 0;
+}
+.hbg-family {
+    padding-top: 36px;
+    scroll-margin-top: 72px;
+}
+.hbg-family__title {
+    font: 400 30px / 1.1 var(--font-display);
+    letter-spacing: -0.015em;
+    color: var(--kit-ink);
+}
+.hbg-family__meta {
+    margin-top: 6px;
+    font: 500 var(--kit-fs-caption) / 1.2 var(--font-mono);
+    color: var(--kit-ink-3);
+}
+.hbg-std {
+    margin-top: 22px;
+    padding: 20px 22px 24px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    box-shadow: var(--kit-pop);
+    scroll-margin-top: 72px;
+}
+.hbg-std__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.hbg-std__role {
+    font: 600 var(--kit-fs-title) / 1.3 var(--font-sans);
+    color: var(--kit-ink);
+}
+.hbg-std__variant {
+    margin-top: 2px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+.hbg-std__meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.hbg-std__kit {
+    padding: 3px 8px;
+    border-radius: var(--kit-r-tag);
+    background: var(--kit-chip-bg);
+    color: var(--kit-ink);
+    font: 500 12px / 1.2 var(--font-mono);
+}
+.hbg-std__kind {
+    font: 600 10.5px / 1 var(--font-mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--kit-accent-ink);
+}
+.hbg-std__kind--reference {
+    color: var(--kit-ink-3);
+}
+.hbg-std__usage {
+    margin-top: 12px;
+    max-width: 96ch;
+    font: 400 12px / 1.5 var(--font-mono);
+    color: var(--kit-ink-2);
+    overflow-wrap: anywhere;
+}
+.hbg-std__states {
+    margin-top: 6px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+.hbg-matrix {
+    margin-top: 18px;
+    padding: 20px;
+    border: 1px dashed var(--kit-line-2);
+    border-radius: var(--kit-rs);
+    background: var(--kit-bg);
+    overflow-x: auto;
+}
+.hbg-matrix__wait {
+    font: 500 var(--kit-fs-caption) / 1 var(--font-mono);
+    color: var(--kit-ink-3);
+}
+@media (max-width: 860px) {
+    .hbg-shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .hbg-nav {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--kit-line);
+    }
+    .hbg-nav__list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .hbg-main {
+        padding: 8px 16px 64px;
+    }
+    .hbg-head {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+    }
+}
+.hbg-brand__text {
+    display: grid;
+    gap: 4px;
+}
+.hbg-head {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}

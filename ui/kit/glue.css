@@ -1,0 +1,90 @@
+/* ===========================================================================
+ * HomeBeacon glue for the vendored ARGUS UI kit.
+ *
+ * Everything the kit used to get from the portal's own sheets (main.css reset,
+ * the --ground-* and --crm-* names kit-table.css reads, the shell's focus
+ * colour) is restated here and nowhere else. The vendored files are untouched.
+ *
+ * Every alias is declared on `.kit` itself, so a var(--kit-*) on the right is
+ * resolved on the same element the theme sets it on, in light and in dark.
+ * =========================================================================== */
+
+/* main.css reset: `* { margin: 0; padding: 0; box-sizing: border-box }`.
+   :where() keeps it at zero specificity, so it only fills what no kit rule says. */
+:where(.kit),
+:where(.kit) *,
+:where(.kit) *::before,
+:where(.kit) *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* main.css: 44px touch floor on bare buttons and button-like links. */
+:where(.kit) :where(button, [role='button'], a[tabindex='0']) {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.kit {
+    /* main.css --ground-*, read by kit-table.css */
+    --ground-page: var(--kit-bg);
+    --ground-raised: var(--kit-surface);
+    --ground-chip: var(--kit-count-bg);
+    --ground-line: var(--kit-line);
+    --ground-line-2: var(--kit-line-2);
+    --ground-line-3: var(--kit-btn-hover-line);
+    --ground-ink: var(--kit-ink);
+    --ground-ink-2: var(--kit-ink-2);
+    --ground-ink-3: var(--kit-ink-3);
+    --sheet-surface: var(--kit-surface);
+    --surface-2: var(--kit-surface-2);
+
+    /* argus-crm.css --crm-*, read by kit-table.css */
+    --crm-border-strong: var(--kit-line-strong);
+    --crm-cta: var(--kit-hero);
+    --crm-danger-fg: var(--kit-bad);
+    --crm-danger-bd: var(--kit-bad-line);
+    --crm-warn-fg: var(--kit-warn);
+    --crm-warn-bd: var(--kit-draft-line);
+    --crm-focus: var(--kit-accent);
+    --crm-r-xs: 6px;
+    --crm-r-sm: 8px;
+    --crm-r-md: 12px;
+    --crm-ease: var(--kit-ease);
+    --crm-dur-fast: 120ms;
+    --crm-shadow-3: var(--kit-pop-2);
+    --crm-series-1: var(--kit-accent);
+    --crm-series-2: var(--kit-status-dot-info);
+    --crm-series-4: var(--kit-ok);
+    --crm-series-8: var(--kit-ink-3);
+    --crm-revenue: var(--kit-ok);
+    --crm-revenue-text: var(--kit-ok);
+    --crm-spend: var(--kit-bad);
+
+    /* main.css --nx-red (focus ring colour) and the shell zoom kit-standards reads */
+    --nx-red: var(--kit-accent);
+    --chrome-zoom: 1;
+
+    /* rail.css --axr-*, read by the library gallery's scaffolding */
+    --axr-ink: var(--kit-ink);
+    --axr-hover: var(--kit-ink-wash);
+    --axr-hl: var(--kit-accent);
+}
+
+/* main.css: :focus-visible { outline: 2px solid var(--nx-red); offset 2px } */
+.kit :focus-visible {
+    outline: 2px solid var(--nx-red);
+    outline-offset: 2px;
+}
+
+/* The page that hosts a kit: html/body background and text follow the theme.
+   The kit puts its tokens on `.kit`, not on body, so the two page colours are
+   restated by the theme file on `body.kit-body`. */
+html.kit-html,
+body.kit-body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    -webkit-text-size-adjust: 100%;
+}
