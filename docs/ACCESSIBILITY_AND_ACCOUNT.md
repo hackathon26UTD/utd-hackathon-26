@@ -1,3 +1,5 @@
+November 8 update: the current shared Dashboard entry and account routing are documented in [DASHBOARD_ONBOARDING.md](DASHBOARD_ONBOARDING.md). Public signup creates customers only; operator authority still requires a provisioned account.
+
 # HomeBeacon access and policy implementation
 
 Updated November 7, 2026.
