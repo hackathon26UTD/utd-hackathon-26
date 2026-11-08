@@ -21,11 +21,11 @@ export const SECTION_IDS = ['weatherNow', 'forecast', 'alerts', 'floodZone', 'ga
 const TITLES = {
   weatherNow: 'Current weather', forecast: 'Forecast', alerts: 'Weather alerts', floodZone: 'Flood zone', gauges: 'River gauges', riverForecast: 'River forecast',
   tides: 'Coastal water level', quakes: 'Earthquakes', fires: 'Fire detections', airQuality: 'Air quality', shelters: 'Shelters', declarations: 'Disaster declarations',
-  devices: 'HomeBeacon boxes', regionalRisk: 'Area summary', zones: 'Operator zones',
+  devices: 'Safe Home boxes', regionalRisk: 'Area summary', zones: 'Operator zones',
 };
 const SOURCES = {
   weatherNow: 'NWS', forecast: 'NWS, Open-Meteo', alerts: 'NWS', floodZone: 'FEMA NFHL', gauges: 'USGS', riverForecast: 'Open-Meteo GloFAS', tides: 'NOAA CO-OPS',
-  quakes: 'USGS', fires: 'NASA FIRMS', airQuality: 'AirNow', shelters: 'FEMA NSS (cached)', declarations: 'OpenFEMA (cached)', devices: 'HomeBeacon', regionalRisk: 'HomeBeacon', zones: 'Operator zones',
+  quakes: 'USGS', fires: 'NASA FIRMS', airQuality: 'AirNow', shelters: 'FEMA NSS (cached)', declarations: 'OpenFEMA (cached)', devices: 'Safe Home', regionalRisk: 'Safe Home', zones: 'Operator zones',
 };
 const UA = 'HomeBeaconHackUTD/1.0 (https://github.com/hackathon26UTD)';
 const MIN = 60_000, HOUR = 3_600_000, DAY = 86_400_000;
@@ -464,7 +464,7 @@ async function nearbyBoxes(ctx) {
       total++;
       const seen = a.lastSeen ? new Date(a.lastSeen).getTime() : null;
       devices.push({
-        id: a.deviceId, label: clean(a.name, 60) || 'HomeBeacon box', distanceM: Math.round(d / 10) * 10, tier: a.status, priority: a.priority.tier,
+        id: a.deviceId, label: clean(a.name, 60) || 'Safe Home box', distanceM: Math.round(d / 10) * 10, tier: a.status, priority: a.priority.tier,
         status: a.offline ? 'offline' : 'online', lastSeenAgeS: seen === null ? null : Math.max(0, Math.round((ctx.now.getTime() - seen) / 1000)),
         lastKnown: a.reasons.some((r) => r.evidence.some((e) => e.stale)), exercise,
       });
@@ -477,7 +477,7 @@ async function nearbyBoxes(ctx) {
   devices.sort((a, b) => a.distanceM - b.distanceM);
   const stamp = { fetchedAt: ctx.now.toISOString(), ageSeconds: 0 };
   return {
-    devices: devices.length ? section('devices', 'ok', { ...stamp, total, items: devices.slice(0, 10) }) : section('devices', 'none', { ...stamp, reason: 'No HomeBeacon boxes within 10 km' }),
+    devices: devices.length ? section('devices', 'ok', { ...stamp, total, items: devices.slice(0, 10) }) : section('devices', 'none', { ...stamp, reason: 'No Safe Home boxes within 10 km' }),
     regionalRisk: regions.length ? section('regionalRisk', 'ok', { ...stamp, items: regions }) : section('regionalRisk', 'none', { ...stamp, note: 'No regional summary (fewer than 3 boxes)' }),
   };
 }
@@ -509,7 +509,7 @@ export function buildStandsOut(sections, { tz, now }) {
   if (z) add(`Inside an operator ${String(z.type).replace(/_/g, ' ')} zone${z.exercise ? ' (exercise)' : ''}`, 'zones', 'watch');
   for (const exercise of [false, true]) {
     const hot = (sections.devices?.items || []).filter((d) => d.exercise === exercise && ['critical', 'elevated'].includes(d.tier));
-    if (hot.length) add(`${exercise ? 'Exercise: ' : ''}${hot.length} HomeBeacon ${hot.length === 1 ? 'box' : 'boxes'} nearby ${hot.length === 1 ? 'reports' : 'report'} critical or elevated conditions (HomeBeacon, ${hot.some((d) => d.lastKnown) ? 'includes last known readings' : 'current'})`, 'devices', hot.some((d) => d.tier === 'critical') ? 'warning' : 'watch');
+    if (hot.length) add(`${exercise ? 'Exercise: ' : ''}${hot.length} Safe Home ${hot.length === 1 ? 'box' : 'boxes'} nearby ${hot.length === 1 ? 'reports' : 'report'} critical or elevated conditions (Safe Home, ${hot.some((d) => d.lastKnown) ? 'includes last known readings' : 'current'})`, 'devices', hot.some((d) => d.tier === 'critical') ? 'warning' : 'watch');
   }
   const r = sections.regionalRisk?.items?.find((x) => x.hotspot?.is);
   if (r) add(`${r.exercise ? 'Exercise: ' : ''}Area summary: ${r.priority.label} across ${r.deviceCount} boxes`, 'regionalRisk', 'watch');

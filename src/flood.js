@@ -41,7 +41,7 @@ function parseLatLon(url) {
 async function femaGet(params, timeoutMs = 20000) {
   let res;
   try {
-    res = await fetchImpl(`${NFHL}?${new URLSearchParams(params)}`, { signal: AbortSignal.timeout(timeoutMs), headers: { 'User-Agent': 'utd-hackathon-26 (HomeBeacon)' } });
+    res = await fetchImpl(`${NFHL}?${new URLSearchParams(params)}`, { signal: AbortSignal.timeout(timeoutMs), headers: { 'User-Agent': 'utd-hackathon-26 (Safe Home)' } });
   } catch {
     throw new HttpError(503, 'FEMA flood map service did not respond');
   }

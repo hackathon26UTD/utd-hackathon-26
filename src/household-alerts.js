@@ -18,7 +18,7 @@ export function deviceAlertFact(d,now) {
   const uncertain=conditions.some(c=>/out of date|unknown|last report|no recent/i.test(c.text));
   if(status==='normal'&&(uncertain||!validDate(d.lastSeen)||now-new Date(d.lastSeen)>15*60000||new Date(d.lastSeen)>now))return null;
   // The public snapshot has no condition timestamp. Contact must never stand in for hazard age.
-  return {signature:JSON.stringify([status,labels,uncertain]),status,observedAt:'Unknown',lastDeviceContactAt:validDate(d.lastSeen)?new Date(d.lastSeen).toISOString():'Unknown',conditions,title:status==='urgent'?'Serious condition reported':status==='needs_attention'?'A device needs attention':status==='normal'?'Device readings returned to normal':'No recent device report',summary:String(d.nickname||'HomeBeacon')+': '+String(d.statusText||'Review the latest device report.').slice(0,300)};
+  return {signature:JSON.stringify([status,labels,uncertain]),status,observedAt:'Unknown',lastDeviceContactAt:validDate(d.lastSeen)?new Date(d.lastSeen).toISOString():'Unknown',conditions,title:status==='urgent'?'Serious condition reported':status==='needs_attention'?'A device needs attention':status==='normal'?'Device readings returned to normal':'No recent device report',summary:String(d.nickname||'Safe Home')+': '+String(d.statusText||'Review the latest device report.').slice(0,300)};
 }
 async function recordDeviceChange(db,householdId,linkId,fact,now) {
   const _id=await sha256Hex(householdId+':'+linkId),session=db.client.startSession();

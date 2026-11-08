@@ -3,7 +3,7 @@ import { withDatabase } from '../../lib/mongodb.js';
 const reply=(body,status=200,headers={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store',...headers}});
 export async function onRequest({request,env}){
   if(request.method==='GET'){const user=await readSession(request,env);return reply(user?{authenticated:true,email:user.email,role:user.role}:{authenticated:false},user?200:401);}
-  if(!sameOrigin(request))return reply({error:'This request must come from HomeBeacon.'},403);
+  if(!sameOrigin(request))return reply({error:'This request must come from Safe Home.'},403);
   if(request.method==='DELETE')return reply({authenticated:false},200,{'Set-Cookie':sessionCookie('',0)});
   if(request.method!=='POST')return reply({error:'Method not allowed.'},405);
   if(!env.SESSION_SECRET||!env.MONGODB_URI||!env.MONGODB_DB)return reply({error:'Operator sign-in is not configured yet.'},503);
