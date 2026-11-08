@@ -24,7 +24,7 @@ function layout({ demo, role, footer, brand }) {
   return `<div class="shell cc map-only${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">HomeBeacon response map</h1>
 <header class="cc-hub"><a href="/" class="cc-brand" aria-label="HomeBeacon website">HomeBeacon</a><span class="cc-scope">United States</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>More</summary><div class="cc-more-menu">${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button data-theme-toggle>Switch theme</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
 <div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. No live disaster data.' : 'U.S. imagery · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
-<div class="map-tools" role="toolbar" aria-label="Map tools"><button id="quick-weather" aria-pressed="false"${demo ? ' disabled title="Official weather layers require operator sign-in"' : ''}>Weather</button>${demo ? '<button id="quick-wind" aria-pressed="true">Wind · exercise</button>' : ''}<button id="quick-power" aria-pressed="false">Power loss</button><button id="quick-water" aria-pressed="false">Water reports</button><button id="overlay-toggle" aria-expanded="false" aria-controls="overlay-panel">Layers</button><button id="fit-homes">Find devices</button><button id="national-view">U.S. view</button></div>
+<div class="map-tools" role="toolbar" aria-label="Map tools"><button id="quick-weather" aria-pressed="false"${demo ? ' disabled title="Official weather layers require operator sign-in"' : ''}>Weather</button>${demo ? '<button id="quick-wind" aria-pressed="true">Wind · exercise</button>' : ''}<button id="quick-power" aria-pressed="false">Power loss</button><button id="quick-water" aria-pressed="false">Water reports</button><button id="overlay-toggle" aria-expanded="false" aria-controls="overlay-panel">Layers</button><button id="fit-homes">Find devices</button><button id="national-view">U.S. view</button><button id="open-view-builder" aria-controls="layer-dialog" aria-expanded="false">Create view</button></div>
 <nav class="workspace-island" aria-label="Workspace views"><button data-view="map" aria-pressed="true" aria-controls="map">Map</button><button data-view="overview" aria-expanded="false" aria-controls="overview-panel">Overview</button><button data-view="homes" aria-expanded="false" aria-controls="device-panel">Devices <span id="device-count">0</span></button><button id="activity-link" data-view="activity" aria-expanded="false" aria-controls="timeline">Activity</button><button data-view="demo" aria-expanded="false" aria-controls="demo-panel">Demo</button></nav><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
 <section class="board" aria-label="Properties and map"><div class="map-wrap"><div id="map" class="map" role="region" aria-label="United States response map. Open Devices for a keyboard-accessible home list."></div>
@@ -115,6 +115,7 @@ export async function mountCommand(env) {
     if (focus) document.querySelector(`[data-view="${previous || 'map'}"]`)?.focus({ preventScroll: true });
   };
   ctx.openWorkspace = view => {
+    ctx.closeViewBuilder?.({ focus: false });
     if (view === 'map') return ctx.closeWorkspace();
     if (view === 'demo' && !demo) { location.href = '/demo?view=demo'; return; }
     if (view === 'priorities') view = 'homes';
@@ -410,6 +411,7 @@ export async function mountCommand(env) {
   $('#quick-wind')?.addEventListener('click', e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); mv.setVisible('exerciseWind', on); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+    if (ctx.closeViewBuilder?.()) { e.preventDefault(); return; }
     if ($('#command-more').open) { $('#command-more').open = false; $('#command-more summary').focus(); return; }
     if ($('#overlay-panel').classList.contains('open')) { $('#overlay-close').click(); return; }
     if (S.detailOpen) { e.preventDefault(); ctx.closeDetail(); }
