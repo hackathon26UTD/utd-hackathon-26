@@ -1,3 +1,4 @@
+import { mountWindFlow } from './wind-flow.js';
 import { allowsMotion } from '../display-settings.js';
 // MapLibre wrapper: street-level base maps plus the command center layers. Rebuilds layers after every style switch.
 import { STATUS_COLOR as C, ZONE_TYPES } from './core.js';
@@ -100,6 +101,7 @@ export class MapView {
       transformConstrain: (center, zoom) => ({center: new maplibregl.LngLat(Math.max(CONUS_BOUNDS[0][0],Math.min(CONUS_BOUNDS[1][0],center.lng)),Math.max(CONUS_BOUNDS[0][1],Math.min(CONUS_BOUNDS[1][1],center.lat))),zoom:Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom))}),
       bounds: CONUS_FIT, fitBoundsOptions: { padding: this.pad, duration: 0 },
     });
+    this.windFlow = mountWindFlow(this);
     if (interactive) {
       this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
       this.map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
@@ -260,6 +262,7 @@ export class MapView {
       }
       this.basePaintKeys.set(layer.id, new Set(Object.keys(paint)));
     }
+    this.windFlow?.update();
     if (!m.getLayer('ov-atmosphere-pt')) return;
     const field = view.field || 'wind_kph';
     const valid = ['all', ['==', ['geometry-type'], 'Point'], ['!=', ['get', field], null]];
@@ -267,7 +270,10 @@ export class MapView {
     m.setPaintProperty('ov-atmosphere-pt', 'circle-color', metricColor(view));
     m.setPaintProperty('ov-atmosphere-pt', 'circle-radius', ['interpolate',['linear'],['zoom'],3,view.id === 'wind' ? 10 : 7,8,12,12,14]);
     m.setFilter('ov-atmosphere-label', valid);
-    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', ['round', ['get', field]]], view.unit === '°C' ? '°' : '']);
+    m.setLayerZoomRange?.('ov-atmosphere-label',view.id==='wind'?2:5,24);
+    m.setPaintProperty('ov-atmosphere-label','text-color',view.id==='wind'?'#ffffff':'#253f50');
+    m.setPaintProperty('ov-atmosphere-label','text-halo-color',view.id==='wind'?'#123e6e':'#ffffff');
+    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', ['round', ['get', field]]], view.unit === '°C' ? '°' : view.id === 'wind' ? ' km/h' : '']);
     m.setFilter('ov-atmosphere-arrow', ['all', ...valid.slice(1), ['!=',['get','wind_direction'],null], ['>', ['get','wind_kph'],0]]);
     this.applyVisibility('atmosphere');
   }
@@ -307,11 +313,13 @@ export class MapView {
   setExt(id, fc) {
     this.ext[id] = conusOnly(fc) || EMPTY;
     this.map.getSource('ov-' + id)?.setData(this.ext[id]);
+    if(id==='atmosphere')this.windFlow?.update();
   }
 
   setVisible(name, on) {
     on ? this.visible.add(name) : this.visible.delete(name);
     this.applyVisibility(name);
+    if(name==='atmosphere')this.windFlow?.update();
   }
 
   extLayerIds(id) { return [`ov-${id}-fill`, `ov-${id}-line`, `ov-${id}-pt`, ...(id === 'atmosphere' ? ['ov-atmosphere-arrow','ov-atmosphere-label'] : [])]; }

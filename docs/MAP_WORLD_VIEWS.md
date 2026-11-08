@@ -4,7 +4,7 @@
 
 Each subject changes the map itself, not the surrounding application. Keep Argus menus, Geist text, lower-48 navigation, white streets and recognizable device status colors. Use an in-map View dropdown and a compact, left-aligned legend below the toolbar. Quiet surrounding controls let geography carry the visual emphasis.
 
-Palettes: wind ice `#edf7fa` / teal `#147d92`; sunlight pale gold `#fff8df` / amber `#b67400`; UV lavender `#f6effb` / violet `#873aa8`; water pale blue `#eef6fc` / blue `#2465ad`; earth chalk `#f1eee7` / umber `#86593c`; fire porcelain `#fff2eb` / orange `#d84b19`. Air quality uses the AQI scale. Power keeps neutral streets and highlights reported power loss. These are cartographic colors, never replacements for device alert colors.
+Palettes: wind blue `#2068a8` / water `#124c86` / white labels; sunlight pale gold `#fff8df` / amber `#b67400`; UV lavender `#f6effb` / violet `#873aa8`; water pale blue `#eef6fc` / blue `#2465ad`; earth chalk `#f1eee7` / umber `#86593c`; fire porcelain `#fff2eb` / orange `#d84b19`. Air quality uses the AQI scale. Power keeps neutral streets and highlights reported power loss. These are cartographic colors, never replacements for device alert colors.
 
 Do not create a continuous measurement surface from sparse points. Weather values use sampled forecast markers and wind direction arrows. Terrain uses USGS relief; flood zones are mapped FEMA hazard areas, not current flood extent. Fault traces are historic geology, not predictions. All unavailable/stale/partial data must remain visible as such. Simulations never quietly fetch real protected data.
 
@@ -20,15 +20,15 @@ New `atmosphere` feed: Point features with `wind_kph`, `wind_direction`, `solar_
 
 ## Review of direction
 
-The subject palette belongs to the geography; no generic page recoloring or decorative gradients. Legend scales represent actual values. Continuous wind particles would imply a dense vector field we do not have, so direction arrows are the appropriate first version.
+The subject palette belongs to the geography; no generic page recoloring or decorative gradients. Legend scales represent actual values. Live wind flow is bounded to short trails near each forecast sample. The blue base is a subject palette, not an interpolated measurement surface. Speed labels retain the sample value and units; space between samples has no inferred weather.
 
 ## Implemented behavior
 
 The first Argus dropdown inside the map offers Overview, Wind, Sunshine, UV index, Temperature, Terrain, Flood zones, Rivers & coast, Air quality, Fire, Faults & earthquakes, Power, Weather alerts, Declared disasters and Shelters. The adjacent base selector still controls streets/topography. Terrain uses USGS topographic tiles; fault context also enables relief. Each themed view focuses the relevant feed layers, with device statuses kept above them. Returning to Overview restores the original base, overlays and report highlights, including after reload.
 
-Wind arrows point downwind and are suppressed for calm/unknown direction. The national weather samples cover 60 fixed request locations at all map zooms. They do not create a continuous field or local weather where no sample exists. Fault traces request bounded local areas at zoom 10 or closer; unusually wide viewports may require a closer zoom. FEMA flood mapping retains its existing zoom 11 threshold. Source keys and coverage limits for existing feeds remain unchanged.
+Wind arrows and short animated trails point downwind and are suppressed for calm/unknown direction. Labels show km/h from the national view onward. Pause wind stops motion; reduced motion, hidden pages and offscreen maps also stop the animation. The layer cleans up its animation and listeners when the map is removed. The national weather samples cover 60 fixed request locations at all map zooms. They do not create a continuous field or local weather where no sample exists. Fault traces request bounded local areas at zoom 10 or closer; unusually wide viewports may require a closer zoom. FEMA flood mapping retains its existing zoom 11 threshold. Source keys and coverage limits for existing feeds remain unchanged.
 
-The compact legend gives the scale, units and a short interpretation. Sources & coverage expands for retrieved age, forecast valid time, partial/failed/stale status and feed notes. Missing selected-metric values do not count as coverage. Simulations show an explicit live-layer-not-loaded state and never request protected feed APIs; simulation wind exposure remains synthetic. Unknown readings never become zero or green.
+The compact legend gives the scale, units and a short interpretation. Sources & coverage expands for retrieved age, forecast valid time, partial/failed/stale status and feed notes. Missing selected-metric values do not count as coverage. Simulations show an explicit live-layer-not-loaded state and never request protected feed APIs; simulation wind remains synthetic. Presets use documented illustration speeds; custom wind simulations use the configured speed only during the event window and place their illustration around the configured affected area. No simulated weather is written into the live feed or device observations. Unknown readings never become zero or green.
 
 ## Verification so far
 
@@ -47,3 +47,5 @@ These are browser verification captures, not a live service. The wind screen use
 ![Wind view with sampled forecasts](design/screenshots/world-wind.png)
 
 ![UV simulation view on a phone](design/screenshots/world-uv-mobile.png)
+
+November 8 homepage/wind refinement: the public hero also uses the blue wind view, but its caption explicitly identifies a simulation. Speed plates draw above trails, and nearby trails are thinned to avoid overlap. Other map views retain their palettes and the Overview restores its prior base/overlays. Tests: `test/wind-flow.test.js` and `test/marketing-weather.browser.mjs`; production evidence belongs in WORKLOG.

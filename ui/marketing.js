@@ -1,4 +1,5 @@
 import { allowsMotion, mountDisplaySettings } from './display-settings.js';
+import { mountHomeProfile } from './home-profile.js';
 const icons = {
   power: '<path d="m13 2-8 12h6l-1 8 9-13h-7l1-7Z"/>',
   wifi: '<path d="M3 8a15 15 0 0 1 18 0M6 12a10 10 0 0 1 12 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r=".7"/>',
@@ -17,20 +18,22 @@ const specs = [
 export function mountMarketing({brand, footer}) {
   const app = document.querySelector('#app');
   app.innerHTML = `<div class="home-site">
-    <header class="home-header" id="home-header"><div class="home-island">
+    <header class="home-header" id="home-header">
       <a class="home-brand" href="/" aria-label="Safe Home home">${brand}</a>
-      <nav class="home-desktop-nav" aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#about">About</a><a href="/portal">Sign in</a></nav>
-      <details class="display-settings" id="home-settings"><summary>Settings ${down}</summary><div class="display-settings-panel" id="home-display-options"></div></details>
-      <button class="home-menu-toggle" id="home-nav-toggle" type="button" aria-expanded="false" aria-controls="home-menu">Menu ${down}</button>
-    </div><nav class="home-menu" id="home-menu" aria-label="Expanded navigation" hidden>
-      <div><a href="#how-it-works">How it works</a><a href="#device">The device</a><a href="#about">Team & project</a><a href="/simulations">Command center</a></div>
-      <div><a href="/signup">Sign up</a><a href="/customer?mode=signin">Customer sign in</a><a href="/portal">Operator sign in</a><a href="${github}" target="_blank" rel="noopener">GitHub</a></div>
-    </nav></header>
+      <nav class="home-desktop-nav" aria-label="Main navigation"><a href="#how-it-works">What is it</a><a href="#about">About</a></nav>
+      <div class="home-account-controls"><a class="button primary home-signin" href="/portal">Sign in</a>
+        <details class="home-profile" id="home-profile"><summary aria-label="Open profile menu"><img id="home-avatar" src="/assets/avatars/face-01.svg" alt="" width="44" height="44">${down}</summary>
+          <div class="home-profile-panel"><a id="home-profile-link" href="/portal">View profile</a>
+            <details id="home-settings"><summary>Settings ${down}</summary><div id="home-display-options"></div><fieldset class="home-avatar-picker"><legend>Default avatar</legend><div>${['01','04','08','12'].map(id=>`<button type="button" data-avatar="${id}" aria-label="Choose avatar ${Number(id)}" aria-pressed="${id==='01'}"><img src="/assets/avatars/face-${id}.svg" alt="" width="40" height="40"></button>`).join('')}</div><small>Saved on this browser. Your uploaded photo takes priority.</small></fieldset></details>
+          </div>
+        </details>
+      </div>
+    </header>
     <main id="main">
       <section class="home-hero home-width" aria-labelledby="home-title">
         <div class="home-intro"><h1 id="home-title" class="home-headline">See trouble sooner.<br>Know where to look.</h1><p class="home-description">Safe Home brings home sensor reports and nearby disaster alerts into one map, so response teams can find critical conditions and follow up.</p><div class="home-actions"><a class="button primary home-demo-link" href="/simulations">Open command center</a><a class="home-register-link" href="/signup">Create an account</a></div></div>
         <figure class="home-preview-shell" aria-label="Animated example of the command map">
-          <div class="home-preview-frame"><iframe id="home-preview" src="/demo?embed=hero&amp;scenario=normal" title="Non-interactive map illustration with simulated readings" tabindex="-1" inert loading="eager" referrerpolicy="same-origin"></iframe></div>
+          <div class="home-preview-frame"><iframe id="home-preview" src="/demo?embed=hero&amp;scenario=normal&amp;weather=wind" title="Non-interactive map illustration with simulated readings" tabindex="-1" inert loading="eager" referrerpolicy="same-origin"></iframe></div>
           <figcaption class="home-preview-controls"><span>Simulated overview <span id="home-preview-label">Normal day</span></span><button id="home-preview-pause" type="button" aria-label="Pause overview animation">Pause</button></figcaption>
         </figure>
         <div class="home-example"><p class="home-example-label">Example device</p><dl class="home-signals" aria-label="Simulated device readings">
@@ -50,24 +53,28 @@ export function mountMarketing({brand, footer}) {
     </main>${footer}
   </div>`;
   mountDisplaySettings(app.querySelector('#home-display-options'));
-  const toggle=app.querySelector('#home-nav-toggle'),menu=app.querySelector('#home-menu'),header=app.querySelector('#home-header');
-  function setMenu(open,restore=false){menu.hidden=!open;toggle.setAttribute('aria-expanded',String(open));header.dataset.open=String(open);if(restore)toggle.focus();}
-  toggle.addEventListener('click',()=>setMenu(menu.hidden));
-  menu.addEventListener('click',e=>{if(e.target.closest('a'))setMenu(false);});
-  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!menu.hidden)setMenu(false,true);});
-  document.addEventListener('click',e=>{if(!menu.hidden&&!header.contains(e.target))setMenu(false);});
+  mountHomeProfile(app);
   const preview=app.querySelector('#home-preview'),pause=app.querySelector('#home-preview-pause'),label=app.querySelector('#home-preview-label');
   let paused=false,visible=true,ready=false,timer;
-  const paintPlayback=()=>{clearInterval(timer);const running=!paused&&allowsMotion()&&!document.hidden&&visible;pause.textContent=running?'Pause':'Play';pause.setAttribute('aria-label',running?'Pause overview animation':'Play overview animation');pause.disabled=!allowsMotion();if(running&&ready)timer=setInterval(()=>preview.contentWindow?.postMessage({type:'homebeacon:preview-step'},location.origin),6500);};
-  pause.addEventListener('click',()=>{paused=!paused;paintPlayback();});
+  const step=()=>preview.contentWindow?.postMessage({type:'homebeacon:preview-step'},location.origin);
+  const paintPlayback=()=>{
+    clearInterval(timer);
+    const reduced=!allowsMotion(),running=!paused&&!reduced&&!document.hidden&&visible;
+    pause.textContent=reduced?'Next':running?'Pause':'Play';
+    pause.setAttribute('aria-label',reduced?'Next simulated scenario':running?'Pause overview animation':'Play overview animation');
+    preview.contentWindow?.postMessage({type:'homebeacon:preview-playback',running},location.origin);
+    if(running&&ready)timer=setInterval(step,6500);
+  };
+  pause.addEventListener('click',()=>{if(!allowsMotion()){step();return;}paused=!paused;paintPlayback();});
   preview.addEventListener('load',()=>{ready=true;paintPlayback();});
   document.addEventListener('visibilitychange',paintPlayback);document.addEventListener('homebeacon:motion',paintPlayback);
   new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;paintPlayback();},{threshold:.1}).observe(preview);
   const examples={normal:['On','Connected','No disaster or disturbances detected.'],'power-outage':['Backup power','Disconnected','Power interruption detected.'],'water-hurricane':['Backup power','Disconnected','Water detected. Needs review.'],recovery:['Restored','Connected','Earlier water report needs review.']};
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.source!==preview.contentWindow||event.data?.type!=='homebeacon:preview-state')return;
+    if(!ready){ready=true;paintPlayback();}
     const values=examples[event.data.scenarioId];if(!values)return;
-    label.textContent=event.data.label;
+    label.textContent=event.data.label+' · wind illustration';
     ['power','wifi','conditions'].forEach((id,i)=>{app.querySelector('#example-'+id).textContent=values[i];});
   });
   paintPlayback();

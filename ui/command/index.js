@@ -1,3 +1,4 @@
+import { simulationWind } from './wind-flow.js';
 import { mountSimulationStudio } from '../simulation-studio.js';
 import '../simulation-studio.css';
 import { allowsMotion, mountDisplaySettings } from '../display-settings.js';
@@ -126,6 +127,7 @@ export async function mountCommand(env) {
   ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
   ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
   mv.on('error', () => { $('#map-status').textContent = 'Map unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
+  if(embedded&&route.get('weather')==='wind')mv.setWorldView('wind');
   mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else { S.nationalFitted = true; mv.fitConus(); } } });
   mv.handlers.base = () => { updateMapSource(); ctx.toolbar.sync(); };
   mv.map.on('style.load', updateMapSource);
@@ -363,14 +365,15 @@ export async function mountCommand(env) {
     S.detailOpen = false; S.selectedId = null; S.selectedRegion = null;
     S.filter = 'all'; S.search = ''; S.layerIds = null;
     $('#search').value = ''; $('#filter').value = 'all'; $('#filter').dispatchEvent(new Event('change', { bubbles: true }));
+    mv.simulationWind=simulationWind(id);mv.windFlow.update();
     const wind = r.data.overlays?.exerciseWind || { type: 'FeatureCollection', features: [] };
-    mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length && ['street','wind'].includes(mv.worldKey));
+    mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length && mv.worldKey==='street');
     const zonesOn = id === 'water-hurricane';
     zonesOn ? S.ovOn.add('zones') : S.ovOn.delete('zones'); mv.setVisible('zones', zonesOn);
     ctx.toolbar?.sync(); // MAP-V2
     $('#notice').textContent = (S.demoMeta?.label || 'Scenario') + ' · fictional homes and readings. Read only.';
     recompute(); renderAll(); await loadRegions(); ctx.positionDetail();
-    if (!initial && S.embed) fitScenario({ animate: true });
+    if (S.embed) fitScenario({ animate: !initial });
     if (S.embed && window.parent !== window) window.parent.postMessage({ type: 'homebeacon:preview-state', scenarioId: S.demoScenario, label: S.demoMeta?.label || S.demoScenario }, location.origin);
     return true;
   }
@@ -495,7 +498,9 @@ export async function mountCommand(env) {
   $('#demo-show-map').onclick = async () => { if (await ctx.closeWorkspace({ focus: false, animate: true })) { fitScenario(); $('[data-view="map"]').focus(); } };
   $('#demo-show-overview').onclick = () => ctx.openWorkspace('overview');
   window.addEventListener('message', e => {
-    if (!demo || !S.embed || e.origin !== location.origin || e.source !== window.parent || e.data?.type !== 'homebeacon:preview-step' || S.demoBusy) return;
+    if (!demo || !S.embed || e.origin !== location.origin || e.source !== window.parent) return;
+    if(e.data?.type==='homebeacon:preview-playback'){mv.windFlow.setPaused(e.data.running!==true);return;}
+    if(e.data?.type!=='homebeacon:preview-step'||S.demoBusy)return;
     const at = SCENARIOS.findIndex(s => s.id === S.demoScenario);
     loadScenario(SCENARIOS[(at + 1) % SCENARIOS.length].id);
   });
@@ -582,7 +587,8 @@ export async function mountCommand(env) {
     studio = mountSimulationStudio($('#simulation-studio'), controls, {
       onFrame: frame => {
         S.base = frame.properties; S.demoMeta = frame.scenario; S.demoIssuedAt = frame.issuedAt; S.demoScenario = 'custom'; S.simulationFrame = frame;
-        const wind=frame.overlays.exerciseWind; mv.setExt('exerciseWind',wind); mv.setVisible('exerciseWind',!!wind.features.length && ['street','wind'].includes(mv.worldKey));
+        mv.simulationWind=simulationWind('custom',frame.config,frame.minute);mv.windFlow.update();
+        const wind=frame.overlays.exerciseWind; mv.setExt('exerciseWind',wind); mv.setVisible('exerciseWind',!!wind.features.length && mv.worldKey==='street');
         mv.setVisible('zones',false); S.ovOn.delete('zones');
         $('#notice').textContent = 'Simulation · '+frame.phase+' · minute '+frame.minute+' · fictional devices';
         S.live.feed = [{key:'sim-frame-'+frame.minute,at:frame.issuedAt,kind:'scenario',level:'info',text:frame.phase+' · '+frame.summary.critical+' critical, '+frame.summary.notReporting+' missing reports'}];
