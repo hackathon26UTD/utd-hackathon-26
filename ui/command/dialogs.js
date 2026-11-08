@@ -101,20 +101,35 @@ export function mountDialogs(ctx) {
   $('#sources').onclick = async () => {
     $('#source-dialog').showModal();
     const out = $('#source-list');
+    if (ctx.demo) {
+      out.innerHTML = '<p><strong>USDA / USGS The National Map</strong><br>Satellite and aerial imagery provides geographic context. Image dates, resolution and coverage vary; it is not live disaster imagery.</p><p><strong>Exercise observations</strong><br>Dallas and Florida homes, readings, wind exposure and zones are fictional. Wind circles are not official storm radii or a forecast.</p><p>Sign in as an operator to load public weather and hazard feeds. National imagery does not imply national monitoring coverage.</p>';
+      return;
+    }
     out.textContent = 'Loading source status.';
-    const [w, f] = await Promise.all([api('/api/weather'), api('/api/feeds')]);
-    let html = '';
-    if (f.ok) html += (f.data?.sources || []).map(s => `<p><strong>${esc(s.name || s.id)}</strong><br>${esc(SOURCE_STATUS_TEXT[s.status] || s.status)}${s.fetchedAt ? ' · Updated ' + esc(ageText(s.fetchedAt)) : ''}${s.featureCount != null ? ' · ' + esc(s.featureCount) + ' items' : ''}${s.attribution ? `<br><small>${esc(s.attribution)}</small>` : ''}</p>`).join('');
+    const [w, f, catalog] = await Promise.all([api('/api/weather'), api('/api/feeds'),api('/api/ops/data-catalog')]);
+    let html = catalog.ok?'<details><summary>Data history and coverage</summary><p>'+esc(catalog.data.history)+'</p>'+catalog.data.datasets.map(d=>'<p><strong>'+esc(d.label)+'</strong><br>'+esc(d.description)+'</p>').join('')+'</details>':'';
+    if (f.ok) {
+      S.feeds = new Map((f.data?.sources || []).map(s => [s.id, s]));
+      const weatherArea = S.feeds.get('nws')?.coverage?.area;
+      $('#quick-weather').textContent = weatherArea ? 'Weather · ' + String(weatherArea).slice(0, 30) : 'Weather';
+      html += (f.data?.sources || []).map(s => `<p><strong>${esc(s.name || s.id)}</strong><br>${esc(SOURCE_STATUS_TEXT[s.status] || s.status)}${s.fetchedAt ? ' · Updated ' + esc(ageText(s.fetchedAt)) : ''}${s.featureCount != null ? ' · ' + esc(s.featureCount) + ' items' : ''}${s.coverage?.area ? `<br><small>Coverage: ${esc(s.coverage.area)}${s.coverage.type ? ' (' + esc(s.coverage.type) + ')' : ''}</small>` : ''}${s.note ? `<br><small>${esc(s.note)}</small>` : ''}${s.attribution ? `<br><small>${esc(s.attribution)}</small>` : ''}</p>`).join('');
+    }
     if (w.ok) {
       const d = w.data;
       if (!f.ok) html += (d.sources || []).map(s => `<p><strong>${esc(s.name)}</strong><br>${esc(s.status)}${s.fetchedAt ? ' · Updated ' + esc(new Date(s.fetchedAt).toLocaleTimeString()) : ''}</p>`).join('');
-      html += `<p>${d.weather?.features?.length || 0} active Texas weather alerts · ${d.earthquakes?.features?.length || 0} regional earthquakes · ${d.declarations?.length || 0} recent declarations</p>`;
+      if(!f.ok)html += '<p>Legacy regional context. Coverage may differ from the source-specific layers above.</p>';
     }
     if (!f.ok && !w.ok) html = '<p>Public feeds are currently unavailable.</p>';
     out.innerHTML = html + '<p>Source availability is checked live. Regional events do not establish individual property damage.</p>';
   };
 
   // ---- operator view builder (existing /api/layers) ----
+
+  let resetBuilder = () => {};
+  ctx.resetViewBuilder = () => {
+    resetBuilder(); S.layerIds = null;
+    $('#active-layer').classList.add('hidden'); $('#active-layer').textContent = '';
+  };
 
   $('#build-layer').onclick = () => {
     let dialog = $('#layer-dialog');
@@ -128,11 +143,18 @@ export function mountDialogs(ctx) {
     dialog.setAttribute('aria-labelledby', 'layer-title');
     dialog.innerHTML = '<h2 id="layer-title">Build an operator view</h2><p>Choose a verified observation layer or ask the NVIDIA model to suggest one. Original readings stay unchanged.</p><form id="layer-form"><label>Question<textarea name="question" maxlength="1000" placeholder="Which homes lost power and need a check?"></textarea></label><label>Observation layer<select name="filter"><option value="power_lost">Power lost</option><option value="water">Water detected</option><option value="connectivity_lost">Internet interrupted</option><option value="stale">No recent observations</option><option value="battery_low">Low battery</option><option value="critical">Critical observations</option></select></label><div class="tools"><button name="method" value="preset">Preview selected layer</button><button name="method" value="nvidia" class="primary">Ask NVIDIA</button></div></form><div id="layer-result" role="status"></div><div class="tools"><button id="apply-layer" disabled>Apply view</button><button id="close-layer">Close</button></div>';
     document.body.append(dialog);
-    let proposal = null;
+    let proposal = null, request = 0;
+    resetBuilder = () => {
+      proposal = null; request++;
+      $('#apply-layer').disabled = true; $('#layer-result').textContent = '';
+      dialog.close();
+    };
     const checks = { power_lost: p => p.sensors?.mains === false, water: p => p.sensors?.water === true, connectivity_lost: p => p.sensors?.wan === false, stale: p => p.stale || p.silent, battery_low: p => p.sensors?.battery_pct <= 20, critical: p => p.severity === 'critical' };
     $('#close-layer').onclick = () => dialog.close();
     $('#layer-form').onsubmit = async e => {
       e.preventDefault();
+      const current = ++request;
+      proposal = null;
       $('#apply-layer').disabled = true;
       $('#layer-result').textContent = 'Preparing view.';
       const body = Object.fromEntries(new FormData(e.currentTarget));
@@ -147,10 +169,11 @@ export function mountDialogs(ctx) {
           if (!r.ok) throw Error(r.error || 'Could not build view.');
           result = r.data;
         }
+        if (current !== request) return;
         proposal = result;
         $('#layer-result').textContent = `${result.title}: ${result.ids.length} homes. ${result.summary} Source: ${result.mode}. Prepared ${new Date(result.generatedAt).toLocaleTimeString()}.`;
         $('#apply-layer').disabled = false;
-      } catch (error) { $('#layer-result').textContent = error.message; }
+      } catch (error) { if (current === request) $('#layer-result').textContent = error.message; }
     };
     $('#apply-layer').onclick = () => {
       if (!proposal) return;

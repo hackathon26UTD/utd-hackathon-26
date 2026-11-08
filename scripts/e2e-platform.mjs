@@ -122,9 +122,9 @@ step('operator endpoints refuse anonymous callers', noAuth.status === 401, Strin
 const pair = await A('POST', '/api/ops/pairing', { device_id: id });
 step('operator issues pairing serial and code', pair.status === 201 && !!pair.body.serial && !!pair.body.pairingCode && String(pair.body.qrPayload).includes('#claim='), JSON.stringify(Object.keys(pair.body || {})));
 const email = `e2e-${Date.now()}@example.test`;
-const bad = await call('POST', '/api/customer/register', { body: { email, password: 'correct horse battery', contactName: 'E2E Owner', consent: true, serial: pair.body?.serial, code: '000000' } });
+const bad = await call('POST', '/api/customer/register', { body: { email, password: 'correct horse battery', contactName: 'E2E Owner', consent: true, acceptTerms: true, serial: pair.body?.serial, code: '000000' } });
 step('wrong pairing code is refused with a uniform message', bad.status === 400, JSON.stringify(bad.body));
-const reg = await call('POST', '/api/customer/register', { body: { email, password: 'correct horse battery', contactName: 'E2E Owner', consent: true, serial: pair.body?.serial, code: pair.body?.pairingCode, nickname: 'Hall box' } });
+const reg = await call('POST', '/api/customer/register', { body: { email, password: 'correct horse battery', contactName: 'E2E Owner', consent: true, acceptTerms: true, serial: pair.body?.serial, code: pair.body?.pairingCode, nickname: 'Hall box' } });
 const cookie = (reg.setCookie || '').split(';')[0];
 step('customer registers and claims in one step', reg.status === 201 && !!cookie, JSON.stringify(reg.body));
 const crossOp = await call('GET', '/api/ops/live?mode=exercise', { cookie });

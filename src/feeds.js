@@ -1,7 +1,8 @@
+import { archiveFeedSnapshot } from './data-store.js';
 // Feed cache: the server fetches public hazard feeds, stores them in Mongo and serves them to the map.
 // The browser never calls an upstream. Missing data stays unknown; old data is returned flagged `stale`.
 import { FeedError } from './feed-error.js';
-import { LAYERS, LAYER_IDS } from './feed-layers.js';
+import { LAYERS, LAYER_IDS, feedMetadata } from './feed-layers.js';
 import { bboxIntersects, cellsFor, geometryBbox, tilesFor } from './feed-geo.js';
 import { loadActiveZones } from './zones.js';
 
@@ -68,6 +69,7 @@ function plan(layer, env, bbox, cells, read = false) {
 }
 
 const docId = (layer, key) => `${layer.id}:${key}`;
+const failureId = (layer, env) => `meta:${layer.id}:${layer.scope === 'all' ? layer.scopeKey?.(env) ?? 'all' : 'tiles'}`;
 
 function capFeatures(features) {
   let bytes = 0;
@@ -98,10 +100,10 @@ function safeReason(err) {
   return err instanceof FeedError ? err.message : 'The source data could not be read.';
 }
 
-async function recordFailure(db, layer, err, now) {
+async function recordFailure(db, layer, env, err, now) {
   await db.collection('feed_cache').replaceOne(
-    { _id: `meta:${layer.id}` },
-    { _id: `meta:${layer.id}`, layer: layer.id, tileKey: 'meta', status: 'error', failedAt: now, lastError: safeReason(err), expiresAt: new Date(now.getTime() + 86400000) },
+    { _id: failureId(layer, env) },
+    { _id: failureId(layer, env), layer: layer.id, tileKey: 'meta', status: 'error', failedAt: now, lastError: safeReason(err), expiresAt: new Date(now.getTime() + 86400000) },
     { upsert: true },
   );
 }
@@ -113,7 +115,7 @@ function dedupeKey(f) {
   return f.id ?? f.properties?.OBJECTID ?? JSON.stringify([f.properties, geometryBbox(f.geometry)]);
 }
 
-function assemble(layer, docs, { bbox, now, missing = 0, clipped = false }) {
+function assemble(layer, docs, { bbox, now, env = {}, missing = 0, clipped = false }) {
   const seen = new Set();
   let features = [];
   const extra = {};
@@ -140,6 +142,7 @@ function assemble(layer, docs, { bbox, now, missing = 0, clipped = false }) {
     ...(Object.keys(extra).length ? { extra } : {}),
     hb: {
       source: layer.name, attribution: layer.attribution,
+      ...feedMetadata(layer, env),
       fetchedAt: oldest ? oldest.toISOString() : null,
       ageS: oldest ? Math.max(0, Math.round((now - oldest) / 1000)) : null,
       stale: docs.some((d) => d.freshUntil <= now),
@@ -163,7 +166,7 @@ export async function refreshLayer(db, env, layerId, bbox, { fetcher, now = new 
   const { tiles, clipped } = plan(layer, env, bbox, cells);
   const have = new Map((await readDocs(db, layer, tiles)).map((d) => [d._id, d]));
   const due = tiles.filter((t) => force || !have.get(docId(layer, t.key)) || have.get(docId(layer, t.key)).freshUntil <= now);
-  let failure = null;
+  let failure = null, refreshed = 0;
   if (due.length) {
     let results;
     try {
@@ -176,25 +179,39 @@ export async function refreshLayer(db, env, layerId, bbox, { fetcher, now = new 
       if (r instanceof Error || !r) { failure = r || new FeedError(502, 'The source returned nothing.'); continue; }
       const doc = buildDoc(layer, t.key, r, now);
       await db.collection('feed_cache').replaceOne({ _id: doc._id }, doc, { upsert: true });
+      await archiveFeedSnapshot(db, doc);
       have.set(doc._id, doc);
+      refreshed++;
     }
-    if (failure) await recordFailure(db, layer, failure, now);
-    else await db.collection('feed_cache').deleteOne({ _id: `meta:${layer.id}` });
+    if (failure) await recordFailure(db, layer, env, failure, now);
+    else await db.collection('feed_cache').deleteOne({ _id: failureId(layer, env) });
   }
   const docs = tiles.map((t) => have.get(docId(layer, t.key))).filter(Boolean);
   if (!docs.length) throw new FeedError(503, 'This feed is not available right now.', { layer: layerId, reason: failure ? safeReason(failure) : undefined });
-  return assemble(layer, docs, { bbox, now, missing: tiles.length - docs.length, clipped });
+  const result = assemble(layer, docs, { bbox, now, env, missing: tiles.length - docs.length, clipped });
+  result.hb.delivery = refreshed ? 'refreshed' : 'cached';
+  result.hb.refreshStatus = failure ? 'error' : due.length ? 'ok' : 'not_requested';
+  if (failure) result.hb.lastError = safeReason(failure);
+  return result;
 }
 
 // Cache only, never touches the network. Safe for the risk engine to call on every cycle.
 export async function readLayer(db, env, layerId, bbox, { now = new Date(), cells } = {}) {
   const layer = LAYERS[layerId];
   const { tiles, clipped } = plan(layer, env || {}, bbox, cells, true);
-  const docs = await readDocs(db, layer, tiles);
-  return { layer, docs, collection: assemble(layer, docs, { bbox, now, missing: tiles.length - docs.length, clipped }) };
+  const [docs, meta] = await Promise.all([
+    readDocs(db, layer, tiles),
+    Promise.resolve().then(() => db.collection('feed_cache').findOne({ _id: failureId(layer, env || {}) })),
+  ]);
+  return { layer, docs, meta, collection: assemble(layer, docs, { bbox, now, env, missing: tiles.length - docs.length, clipped }) };
 }
 
 const statusOf = (collection, docs) => (!docs.length ? 'unverified' : collection.hb.stale ? 'stale' : 'ok');
+const dataState = (docs, stale) => !docs.length ? 'unavailable' : stale ? 'stale_cache' : 'cached';
+const errorMeta = (meta, docs) => {
+  const newest = docs.reduce((at, doc) => !at || doc.fetchedAt > at ? doc.fetchedAt : at, null);
+  return meta && (!newest || meta.failedAt >= newest) ? { lastError: meta.lastError, lastErrorAt: meta.failedAt.toISOString() } : {};
+};
 
 /**
  * OverlayContext for the risk engine: { zones[], nfhl[], nws[], declarations[], weather:{[gh5]:{...}}, status }.
@@ -211,16 +228,19 @@ export async function readCachedOverlays(db, { bbox, layers = DEFAULT_CONTEXT_LA
         return;
       }
       if (!LAYERS[id]) return;
-      const wide = !bbox && LAYERS[id].scope !== 'all' && !cells?.length;
-      if (wide) { ctx.status[id] = { status: 'unverified', fetchedAt: null, ageS: null, stale: false, truncated: false }; return; }
-      const { layer, docs, collection } = await readLayer(db, env, id, bbox, { now, cells });
-      const keyMissing = needsKey(layer, env) && !docs.length;
-      ctx.status[id] = { status: keyMissing ? 'needs_key' : statusOf(collection, docs), fetchedAt: collection.hb.fetchedAt, ageS: collection.hb.ageS, stale: collection.hb.stale, truncated: collection.hb.truncated };
+      const wide = !bbox && LAYERS[id].scope !== 'all' && !(LAYERS[id].scope === 'cell' && cells?.length);
+      if (wide) { ctx.status[id] = { status: needsKey(LAYERS[id], env) ? 'needs_key' : 'unverified', fetchedAt: null, ageS: null, stale: false, truncated: false, dataState: 'unavailable', ...feedMetadata(LAYERS[id], env) }; return; }
+      const { layer, docs, meta, collection } = await readLayer(db, env, id, bbox, { now, cells });
+      const keyMissing = needsKey(layer, env);
+      const failure = errorMeta(meta, docs);
+      ctx.status[id] = { status: keyMissing ? 'needs_key' : !docs.length && meta ? 'error' : statusOf(collection, docs), fetchedAt: collection.hb.fetchedAt, ageS: collection.hb.ageS, stale: collection.hb.stale, truncated: collection.hb.truncated,
+        dataState: dataState(docs, collection.hb.stale), ...feedMetadata(layer, env), ...failure };
       if (id === 'weather') {
         for (const f of collection.features) if (f.properties?.gh5) ctx.weather[f.properties.gh5] = { precip24h_mm: f.properties.precip24h_mm, peak_mmph: f.properties.peak_mmph, level: f.properties.level };
-      } else ctx[id] = collection.features;
+      } else if (id === 'eia') ctx.eia = { metric: 'electricity_demand', outageData: false, series: collection.extra?.series || [], note: layer.note };
+      else ctx[id] = collection.features;
     } catch {
-      ctx.status[id] = { status: 'error', fetchedAt: null, ageS: null, stale: false, truncated: false };
+      ctx.status[id] = { status: 'error', fetchedAt: null, ageS: null, stale: false, truncated: false, dataState: 'unavailable', ...(LAYERS[id] ? feedMetadata(LAYERS[id], env) : {}) };
     }
   }));
   return ctx;
@@ -238,22 +258,23 @@ export async function getFeedStatus(db, { env = {}, now = new Date(), exercise =
   const rows = await db.collection('feed_cache').find({}, { projection: { data: 0 } }).toArray();
   const sources = LAYER_IDS.map((id) => {
     const layer = LAYERS[id];
-    const mine = rows.filter((r) => r.layer === id && r.tileKey !== 'meta');
-    const meta = rows.find((r) => r._id === `meta:${id}`);
+    const scopeKey = layer.scope === 'all' ? layer.scopeKey?.(env) ?? 'all' : null;
+    const mine = rows.filter((r) => r.layer === id && r.tileKey !== 'meta' && (!scopeKey || r.tileKey === scopeKey));
+    const meta = rows.find((r) => r._id === failureId(layer, env));
     const oldest = mine.reduce((a, d) => (!a || d.fetchedAt < a ? d.fetchedAt : a), null);
-    const newest = mine.reduce((a, d) => (!a || d.fetchedAt > a ? d.fetchedAt : a), null);
     let status;
-    if (needsKey(layer, env) && !mine.length) status = 'needs_key';
+    if (needsKey(layer, env)) status = 'needs_key';
     else if (!mine.length) status = meta ? 'error' : 'unverified';
     else status = mine.some((d) => d.freshUntil <= now) ? 'stale' : 'ok';
     return {
-      id, name: layer.name, status,
+      id, name: layer.name, status, ...feedMetadata(layer, env),
+      dataState: dataState(mine, mine.some(d => d.freshUntil <= now)),
       fetchedAt: oldest ? oldest.toISOString() : null,
       ageS: oldest ? Math.max(0, Math.round((now - oldest) / 1000)) : null,
       ttlS: layer.ttlS, featureCount: mine.reduce((a, d) => a + (d.count || 0), 0), attribution: layer.attribution,
       ...(layer.keyEnv ? { keyName: layer.keyEnv } : {}),
       ...(layer.minZoom ? { minZoom: layer.minZoom } : {}),
-      ...(meta && (!newest || meta.failedAt > newest) ? { lastError: meta.lastError, lastErrorAt: meta.failedAt.toISOString() } : {}),
+      ...errorMeta(meta, mine),
     };
   });
   const zones = await db.collection('overlay_zones').countDocuments({ active: true, ...(exercise ? { exercise: true } : { exercise: { $ne: true } }) });

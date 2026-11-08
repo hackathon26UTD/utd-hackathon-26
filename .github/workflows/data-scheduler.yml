@@ -1,0 +1,36 @@
+name: Data scheduler CI/CD
+on:
+  push:
+    branches: [main]
+    paths: ['workers/**', '.github/workflows/data-scheduler.yml']
+  pull_request:
+    paths: ['workers/**', '.github/workflows/data-scheduler.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx wrangler deploy --config workers/data-refresh.jsonc --dry-run
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_WORKER_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx wrangler deploy --config workers/data-refresh.jsonc
