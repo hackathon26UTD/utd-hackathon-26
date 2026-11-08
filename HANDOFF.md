@@ -7,3 +7,5 @@ Always cross-check current main, open PRs and teammate branches before editing. 
 For a contributor handoff brief, use [START_HERE.md](docs/START_HERE.md). Cloudflare management/Mongo linkage is documented in [SITE_CONTROL.md](docs/SITE_CONTROL.md).
 
 Latest work: [Integration continuation](docs/INTEGRATION_CONTINUATION.md), including the real owner kit, customer role and live platform. Earlier capability/design notes are superseded there.
+
+Current design work: Ayan rejected the command layout. Read [map-only design contract](docs/design/COMMAND_CENTER_MAP_ONLY.md) and [Astra brief](docs/design/ASTRA_COMMAND_CENTER_BRIEF.md) before UI edits. Default is map only, tools on demand; house selection opens an anchored expandable card.
