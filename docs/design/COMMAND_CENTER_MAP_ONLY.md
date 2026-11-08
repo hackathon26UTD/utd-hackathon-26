@@ -28,7 +28,7 @@ Status: Ayan approved the rendered satellite-map direction for Astra to develop 
 
 The foundational layout and selection choices above are locked. The rendered composition is approved as the direction. Imagery provider, detailed tool placement, expansion dimensions and motion treatment remain refinements for Astra. Backend national coverage remains implementation/research work, not an unanswered user preference.
 
-### Proposed, not yet approved
+### Details for refinement within the approved direction
 
 - A single compact floating command launcher and region/data-status label are the only app chrome at rest. Conventional map controls and attribution remain.
 - The exact content, dimensions and edge placement of the locked anchored region summary require visual review.
@@ -263,7 +263,7 @@ Required implementation verification when that phase starts:
 - Inspect rendered screenshots, not just DOM/source. Compare them with this brief and selected kit references.
 - Automated and manual keyboard/contrast/focus/reduced-motion checks. No focus jump on privacy dismissal or polling.
 - Retain operator/customer/demo isolation and existing backend tests.
-- Do not deploy merely because the bundle compiled. Review with Ayan first; record accepted changes and remaining objections.
+- Do not deploy merely because the bundle compiled. Inspect the rendered implementation against the direction Ayan approved, record remaining objections, and raise meaningful departures from the locked behavior.
 
 ## 12. Change log and open questions
 
@@ -316,7 +316,7 @@ Every task is reachable without interacting with map canvas pixels. Search/list 
 
 ## 14. Implementation boundaries and rejected shortcuts
 
-- This phase is requirements/design for Astra, not authorization to claim another redesign is accepted.
+- This handoff phase records the approved direction for Astra, not evidence of a completed production implementation.
 - No new framework or backend service is needed to express this layout. Preserve existing vanilla modules, map implementation and API contracts unless the actual design requires a scoped change.
 - Remove the old KPI/rail/default-inspector structure and update its rendering logic. Do not leave hidden placeholder elements solely to satisfy old DOM tests.
 - Update visual and interaction tests to the new contract while preserving backend role/data tests. Old passing screenshots are not an approval baseline.
@@ -436,7 +436,7 @@ These links establish source starting points, not proof of national integration.
 4. Resolve visual direction, launcher placement, card edge behavior and cookie treatment with Ayan. Record answers here, without reopening settled choices.
 5. Implement the accepted composition, preserve roles/data semantics, then run the scope-matched acceptance gates in section 11.
 
-No implementation is accepted merely because the requirements packet is complete. This brief is ready for teammate design work, while visual review and the replacement command center remain outstanding.
+No implementation is accepted merely because the requirements packet is complete. This brief is ready for teammate implementation. The directional review is complete; detailed rendered implementation review and the production replacement remain outstanding.
 
 
 ## 20. Satellite imagery: locked direction and review prototype
