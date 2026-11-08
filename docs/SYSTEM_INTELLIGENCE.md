@@ -1,5 +1,17 @@
 # HomeBeacon system intelligence
 
+## November 8: Safe Home operator investigation
+
+The device workspace now exposes **Conditions → Nemotron investigation**. Signed-in operators can run real Nemotron on live or registered exercise devices. The exercise-only Simulator is an explicit choice, labeled as not AI. Public `/demo` and browser-generated Simulation Studio frames remain separate: they do not create registered devices for this API.
+
+Results display the actual persisted tool trace, cited sensor values and observation/receipt times, bounded-input coverage, proposed device policies and the 24-hour runtime target. Runtime stays unknown without a supplied energy/draw budget. A fresh run requests a new snapshot; interrupted waits retry the same request ID. Failed runs show their partial trace. Abandoned runs become failed on an authorized status read/retry after three minutes; late completion cannot revive them.
+
+Model requests now use a compact projection with a 16,000-character conversation ceiling and a smaller grounding pack. Latest readings, unresolved incidents, help state, correlation references and deterministic policies remain mandatory; omitted history/context is reported. Mandatory evidence that cannot fit fails explicitly before inference. This is a conservative character bound, not an exact tokenizer guarantee. Citations must refer to records actually supplied to the model. Original stored evidence is unchanged. Failed POST responses include the actor-scoped run ID, trace and sanitized error; completed responses include allowlisted `citedEvidence` metadata.
+
+The NVIDIA adapter uses manual redirect handling and rejects non-success responses. Cloudflare Workers rejects `redirect: "error"`; the assembled app test exposed and fixed this compatibility issue.
+
+Verification: real Nano 9B v2 completed all four tools using synthetic records in disposable MongoDB, both through the CLI and the local Cloudflare app. Browser Stop waiting → Retry recovered the same completed run, and the explicit simulator remained labeled. Battery figures in the CLI example are fictional inputs, not measured endurance. Publication status is recorded in WORKLOG.
+
 November 7, 2026. Adyaan's integration workstream, preserving Ayan's command-center/product work and Dhruv's firmware/API work.
 
 ## Implemented in this branch
@@ -10,7 +22,7 @@ November 7, 2026. Adyaan's integration workstream, preserving Ayan's command-cen
 - Bounded NVIDIA function-calling workflow and an explicitly labeled simulator. Each run saves a 30-day evidence snapshot, tool-action trace and internal review checkpoint.
 - Operator-only API routes, exercise/live separation, request idempotency, validated tools/source IDs, time/call/rate limits, and no model-directed arbitrary queries or hardware commands.
 
-The existing map UI and firmware sketches are unchanged. Cloud policy fields say `appliedToHardware: false`. The portable `firmware/common/power_policy.h` compiles on the host and matches server timings, but is **not integrated into either sketch**.
+The original November 7 work left the map UI and firmware sketches unchanged; the November 8 UI is described above. Cloud policy fields say `appliedToHardware: false`. Consult current hardware documentation for firmware integration and bench status; a model checkpoint does not prove a physical setting was applied.
 
 ## API contract
 
@@ -37,7 +49,7 @@ The example energy/draw values are fictional. A budget applies only to the targe
 
 Use the existing operator session/same-origin flow or server-side admin key. Anonymous callers and public demo accounts cannot use these endpoints. Never put the admin key in browser code. The simulator is allowed only on exercise devices. `engine: "nemotron"` makes actual model calls; missing credentials/upstream errors fail explicitly and never silently switch to simulation.
 
-`GET /api/ops/agent` reports configuration and tool names, not verified connectivity. `GET /api/ops/agent?mode=exercise&run_id=<id>` retrieves the calling operator's run. An identical request ID returns the existing run without repeating inference; changed inputs with the same ID return 409. Failed runs remain failed; submit a new ID deliberately after fixing the cause. A terminated request may leave a running audit record: background resume and scheduled investigation are not implemented.
+`GET /api/ops/agent` reports configuration and tool names, not verified connectivity. `GET /api/ops/agent?mode=exercise&run_id=<id>` retrieves the calling operator's run. An identical request ID returns the existing run without repeating inference; changed inputs with the same ID return 409. Failed runs remain failed; submit a new ID deliberately after fixing the cause. A terminated request may leave a running audit record, which expires on an authorized read/retry after three minutes. Background resume and scheduled investigation are not implemented.
 
 ## Nemotron beyond a chatbot
 
