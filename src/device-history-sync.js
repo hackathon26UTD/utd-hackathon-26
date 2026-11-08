@@ -43,14 +43,14 @@ export async function syncDeviceHistory(ctx){
    const accepted=[];
    for(const sample of batch.samples){
     const _id=String(device._id)+':'+sample.key,digest=await sha256Hex(JSON.stringify(sample.raw));
-    try{await rows.updateOne({_id,digest},{$setOnInsert:{_id,digest,deviceId:device._id,...sample.raw,observedAt:sample.observedAt,clockSource:sample.observedAt?'device':'unknown',receivedAt:now,expiresAt:new Date(+(sample.observedAt||now)+365*DAY)}},{upsert:true});}catch(e){if(e.code===11000)throw new HttpError(409,'A retained sample conflicts with its earlier copy. Sync is paused for review.');throw e;}
+    try{await rows.updateOne({_id,digest},{$setOnInsert:{_id,digest,deviceId:device._id,...sample.raw,observedAt:sample.observedAt,clockSource:sample.observedAt?'device':'unknown',receivedAt:now,expiresAt:new Date(+(sample.observedAt||now)+365*DAY)}},{upsert:true});}catch(e){if(e.code===11000){const same=await rows.findOne({_id,digest},{projection:{_id:1}});if(!same)throw new HttpError(409,'A retained sample conflicts with its earlier copy. Sync is paused for review.');}else throw e;}
     accepted.push(sample.key);
    }
    // An aggregate has its own immutable observation revision, independent of upload chunking.
    const reports=db.collection('device_local_reports'),revision=batch.snapshot;
    await reports.createIndex({expiresAt:1},{expireAfterSeconds:0});await reports.createIndex({deviceId:1,boot:-1,seq:-1});
    const _id=String(device._id)+':'+revision.boot+':'+revision.seq,digest=await sha256Hex(JSON.stringify({metrics:batch.metrics,overwritten:batch.overwritten}));
-   try{await reports.updateOne({_id,digest},{$setOnInsert:{deviceId:device._id,...revision,digest,metrics:batch.metrics,overwritten:batch.overwritten,updatedAt:now,expiresAt:new Date(+now+365*DAY)}},{upsert:true});}catch(e){if(e.code===11000)throw new HttpError(409,'A learned-history snapshot conflicts with its earlier copy. Sync is paused for review.');throw e;}
+   try{await reports.updateOne({_id,digest},{$setOnInsert:{deviceId:device._id,...revision,digest,metrics:batch.metrics,overwritten:batch.overwritten,updatedAt:now,expiresAt:new Date(+now+365*DAY)}},{upsert:true});}catch(e){if(e.code===11000){const same=await reports.findOne({_id,digest},{projection:{_id:1}});if(!same)throw new HttpError(409,'A learned-history snapshot conflicts with its earlier copy. Sync is paused for review.');}else throw e;}
    return json({version:1,accepted,stored:accepted.length},200);
   });
  }catch(e){return json({error:e instanceof HttpError?e.message:'History sync unavailable. Retry the same batch.'},e instanceof HttpError?e.status:503);}
