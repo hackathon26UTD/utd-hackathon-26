@@ -156,6 +156,7 @@ export async function mountCommand(env) {
   // ---- selection ----
 
   function openDetail() {
+    ctx.closeViewBuilder?.({ focus: false });
     if (!$('#detail').contains(document.activeElement)) {
       const active = document.activeElement;
       S.detailReturnKey = active?.getAttribute('data-key') || null;
