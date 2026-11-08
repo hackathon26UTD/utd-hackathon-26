@@ -451,6 +451,20 @@ PR #41 merged as `99f0681`. Preview run `42460786060` passed and deployed `https
 
 Profile upload, rename preservation/removal and owner history sync/replay were verified against real local Pages plus disposable MongoDB, not with production customer fixtures. Email delivery remains off. Hardware flashing, actual retained-history reconnection and endurance remain open. Existing sessions may require sign-in after the credential-binding upgrade. The user’s local site on 8792 remains available; the disposable 8796 service is stopped after release verification. This documentation-only completion commit does not change deployed assets.
 
+
+## 2026-11-08: distinct map world views
+
+Added a real Argus Map view dropdown with 15 choices, including the unchanged Overview. Theme-specific cartography, value scales and focused source layers cover wind, sunshine, UV, temperature, terrain, flood, rivers/coast, air, fire, faults/earthquakes, power, alerts, declarations and shelters. Device severity colors and risk calculations remain unchanged. Overview restores the user's prior base/overlays/highlights across switching and reload. Forecast point selection takes priority over state navigation, while device points remain first.
+
+Added two source registrations through the existing authenticated feed/cache API. Open-Meteo supplies 60 fixed lower-48 model samples with valid time, explicit units and null handling; weather colors/markers do not interpolate across gaps. USGS Quaternary fault traces use bounded local tiled queries, with geological metadata, page limits and partial coverage. No new keys required. All other feed keys, scope and source limitations remain unchanged. Both new sources passed actual local Pages requests: atmosphere 200/60 points, faults 200/91 Bay Area traces, fresh and untruncated. These were actual public-source cache writes, not synthetic household data.
+
+Sources & coverage distinguishes missing selected metrics, stale/failed refresh, permissions, key absence, zoom requirements and incomplete results. Grid sources are read as regional time series rather than empty point layers, with demand/capacity/forecast labels preserved. Source attribution links and forecast valid times are visible. Simulation pages do not request live protected feed data.
+
+Validation used a separate release worktree because another active workflow was changing place/device/workflow files in the original checkout. Its uncommitted edits and helper scripts were not included. Clean-release npm ci, build and all 386 tests passed with zero skips (the two optional host transport tests also ran using the already-installed ArduinoJson headers). No physical firmware behavior was newly tested. Browser/source/review/deployment evidence is appended after completion below.
+
+
+Final map checks: independent feed and UI reviews passed after fixing explicit error summaries, mixed/null metric coverage, saved-baseline persistence, keyboard focus during refresh, national forecast-point selection and grid-series display. The clean release has 386 passing tests, zero skips. Headless Chrome checks passed actual demo controls, mobile/reduced-motion/reload behavior, automated legend accessibility, protected-feed isolation, operator browser fixtures for stale/permission/missing/partial states, and actual MapLibre rendering of captured upstream samples/fault traces with zero tile/renderer errors. The two new authenticated local Pages endpoints returned fresh, nonpartial 200 responses with 60 forecast points and 91 bounded Bay Area traces. No household fixtures or outgoing messages were added. Manual accessibility, broader provider uptime and physical device behavior remain outside these checks.
+
 ## 2026-11-08 ~02:30: per-sensor alert thresholds with durations (Dhruv)
 
 Request: thresholds for every sensor situation on the dashboard, including how long a condition lasts (power out for this long is an issue; water sensor wet).
