@@ -5,3 +5,7 @@ Commit only placeholder configuration. Keep real credentials in local environmen
 If a secret is exposed, revoke or rotate it immediately. Deleting the latest file does not remove it from Git history. Notify the repo owner privately and review its usage logs.
 
 Report security concerns privately to the repository owner through a channel already agreed by the team. Do not put tokens, private user data, or exploit details into public issues. Use synthetic data in the demo unless you have permission to use real data.
+
+## Encryption
+
+Protocols, key sizes and known gaps for every link (ESP-NOW CCMP/AES-128 mesh, TLS 1.2 uplink with pinned CAs, device keys): [docs/ENCRYPTION.md](docs/ENCRYPTION.md).
