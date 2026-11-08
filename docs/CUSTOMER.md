@@ -41,3 +41,9 @@ The same page has personal OAuth MCP connections, optional encrypted NVIDIA key 
 ## Household sharing
 
 Customers can create a named household, choose their live linked devices, and invite an email as a read-only viewer or an email-only member. Private links are copied, not emailed. The addressed signed-in account must explicitly accept. Owners can revoke access; members can leave. Shared reports refresh about every ten seconds without granting device management or operator access. Official weather and regional headlines are separate context. Email delivery remains disabled at Ayan’s request. See [HOUSEHOLDS.md](HOUSEHOLDS.md) and [HOUSEHOLD_CONTEXT_ALERTS.md](HOUSEHOLD_CONTEXT_ALERTS.md). Account email changes end existing household shares; devices stay linked.
+
+## Customer enclosure overview (local feature branch)
+
+The signed-in customer page adds an assembled enclosure viewer and selected-device summary, using the existing authenticated /api/customer/devices response. Last report time and server-approved conditions stay separate from the enclosure illustration. The lid is shown slightly open for presentation, not as a live sensor. Existing account, household and device management tools remain below.
+
+/customer?preview=1 is a public design preview with fixed fictional readings and no customer/device API requests. No preview records are stored. Three.js and both user-supplied STL assets are served locally from the site; the viewer is loaded only for the signed-in overview or explicit preview. Drag, scroll, left/right arrows, Home/reset and pause/resume control the view. Reduced motion starts paused; reports remain accessible when WebGL fails. Source meshes: public/models/enclosure-base.stl and enclosure-lid.stl, provided by Saif November 8. Physical assembly clearance is not certified by this illustration.

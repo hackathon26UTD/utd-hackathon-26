@@ -1,3 +1,4 @@
+import {previewDevice} from './customer-preview.js';
 import {emailConfirmation} from './household-email-confirm.js';
 import {householdUI} from './households.js';
 import {openDeviceHistory} from './device-history.js';
@@ -7,7 +8,9 @@ import {startProductKit} from './product-kit.js';
 startProductKit();
 // Customer side of Safe Home. All text is set with textContent; the server returns an allowlisted view only.
 const root = document.getElementById('customer');
-let photoCleanup = null;
+let photoCleanup = null, modelCleanup = null, modelGeneration = 0;
+const preview = new URLSearchParams(location.search).get('preview') === '1';
+let selectedDevice = null;
 const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
 const POLL_MS = 10000;
 const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
@@ -122,10 +125,41 @@ function addView() {
   }); } }, ...deviceFields(), field('Device address', 'address', { auto:'street-address', max:300, hint:'Street, city, state and ZIP. Sent to the U.S. Census address service to place your device on the map.' }), h('button', { class: 'primary', type: 'submit' }, 'Link device'), msgEl('add'));
   return h('details', { class: 'card', open: !!state.prefill || state.devices?.length === 0 }, h('summary', null, 'Add device'), form);
 }
+function boxOverview() {
+  return h('section', {class:'box-overview', 'aria-label':'Your box overview'},
+    h('div', {class:'box-visual'},
+      h('div', {class:'box-visual-head'}, h('span',{class:'box-kicker'},'SAFE HOME / YOUR BOX'), h('span',{class:'box-edition'},'Enclosure 01')),
+      h('div',{id:'enclosure-view',class:'enclosure-stage'}),
+      h('div',{class:'box-visual-foot'}, h('p',{'data-model-status':'',class:'fine'},'Loading your enclosure…'),
+        h('div',{class:'box-model-actions'},h('button',{type:'button','data-rotation':'','aria-pressed':'true'},'Pause rotation'), h('button',{type:'button','data-reset':''},'Reset view'))),
+      h('p',{class:'box-model-note'},'Lid shown slightly open to reveal the design. This is not a lid-position sensor.')),
+    h('div',{id:'box-summary',class:'box-summary'},h('p',{class:'muted'},'Loading your device reports…')));
+}
+function updateOverview() {
+  const el = document.getElementById('box-summary'); if (!el) return;
+  const devices = state.devices || [];
+  const d = devices.find(d=>d.id===selectedDevice) || devices[0]; selectedDevice = d?.id;
+  if (!d) { el.replaceChildren(h('p',{class:'box-kicker'},'YOUR HOME, AT A GLANCE'),h('h2',null,'A place for your box'),h('p',{class:'muted'},'Link a device below to see its latest reports here.')); return; }
+  const select = devices.length > 1 ? h('label',null,'Choose your box', h('select',{'aria-label':'Choose your box',onchange:e=>{selectedDevice=e.target.value;updateOverview();}},devices.map(item=>h('option',{value:item.id,selected:item.id===d.id},item.nickname)))) : null;
+  el.replaceChildren(h('p',{class:'box-kicker'},preview?'DESIGN PREVIEW / FICTIONAL DATA':'YOUR HOME, AT A GLANCE'), select || '',
+    h('h2',null,d.nickname),h('span',{class:'pill '+d.status},STATUS[d.status] || STATUS.no_recent_signal),
+    h('p',{class:'box-status-text'},d.statusText),
+    h('div',{class:'box-reported'},h('span',null,'LAST DEVICE REPORT'),h('strong',null,d.lastSeen ? new Date(d.lastSeen).toLocaleString() : 'Not reported'),h('small',null,preview?'Fixed sample timestamp':ago(d.lastSeen))),
+    state.failures > 0 ? h('p',{class:'banner',role:'status'},'Refresh unavailable. Showing previously received reports.') : '',
+    h('div',{class:'box-readings'},d.conditions?.length ? d.conditions.map(c=>h('div',{class:'box-reading'},h('span',null,c.label),h('strong',null,c.text))) : h('p',{class:'muted'},'No sensor conditions reported yet. Unknown does not mean normal.')));
+}
+async function startBox() {
+  const host = document.getElementById('enclosure-view'); if (!host) return;
+  const generation = ++modelGeneration;
+  const {mountEnclosure} = await import('./enclosure-viewer.js');
+  if (generation !== modelGeneration || !host.isConnected) return;
+  const cleanup = await mountEnclosure(host);
+  if (generation !== modelGeneration || !host.isConnected) cleanup(); else modelCleanup = cleanup;
+}
 function appView() {
   const settings = customerSettings({h,api,state,refresh,enter});
   const connecting = new URLSearchParams(location.search).has('connect');
-  return [h('h1', null, connecting ? 'Connect your assistant' : 'Your devices'), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), households.node(), ...(!connecting ? [settings] : [])];
+  return [h('div',{class:'portal-heading'},h('p',{class:'box-kicker'},'CUSTOMER PORTAL'),h('h1', null, connecting ? 'Connect your assistant' : 'Your home. In view.'),h('p',{class:'muted'},'Your box, its latest observations, and updates from your team.')), boxOverview(), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), households.node(), ...(!connecting ? [settings] : [])];
 }
 
 // ---------- actions ----------
@@ -145,7 +179,7 @@ async function refresh() {
   renderDevices();
   households.sync();
 }
-function renderDevices() { const el = document.getElementById('devices'); if (el) el.replaceChildren(devicesView()); }
+function renderDevices() { updateOverview(); const el = document.getElementById('devices'); if (el) el.replaceChildren(devicesView()); }
 function stop() { clearTimeout(state.timer); state.timer = null; }
 function schedule() {
   stop();
@@ -161,15 +195,18 @@ async function enter() {
 async function signOut() { stop(); await api('/api/customer/logout', 'POST'); state.user = null; state.devices = null; state.tab = 'signin'; render(); }
 
 function render() {
+  modelGeneration++; modelCleanup?.(); modelCleanup = null;
   photoCleanup?.(); photoCleanup = null;
   const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'Safe Home'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'Safe Home shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
     h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
-  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), ...(state.user ? appView() : guestView())), foot));
-  households.sync();
+  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), ...(preview ? [h('div',{class:'banner'},'Design preview · fictional device data. ',h('a',{href:'/customer?mode=signin'},'Sign in to see your own box')), h('h1',null,'Your home. In view.'),boxOverview()] : state.user ? appView() : guestView())), foot));
+  if (state.user || preview) { startBox(); updateOverview(); }
+  if (!preview) households.sync();
   if(state.user){const photo=h('details',{class:'card',id:'profile',open:location.hash==='#profile'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.user) refresh(); });
-const first = await api('/api/customer/me');
-if (first.ok) { state.user = first.data; render(); await refresh(); schedule(); } else render();
+if (preview) { state.devices = [previewDevice]; render(); }
+const first = preview ? {ok:false} : await api('/api/customer/me');
+if (first.ok) { state.user = first.data; render(); await refresh(); schedule(); } else if (!preview) render();
