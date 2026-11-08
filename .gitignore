@@ -57,3 +57,6 @@ firmware/*/secrets.h
 firmware/.provisioned.json
 
 .playwright-mcp/
+firmware/.mesh-keys.json
+firmware/*/secrets.*.h
+!firmware/*/secrets.example.h

@@ -30,9 +30,8 @@
 // ── Timing ──
 #define SAMPLE_MS          2000    // read sensors
 #define TELEMETRY_MS       30000   // send a full snapshot even when nothing changes
-#define UPLOAD_RETRY_MS    5000
-#define WIFI_RETRY_MS      60000
-#define BOX_B_STALE_MS     30000   // box B considered silent after this
 
-// ESP-NOW channel used when Wi-Fi is not connected. Box B falls back to the same channel.
+#define NODE_STALE_MS      30000   // a neighbour box is "silent" after this
+
+// ESP-NOW channel when no box can see the hotspot. Must match on every box.
 #define FALLBACK_CHANNEL   1
