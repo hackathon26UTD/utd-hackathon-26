@@ -145,3 +145,43 @@ No change is needed to the currently observed parent `accountHandler` call: it a
 Security upgrade behavior is explicit: pre-fix email/timestamp-keyed photo rows are not read or automatically adopted because their owner cannot be proven across email/timestamp reuse. Previously uploaded pre-fix images require re-upload after sign-in; those old rows remain inaccessible until a separately scoped cleanup. Bound v2 photos retain their key across subsequent renames. Existing unbound cookies require signing in again before photo access. No claim is made that old-format images migrate transparently.
 
 The earlier report described an unreachable successful upload as future cleanup. That is now corrected: stale writes are rejected, and successful v2 writes remain attached to the immutable account identity. Physical hardware/history work, simulation fixes, parent UI/account files, email delivery and deployment remain outside this worker change. No subagents were used. The report was already tracked and is staged normally, without force-adding ignored files.
+
+## Round 2 scoped authentication correction
+
+November 8, 2026. Addresses the remaining P1 issuance race in `task-2-rereview.md`. P2's transaction/immutable-photo-key fix is unchanged. Implementation and endpoint regressions pass; independent scoped re-review remains pending.
+
+### Verified snapshot contract
+
+- `src/operator-session.js`: `authenticationAccount` initializes/captures the immutable generation before a password or recovery code is checked. Database-backed issuers now require an explicit `verifiedAccount` snapshot. They conditionally match generation, password hash/salt, creation/password-change times, role, disablement and recovery state on every issuance, including accounts with an existing generation. No email-only identity lookup occurs during signing. Missing/mismatched snapshots fail with 401.
+- Legacy operator login supplies `verifiedLegacy`, captured from the environment before verification. Issuance checks that same expected environment state before/after its DB guard. Verified absence uses insert-only creation; a concurrent replacement cannot be adopted by an upsert.
+- The signed cookie also carries a domain-separated HMAC of the verified credential/lifecycle state. Readers and the exact photo-account check compare it against the current state. A change after the issuance guard invalidates the cookie even if creation/revocation timestamps are identical. No raw credential material is put in cookies, responses or logs.
+- `src/customer.js`: customer login and both registration paths carry the verified existing account or exact newly inserted document into issuance. New registrations assign generation before insertion.
+- `functions/api/session.js`: real operator login verifies the captured DB/environment snapshot and passes it unchanged to the issuer. A failed issuance guard returns 401 without Set-Cookie.
+- `src/customer-self-service.js`: the rename transaction matches the password-verified source snapshot, retains the exact inserted destination document, and passes that committed snapshot to session reissue. The parent's existing `migrateProfilePhoto` import/call and other logic are preserved. Those two pre-existing parent integration lines are retained in this now-authorized file, not claimed as new worker implementation.
+- `functions/api/recovery.js`: recovery does not issue a new session. Its password reset now conditionally targets the exact generation/credential snapshot whose recovery code was verified, then retains existing cookie clearing behavior.
+- `src/profile-photo.js`: awaits the credential-state-aware exact-account check; its photo key and transactional write logic remain unchanged.
+- Fixture issuance in `test/account.test.js`, `test/customer-connect.test.js`, `test/customer.test.js`, and `test/profile-photo.test.js` now supplies explicit trusted snapshots. Signature-only no-database fixture helpers remain unchanged and cannot authenticate a production photo endpoint. `docs/PROFILE_PHOTOS.md` records the updated contract.
+
+### Real-endpoint race evidence
+
+Nine round-2 regressions in `test/profile-photo.test.js` pass:
+
+1. Actual customer login verifies password A; at the guarded issuance operation, the actual parent rename runs, the freed email is recreated with password B and a different generation/photo. Original login returns 401 with no cookie; replacement photo remains accessible only to its owner.
+2. Actual operator login verifies password A; account deletion/replacement with password B happens before issuance. Original login returns 401/no cookie; replacement is signed in through the real endpoint and its photo stays private.
+3. Actual configured legacy login sees an absent DB profile; a provisioned replacement appears before insert-only issuance. Login cannot adopt it and returns 401/no cookie.
+4. Actual legacy login's environment password changes after verification. Expected-environment comparison rejects issuance with 401/no cookie.
+5. Actual profile-only registration's inserted account is replaced before issuance. Registration returns 401/no cookie rather than binding the replacement.
+6. Actual rename commits, then the destination email is replaced before session reissue. Reissue returns 401/no cookie; no replacement-authorized session is produced.
+7. Actual recovery verifies a code, then a different generation is inserted with even the same code material. Guarded reset returns 400, preserving the replacement's password and generation.
+8. Both database-backed issuer APIs reject omitted verified snapshots (401).
+9. Actual operator login passes its guard, then credentials change before signing with no timestamp movement. The signed cookie still represents only the original verified state and is rejected by session/photo readers (401); signing in with the new password works. This is revocation after the linearized guard, not adoption of new credentials.
+
+Tests use disposable local MongoDB and restored in-process database scheduling hooks. Password A/B are synthetic and different. No credentials/cookies were printed, and no production data or services were accessed.
+
+### Final verification
+
+`node --test test/profile-photo.test.js test/operator-login.test.js test/account.test.js test/customer-connect.test.js test/customer.test.js test/homebeacon.test.js test/portal.test.js`: **70 passed, 0 failed, 0 skipped**. The photo file contains 27 passing tests, including all nine round-2 cases and prior P1/P2 coverage. The real Chrome widget test ran.
+
+Pages Functions build passed to `/private/tmp/homebeacon-task2-round2-functions`; only the pre-existing `unenv/whatwg-url` warning remains. Parent separately reported the current-tree full suite at **367/367, zero skips**, log `/tmp/simulation-fulltests.log`; that full-suite run is parent-reported, not rerun by this worker.
+
+Only the scoped authentication/photo callsites, needed tests, photo documentation and this report are included in the worker commit. Parent history/simulation/firmware/UI changes are excluded. No subagents, delivery, deployment or extra feature work occurred. Existing cookies lacking the new credential-state binding need sign-in; pre-fix photo re-upload limitation remains unchanged. Ready for Bohr's scoped re-review, then parent combined browser/release checks.

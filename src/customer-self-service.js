@@ -1,6 +1,7 @@
+import {migrateProfilePhoto} from './profile-photo.js';
 import { ObjectId } from "mongodb";
 import { sha256Hex, newSecret } from "./auth.js";
-import { issueCustomerSession, customerCookie } from "./operator-session.js";
+import { issueCustomerSession, customerCookie, credentialSnapshotFilter } from "./operator-session.js";
 import { matchCustomerAddress } from "./customer-location.js";
 import { ensureCustomerIndexes, makeSerial } from "./customer.js";
 import {
@@ -42,12 +43,13 @@ export function accountHandler(ctx) {
       if (next === email) return reply({ email });
       const account = await reauthenticate(db, ctx.env, email, b.password);
       const session = db.client.startSession();
+      let renamedAccount;
       try {
         await session.withTransaction(async () => {
           // Re-read inside the transaction so simultaneous account changes cannot resurrect an old identity.
           const current = await db
             .collection("customer_accounts")
-            .findOne({ _id: email, hash: account.hash }, { session });
+            .findOne(credentialSnapshotFilter(account), { session });
           if (!current) fail(409, "Account changed. Sign in again.");
           if (
             await db
@@ -58,17 +60,14 @@ export function accountHandler(ctx) {
           const setting = await db
             .collection("customer_assistant_settings")
             .findOne({ _id: email }, { session });
-          await db
-            .collection("customer_accounts")
-            .insertOne(
-              {
-                ...current,
-                _id: next,
-                passwordChangedAt: new Date(),
-                emailVerified: false,
-              },
-              { session },
-            );
+          renamedAccount = {
+            ...current,
+            _id: next,
+            passwordChangedAt: new Date(),
+            emailVerified: false,
+          };
+          await db.collection("customer_accounts").insertOne(renamedAccount, { session });
+          await migrateProfilePhoto(db,{oldEmail:email,newEmail:next,account:current,session});
           await db
             .collection("customer_accounts")
             .deleteOne({ _id: email }, { session });
@@ -126,7 +125,7 @@ export function accountHandler(ctx) {
         200,
         {
           "Set-Cookie": customerCookie(
-            await issueCustomerSession(ctx.env, next),
+            await issueCustomerSession(ctx.env, next, {verifiedAccount:renamedAccount,db}),
           ),
         },
       );

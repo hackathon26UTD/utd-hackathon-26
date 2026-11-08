@@ -3,12 +3,31 @@ import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { MongoClient, Binary, Collection } from 'mongodb';
-import { issueCustomerSession, customerCookie, issueSession, sessionCookie, passwordHash, readSession } from '../src/operator-session.js';
+import { issueCustomerSession as issueCustomerBound, customerCookie, issueSession as issueOperatorBound, sessionCookie, passwordHash, readSession, authenticationAccount, legacyOperatorSnapshot } from '../src/operator-session.js';
 import { validateProfilePhoto, MAX_PHOTO_BYTES, migrateProfilePhoto, profilePhotoKey, PHOTO_COLLECTION } from '../src/profile-photo.js';
 import { onRequest as customerPhoto } from '../functions/api/customer/photo.js';
 import { onRequest as operatorPhoto } from '../functions/api/profile-photo.js';
 import { accountHandler } from '../src/customer-self-service.js';
+import { onRequest as customerLogin } from '../functions/api/customer/login.js';
+import { onRequest as customerRegister } from '../functions/api/customer/register.js';
+import { onRequest as operatorLogin } from '../functions/api/session.js';
+import { onRequestPost as recover } from '../functions/api/recovery.js';
+import { sha256Hex } from '../src/auth.js';
 import { onRequest as middleware } from '../functions/api/_middleware.js';
+// Trusted synthetic fixture issuance supplies explicit snapshots; endpoint race tests below do not use these wrappers for the attacked login.
+async function issueCustomerSession(settings,email) {
+  if(!settings.MONGODB_URI)return issueCustomerBound(settings,email);
+  return issueCustomerBound(settings,email,{verifiedAccount:await authenticationAccount(db,'customer',email),db});
+}
+async function issueSession(settings,email,role='operator',options={}) {
+  if(!settings.MONGODB_URI)return issueOperatorBound(settings,email,role,options);
+  let account=await authenticationAccount(db,'operator',email);
+  if(!account&&email!==settings.OPERATOR_EMAIL) {
+    await db.collection('operator_accounts').insertOne({_id:email,role,sessionGeneration:crypto.randomUUID(),salt:'fixture-salt',hash:'fixture-hash'});
+    account=await authenticationAccount(db,'operator',email);
+  }
+  return issueOperatorBound(settings,email,role,{...options,verifiedAccount:account,verifiedLegacy:legacyOperatorSnapshot(settings),db});
+}
 function crc(b){let c=0xffffffff;for(const byte of b){c^=byte;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}return(c^0xffffffff)>>>0;}
 function chunk(name,data){const type=Buffer.from(name),length=Buffer.alloc(4),checksum=Buffer.alloc(4);length.writeUInt32BE(data.length);checksum.writeUInt32BE(crc(Buffer.concat([type,data])));return Buffer.concat([length,type,data,checksum]);}
 function png(width=1,height=1,raw=Buffer.from([0,255,0,0,255]),extra=[]){const h=Buffer.alloc(13);h.writeUInt32BE(width);h.writeUInt32BE(height,4);h[8]=8;h[9]=6;return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',h),...extra,chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);}
@@ -28,7 +47,7 @@ after(async()=>{await client?.close();await server?.stop();});
 async function call(kind,method='GET',cookie,body,extra={}) {
   const path=kind==='customer'?'/api/customer/photo':'/api/profile-photo';
   const request=new Request('https://home.test'+path+(extra.query||''),{method,headers:{...(cookie?{Cookie:cookie}:{}),Origin:'https://home.test',...(body?{'Content-Type':'image/png'}:{}),...extra.headers},...(body?{body}:{})});
-  return (kind==='customer'?customerPhoto:operatorPhoto)({request,env});
+  return (kind==='customer'?customerPhoto:operatorPhoto)({request,env:extra.env||env});
 }
 test('valid PNG, JPEG and WebP dimensions; reject mismatched MIME and vector payloads',()=>{
   assert.deepEqual(validateProfilePhoto(photo,'image/png'),{width:1,height:1,contentType:'image/png'});
@@ -88,6 +107,8 @@ test('bootstrap operator gets stable generation, role-isolated photo survives sa
   assert.equal((await call('operator','PUT',operator,photo)).status,200);
   const account=await db.collection('operator_accounts').findOne({_id:env.OPERATOR_EMAIL});assert.ok(account.sessionGeneration);
   await db.collection('operator_accounts').updateOne({_id:env.OPERATOR_EMAIL},{$set:{salt:'changed'}});
+  assert.equal((await call('operator','GET',operator)).status,401);
+  operator=sessionCookie(await issueSession(env,env.OPERATOR_EMAIL));
   assert.equal((await call('operator','GET',operator)).status,200);
   assert.equal((await call('customer','GET',a)).status,404);
   assert.equal((await call('operator','DELETE',operator)).status,204);
@@ -173,9 +194,9 @@ test('browser widget uploads resized JPEG, announces errors/removal, cleans up, 
 });
 
 const renamePassword='synthetic-rename-password';
-async function newCustomer(email, createdAt=new Date(1)) {
+async function newCustomer(email, createdAt=new Date(1), password=renamePassword) {
   const salt='synthetic-generation-salt';
-  await db.collection('customer_accounts').insertOne({_id:email,createdAt,salt,hash:await passwordHash(renamePassword,salt)});
+  await db.collection('customer_accounts').insertOne({_id:email,createdAt,salt,hash:await passwordHash(password,salt)});
   const cookie=customerCookie(await issueCustomerSession(env,email));
   return {cookie,account:await db.collection('customer_accounts').findOne({_id:email})};
 }
@@ -217,7 +238,7 @@ test('P1: account-backed and legacy operator email reuse rejects old cookies for
   for(const legacy of [false,true]) {
     const email=legacy?env.OPERATOR_EMAIL:'generation-operator@example.test';
     await db.collection('operator_accounts').deleteOne({_id:email});
-    const fixture={_id:email,createdAt:new Date(1),...(legacy?{}:{role:'operator'}),salt:'identical-salt'};
+    const fixture={_id:email,createdAt:new Date(1),...(legacy?{}:{role:'operator'}),salt:'identical-salt',hash:'fixture-hash'};
     await db.collection('operator_accounts').insertOne(fixture);
     const oldCookie=sessionCookie(await issueSession(env,email,'operator',{accountBacked:!legacy}));
     await db.collection('operator_accounts').deleteOne({_id:email});
@@ -278,7 +299,7 @@ test('P1: revocation or disablement between initial auth and exact snapshot deni
     const accounts=db.collection(kind==='customer'?'customer_accounts':'operator_accounts');
     let cookie;
     if(kind==='customer')cookie=(await newCustomer(email)).cookie;
-    else {await accounts.insertOne({_id:email,role:'operator'});cookie=sessionCookie(await issueSession(env,email,'operator',{accountBacked:true}));}
+    else {await accounts.insertOne({_id:email,role:'operator',salt:'fixture-salt',hash:'fixture-hash'});cookie=sessionCookie(await issueSession(env,email,'operator',{accountBacked:true}));}
     await call(kind,'PUT',cookie,photo);
     const find=Collection.prototype.findOne;let intercepted=false;
     const mock=t.mock.method(Collection.prototype,'findOne',async function(filter,options){
@@ -302,4 +323,163 @@ test('unbound pre-fix cookies cannot adopt a database account or its photos',asy
     for(const method of ['GET','PUT','DELETE'])assert.equal((await call(kind,method,cookie,method==='PUT'?photo:undefined)).status,401);
   }
   assert.equal((await call('customer','GET',customer.cookie)).status,200);
+});
+
+let loginSequence=0;
+async function endpoint(fn,path,body,settings=env,cookie) {
+  return fn({env:settings,db,request:new Request('https://home.test'+path,{method:path.endsWith('/account')?'PATCH':'POST',headers:{Origin:'https://home.test','Content-Type':'application/json','CF-Connecting-IP':`round2-${++loginSequence}`,...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)})});
+}
+const differentPassword='different-synthetic-password-B';
+function issuanceFor(filter,update,email) {
+  return filter._id===email&&filter.sessionGeneration?.$eq&&update?.$set?.sessionGeneration;
+}
+async function assertNoAuthority(response,kind,settings=env) {
+  assert.equal(response.status,401,await response.clone().text());
+  assert.equal(response.headers.get('Set-Cookie'),null);
+  assert.equal((await call(kind,'GET',undefined,undefined,{env:settings})).status,401);
+}
+test('round2: customer login cannot sign a replacement generation after checking the original password',async t=>{
+  const email='login-swap-customer@example.test', original=await newCustomer(email);
+  const operation=Collection.prototype.findOneAndUpdate;let intercepted=false,replacement;
+  const mock=t.mock.method(Collection.prototype,'findOneAndUpdate',async function(filter,update,options){
+    if(this.collectionName==='customer_accounts'&&issuanceFor(filter,update,email)&&!intercepted) {
+      intercepted=true;
+      await renameCustomer(original.cookie,'renamed-login-swap@example.test');
+      replacement=await newCustomer(email,new Date(),differentPassword);
+      assert.equal((await call('customer','PUT',replacement.cookie,photo)).status,200);
+    }
+    return operation.call(this,filter,update,options);
+  });
+  let response;
+  try{response=await endpoint(customerLogin,'/api/customer/login',{email,password:renamePassword});}finally{mock.mock.restore();}
+  assert.ok(intercepted);await assertNoAuthority(response,'customer');
+  assert.deepEqual(Buffer.from(await (await call('customer','GET',replacement.cookie)).arrayBuffer()),photo);
+});
+test('round2: operator login cannot sign a replacement generation after checking the original password',async t=>{
+  const email='login-swap-operator@example.test', salt='operator-race-salt';
+  await db.collection('operator_accounts').insertOne({_id:email,role:'operator',salt,hash:await passwordHash(renamePassword,salt),createdAt:new Date(1)});
+  const operation=Collection.prototype.findOneAndUpdate;let intercepted=false,replacementCookie;
+  const mock=t.mock.method(Collection.prototype,'findOneAndUpdate',async function(filter,update,options){
+    if(this.collectionName==='operator_accounts'&&issuanceFor(filter,update,email)&&!intercepted) {
+      intercepted=true;
+      await this.deleteOne({_id:email});
+      await this.insertOne({_id:email,role:'operator',salt,hash:await passwordHash(differentPassword,salt),createdAt:new Date(),sessionGeneration:crypto.randomUUID()});
+      const replacement=await endpoint(operatorLogin,'/api/session',{email,password:differentPassword});
+      assert.equal(replacement.status,200);replacementCookie=replacement.headers.get('Set-Cookie');
+      assert.equal((await call('operator','PUT',replacementCookie,photo)).status,200);
+    }
+    return operation.call(this,filter,update,options);
+  });
+  let response;
+  try{response=await endpoint(operatorLogin,'/api/session',{email,password:renamePassword});}finally{mock.mock.restore();}
+  assert.ok(intercepted);await assertNoAuthority(response,'operator');
+  assert.deepEqual(Buffer.from(await (await call('operator','GET',replacementCookie)).arrayBuffer()),photo);
+});
+test('round2: legacy absent-profile login cannot adopt a concurrent provisioned account',async t=>{
+  const email='legacy-absent-race@example.test',salt='legacy-race-salt';
+  const settings={...env,OPERATOR_EMAIL:email,OPERATOR_PASSWORD_SALT:salt,OPERATOR_PASSWORD_HASH:await passwordHash(renamePassword,salt)};
+  const insert=Collection.prototype.insertOne;let intercepted=false,replacementCookie;
+  const mock=t.mock.method(Collection.prototype,'insertOne',async function(doc,options){
+    if(this.collectionName==='operator_accounts'&&doc._id===email&&doc.sessionGeneration&&!intercepted){
+      intercepted=true;
+      await insert.call(this,{_id:email,role:'operator',salt,hash:await passwordHash(differentPassword,salt),sessionGeneration:crypto.randomUUID()});
+      const replacement=await endpoint(operatorLogin,'/api/session',{email,password:differentPassword},settings);
+      assert.equal(replacement.status,200);replacementCookie=replacement.headers.get('Set-Cookie');
+      assert.equal((await call('operator','PUT',replacementCookie,photo,{env:settings})).status,200);
+    }
+    return insert.call(this,doc,options);
+  });
+  let response;
+  try{response=await endpoint(operatorLogin,'/api/session',{email,password:renamePassword},settings);}finally{mock.mock.restore();}
+  assert.ok(intercepted);await assertNoAuthority(response,'operator',settings);
+  assert.equal((await call('operator','GET',replacementCookie,undefined,{env:settings})).status,200);
+});
+test('round2: legacy environment credentials changed after verification are not silently adopted',async t=>{
+  const email='legacy-environment-race@example.test',salt='legacy-environment-salt';
+  const settings={...env,OPERATOR_EMAIL:email,OPERATOR_PASSWORD_SALT:salt,OPERATOR_PASSWORD_HASH:await passwordHash(renamePassword,salt)};
+  await db.collection('operator_accounts').insertOne({_id:email,sessionGeneration:crypto.randomUUID()});
+  const changedHash=await passwordHash(differentPassword,salt),operation=Collection.prototype.findOneAndUpdate;
+  let intercepted=false;
+  const mock=t.mock.method(Collection.prototype,'findOneAndUpdate',async function(filter,update,options){
+    if(this.collectionName==='operator_accounts'&&issuanceFor(filter,update,email)&&!intercepted){intercepted=true;settings.OPERATOR_PASSWORD_HASH=changedHash;}
+    return operation.call(this,filter,update,options);
+  });
+  let response;
+  try{response=await endpoint(operatorLogin,'/api/session',{email,password:renamePassword},settings);}finally{mock.mock.restore();}
+  assert.ok(intercepted);await assertNoAuthority(response,'operator',settings);
+});
+test('round2: registration binds only the exact inserted profile, never a replacement before issuance',async t=>{
+  const email='registration-issuance-race@example.test';
+  const operation=Collection.prototype.findOneAndUpdate;let intercepted=false,replacement;
+  const mock=t.mock.method(Collection.prototype,'findOneAndUpdate',async function(filter,update,options){
+    if(this.collectionName==='customer_accounts'&&issuanceFor(filter,update,email)&&!intercepted){
+      intercepted=true;await this.deleteOne({_id:email});replacement=await newCustomer(email,new Date(),differentPassword);
+      await call('customer','PUT',replacement.cookie,photo);
+    }
+    return operation.call(this,filter,update,options);
+  });
+  let response;
+  try{response=await endpoint(customerRegister,'/api/customer/register',{email,password:renamePassword,contactName:'Synthetic owner',consent:false,acceptTerms:true});}finally{mock.mock.restore();}
+  assert.ok(intercepted);await assertNoAuthority(response,'customer');
+  assert.equal((await call('customer','GET',replacement.cookie)).status,200);
+});
+test('round2: rename reissue uses the committed destination snapshot, not a new email lookup',async t=>{
+  const original=await newCustomer('rename-reissue-original@example.test'),next='rename-reissue-next@example.test';
+  const operation=Collection.prototype.findOneAndUpdate;let intercepted=false,replacement;
+  const mock=t.mock.method(Collection.prototype,'findOneAndUpdate',async function(filter,update,options){
+    if(this.collectionName==='customer_accounts'&&issuanceFor(filter,update,next)&&!intercepted){
+      intercepted=true;await this.deleteOne({_id:next});replacement=await newCustomer(next,new Date(),differentPassword);
+      await call('customer','PUT',replacement.cookie,photo);
+    }
+    return operation.call(this,filter,update,options);
+  });
+  let response;
+  try{response=await endpoint(accountHandler,'/api/customer/account',{email:next,confirmEmail:next,password:renamePassword},env,original.cookie);}finally{mock.mock.restore();}
+  assert.ok(intercepted);await assertNoAuthority(response,'customer');
+  assert.equal((await call('customer','GET',replacement.cookie)).status,200);
+});
+test('round2: recovery updates only the account snapshot whose code was verified',async t=>{
+  const email='recovery-snapshot-race@example.test',salt='recovery-race-salt',code='synthetic-recovery-code';
+  const recoveryHash=await sha256Hex(code),replacementHash=await passwordHash(differentPassword,salt);
+  await db.collection('operator_accounts').insertOne({_id:email,role:'operator',salt,hash:await passwordHash(renamePassword,salt),recoveryHash});
+  const updateOne=Collection.prototype.updateOne;let intercepted=false,replacementGeneration;
+  const mock=t.mock.method(Collection.prototype,'updateOne',async function(filter,update,options){
+    if(this.collectionName==='operator_accounts'&&filter._id===email&&filter.sessionGeneration?.$eq&&update.$unset?.recoveryHash!==undefined&&!intercepted){
+      intercepted=true;await this.deleteOne({_id:email});replacementGeneration=crypto.randomUUID();
+      // Even identical recovery-code material must not authorize a different account generation.
+      await this.insertOne({_id:email,role:'operator',salt,hash:replacementHash,recoveryHash,sessionGeneration:replacementGeneration});
+    }
+    return updateOne.call(this,filter,update,options);
+  });
+  let response;
+  try{response=await endpoint(recover,'/api/recovery',{email,recoveryCode:code,password:'synthetic-reset-password'});}finally{mock.mock.restore();}
+  assert.ok(intercepted);assert.equal(response.status,400);assert.equal(response.headers.get('Set-Cookie'),null);
+  const saved=await db.collection('operator_accounts').findOne({_id:email});assert.equal(saved.hash,replacementHash);assert.equal(saved.sessionGeneration,replacementGeneration);
+});
+test('round2: database-backed issuers reject missing verified snapshots',async()=>{
+  await assert.rejects(issueCustomerBound(env,'a@example.test'),{status:401});
+  await assert.rejects(issueOperatorBound(env,env.OPERATOR_EMAIL),{status:401});
+});
+
+test('round2: credentials changed after issuance guard invalidate the signed snapshot even without timestamp movement',async t=>{
+  const email='post-guard-credentials@example.test',salt='post-guard-salt';
+  const replacementHash=await passwordHash(differentPassword,salt);
+  await db.collection('operator_accounts').insertOne({_id:email,role:'operator',salt,hash:await passwordHash(renamePassword,salt)});
+  const operation=Collection.prototype.findOneAndUpdate;let intercepted=false;
+  const mock=t.mock.method(Collection.prototype,'findOneAndUpdate',async function(filter,update,options){
+    const bound=await operation.call(this,filter,update,options);
+    if(this.collectionName==='operator_accounts'&&issuanceFor(filter,update,email)&&!intercepted){
+      intercepted=true;await this.updateOne({_id:email},{$set:{hash:replacementHash}});
+    }
+    return bound;
+  });
+  let response;
+  try{response=await endpoint(operatorLogin,'/api/session',{email,password:renamePassword});}finally{mock.mock.restore();}
+  assert.ok(intercepted);assert.equal(response.status,200);
+  // It may have been signed after the concurrent change, but carries only the verified OLD state.
+  const staleCookie=response.headers.get('Set-Cookie');
+  assert.equal(await readSession(new Request('https://home.test',{headers:{Cookie:staleCookie}}),env),null);
+  assert.equal((await call('operator','GET',staleCookie)).status,401);
+  const fresh=await endpoint(operatorLogin,'/api/session',{email,password:differentPassword});
+  assert.equal(fresh.status,200);assert.ok(await readSession(new Request('https://home.test',{headers:{Cookie:fresh.headers.get('Set-Cookie')}}),env));
 });
