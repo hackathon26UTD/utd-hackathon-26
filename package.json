@@ -21,7 +21,8 @@
     "firmware:build": "node scripts/firmware.mjs build",
     "provision": "node scripts/provision-boxes.mjs",
     "system:demo": "node scripts/system-demo.mjs",
-    "nvidia:check": "node scripts/check-nvidia.mjs"
+    "nvidia:check": "node scripts/check-nvidia.mjs",
+    "data": "node scripts/data-admin.mjs"
   },
   "repository": {
     "type": "git",

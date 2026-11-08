@@ -1,3 +1,4 @@
+import {showDataTool} from './data-tools.js';
 // Geographic inspection card. Kit factories compose the card and evidence disclosure.
 import { STATUS_LABEL, HELP_LABEL, HELP_STATUSES, MSG_STATE_TEXT, ageText, displayStatus, linkText, readingRows, latestFromValues, sparkline, messageState, failText, devicesInBbox } from './core.js';
 import { setHtml, dateTimeText, toast } from './dom.js';
@@ -108,7 +109,7 @@ export function mountDetail(ctx) {
 ${corr.length ? `<h3>Area context</h3><ul class="reasons">${corr.map(c => `<li>${esc(c.text)}</li>`).join('')}</ul>` : ''}
 ${power ? `<dl class="mini"><div><dt>Mains</dt><dd>${power.mains === true ? 'Connected' : power.mains === false ? 'Lost' : 'Not reported'}</dd></div><div><dt>Battery</dt><dd>${power.battery_pct == null ? 'Not reported' : esc(power.battery_pct) + '%'}</dd></div><div><dt>Power mode</dt><dd>${esc(power.mode === 'saver' ? 'Power save mode' : power.mode === 'critical' ? 'Critical power save' : power.mode === 'normal' ? 'Normal' : 'Not reported')}</dd></div></dl>` : ''}
 <p class="muted">Last report ${esc(ageText(p.lastSeen || p.observedAt, now))}${p.observedAt ? ' · ' + esc(dateTimeText(p.observedAt)) : ''}</p>
-<div class="actions"><button class="primary" id="d-send"${writeOff()}>Send message to this home</button><button id="follow"${writeOff()}>Record follow-up</button></div>${ctx.demo ? '<p class="soft-note">Exercise mode is read only. Sending and notes are turned off.</p>' : ''}
+<div class="actions"><button class="primary" id="d-send"${writeOff()}>Send message to this home</button><button id="follow"${writeOff()}>Record follow-up</button>${ctx.demo ? '' : '<button data-data-tool="location">Location image</button><button data-data-tool="stats">History and averages</button><button data-data-tool="response">Preview responder message</button><button data-data-tool="settings">Board message polling</button>'}</div>${ctx.demo ? '<p class="soft-note">Exercise mode is read only. Sending and notes are turned off.</p>' : ''}
 <p><small>${esc(risk?.advisory || ADVISORY)}</small></p>`;
   }
 
@@ -162,6 +163,7 @@ ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slic
   $('#detail').addEventListener('click', async e => {
     const t = e.target.closest('button');
     if (!t) return;
+    if(t.dataset.dataTool){const p=S.props.find(p=>p.id===S.selectedId);if(p)return showDataTool(ctx,t.dataset.dataTool,p);}
     if (t.id === 'detail-close') return ctx.closeDetail();
     if (t.dataset.tab) { S.detailTab = t.dataset.tab; render(); $('#tab-' + S.detailTab)?.focus(); return; }
     if (t.dataset.pick) return ctx.select(t.dataset.pick, { fly: true });

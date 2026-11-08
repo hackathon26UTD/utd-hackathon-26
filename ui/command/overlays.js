@@ -46,7 +46,7 @@ export function mountOverlays(ctx) {
       const chip = src ? `<span class="chip src-${esc(src.status)}">${esc(SOURCE_STATUS_TEXT[src.status] || src.status)}</span>` : '';
       const age = m.hb ? overlayNote(o.id, m.hb) : src?.fetchedAt ? `Updated ${ageText(src.fetchedAt)}` : '';
       const state = m.error ? `<small class="bad-text">${esc(m.error)}</small>` : '';
-      return `<li class="ov-row"><label class="check"><input type="checkbox" data-ov="${esc(o.id)}"${on ? ' checked' : ''}${needsKey || ctx.demo ? ' disabled' : ''}><span><strong>${esc(o.name)}</strong> ${chip}<small>${esc(o.note)}</small>${src?.coverage?.area ? `<small>Coverage: ${esc(src.coverage.area)}</small>` : ''}${src?.note ? `<small>${esc(src.note)}</small>` : ''}${age ? `<small>${esc(age)}</small>` : ''}${m.count !== undefined && on ? `<small>${esc(m.count)} shapes in view</small>` : ''}${zoomHint ? `<small>${esc(zoomHint)}</small>` : ''}${state}</span></label></li>`;
+      return `<li class="ov-row"><label class="check"><input type="checkbox" data-ov="${esc(o.id)}"${on ? ' checked' : ''}${needsKey || ctx.demo ? ' disabled' : ''}><span><strong>${esc(o.name)}</strong> ${chip}<small>${esc(o.note)}</small>${src?.coverage?.area ? `<small>Coverage: ${esc(src.coverage.area)}</small>` : ''}${src?.note ? `<small>${esc(src.note)}</small>` : ''}${age ? `<small>${esc(age)}</small>` : ''}${m.count !== undefined && on ? `<small>${esc(m.count)} shapes in view</small>` : ''}${zoomHint ? `<small>${esc(zoomHint)}</small>` : ''}${m.extra?.series?.length ? '<details><summary>Regional grid series</summary>'+m.extra.series.slice(-3).map(r=>'<p>'+esc(r.at||r.period||'Time not supplied')+'<br>Demand: '+esc(r.demand??r.value??'Not supplied')+' '+esc(r.unit||'Unit not supplied')+(r.capacity!=null?'<br>Capacity: '+esc(r.capacity)+' '+esc(r.unit||''):'')+'</p>').join('')+'</details>' : ''}${state}</span></label></li>`;
     }).join('');
     const zonesRows = S.zones.map(f => {
       const p = f.properties, t = ZONE_TYPES[p.type] || ZONE_TYPES.custom;
@@ -109,7 +109,7 @@ export function mountOverlays(ctx) {
     const r = await api(overlayUrl(id, mv.bbox()));
     if (r.ok && r.data) {
       mv.setExt(id, r.data);
-      S.ov[id] = { hb: r.data.hb || null, count: (r.data.features || []).length, error: '' };
+      S.ov[id] = { hb: r.data.hb || null, count: (r.data.features || []).length, extra:r.data.extra||null, error: '' };
     } else if (r.status === 401) {
       S.ov[id] = { ...S.ov[id], error: ctx.demo ? 'Sign in to load public layers.' : failText(401) };
     } else {
@@ -276,6 +276,7 @@ ${feature ? `<div class="actions"><button type="button" id="zone-redraw">Redraw 
   };
   $('#zone-fields').addEventListener('input', e => { if (e.target.name === 'name') $('#zname-count').textContent = `${e.target.value.length}/80`; });
 
+  setInterval(()=>{if(!document.hidden&&!ctx.demo){loadFeeds();for(const id of S.ovOn)if(OVERLAYS.some(o=>o.id===id))loadOverlay(id);}},60000);
   return { render, toggle, loadZones, loadFeeds, selectZone, addPoint, reloadVisible, isDrawing: () => !!S.drawing, reloadAll: () => { for (const id of S.ovOn) if (OVERLAYS.some(o => o.id === id)) loadOverlay(id); } };
 }
 

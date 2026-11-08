@@ -1,3 +1,4 @@
+import { archiveFeedSnapshot } from './data-store.js';
 // Feed cache: the server fetches public hazard feeds, stores them in Mongo and serves them to the map.
 // The browser never calls an upstream. Missing data stays unknown; old data is returned flagged `stale`.
 import { FeedError } from './feed-error.js';
@@ -178,6 +179,7 @@ export async function refreshLayer(db, env, layerId, bbox, { fetcher, now = new 
       if (r instanceof Error || !r) { failure = r || new FeedError(502, 'The source returned nothing.'); continue; }
       const doc = buildDoc(layer, t.key, r, now);
       await db.collection('feed_cache').replaceOne({ _id: doc._id }, doc, { upsert: true });
+      await archiveFeedSnapshot(db, doc);
       have.set(doc._id, doc);
       refreshed++;
     }
