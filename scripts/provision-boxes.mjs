@@ -1,4 +1,4 @@
-// One-time setup for the mesh boxes. Needs API_ADMIN_KEY (from Ayan) and WIFI_SSID/WIFI_PASS in .env.
+// One-time setup for the mesh boxes. Uses API_ADMIN_KEY and WIFI_SSID/WIFI_PASS from the environment, .env or .dev.vars.
 //
 //   npm run provision -- --box A=AA:BB:CC:DD:EE:01 --box B=AA:BB:CC:DD:EE:02 [--box C=...] [--lat 32.98 --lon -96.75]
 //
@@ -10,7 +10,7 @@
 // Every file has the same MESH_NODES table (each box can upload for the others); only MY_NODE_ID differs.
 // Created ids are remembered in firmware/.provisioned.json; device keys are written only to the
 // secrets files and never printed. --force registers new devices.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, chmodSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +29,14 @@ if (opt('a-mac')) boxes.push(`A=${opt('a-mac')}`);
 if (opt('b-mac')) boxes.push(`B=${opt('b-mac')}`);
 
 const fail = (m) => { console.error(m); process.exit(1); };
-if (!env.API_ADMIN_KEY) fail('API_ADMIN_KEY missing in .env (get it from Ayan).');
+if (argv.includes('--help')) { console.log('Check access: npm run provision -- --check\nProvision: npm run provision -- --box A=<mac> --box B=<mac>\nPrivate settings load from environment, .env, then .dev.vars. Never put the admin key on a board.'); process.exit(0); }
+if (!env.API_ADMIN_KEY) fail('API_ADMIN_KEY is missing from environment, .env and .dev.vars. Import the existing project key privately, then run npm run provision -- --check. Do not rotate the shared server key to fix one laptop.');
+const BASE = (env.API_BASE || 'https://utd-hackathon-26.pages.dev').replace(/\/$/, '');
+const target = new URL(BASE);
+if(target.protocol!=='https:' && !(target.protocol==='http:' && ['localhost','127.0.0.1','[::1]'].includes(target.hostname)))fail('API_BASE must use HTTPS, or local HTTP for development.');
+if(argv.includes('--check')) {
+ try { const r=await fetch(BASE+'/api/devices?limit=1',{headers:{Authorization:`Bearer ${env.API_ADMIN_KEY}`},redirect:'error',signal:AbortSignal.timeout(15000)}); if(!r.ok)fail('Provisioning access failed: HTTP '+r.status+'. The key was not printed.');console.log('Provisioning access verified. No homes, devices or keys were changed.');process.exit(0); }catch{fail('Could not check provisioning access. Verify API_BASE and connection. No key was printed.');}
+}
 if (!env.WIFI_SSID || !env.WIFI_PASS) fail('Add WIFI_SSID and WIFI_PASS (2.4 GHz hotspot) to .env.');
 const parsed = boxes.map((b) => { const [id, mac] = String(b).split('='); return { id: (id || '').toUpperCase(), mac: (mac || '').toUpperCase() }; });
 if (parsed.length < 2) fail('Pass at least two boxes: --box A=<mac> --box B=<mac> (type `mac` in each serial monitor).');
@@ -40,9 +47,8 @@ for (const b of parsed) {
 if (parsed.length > 8) fail('At most 8 boxes (ESP-NOW encrypted peer limit).');
 const lat = Number(opt('lat') ?? 32.9857), lon = Number(opt('lon') ?? -96.7502);  // default: UT Dallas
 
-const BASE = (env.API_BASE || 'https://utd-hackathon-26.pages.dev').replace(/\/$/, '');
 async function api(method, path, body) {
-  const r = await fetch(BASE + path, { method, headers: { Authorization: `Bearer ${env.API_ADMIN_KEY}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const r = await fetch(BASE + path, { method, redirect:'error', headers: { Authorization: `Bearer ${env.API_ADMIN_KEY}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`${method} ${path} -> HTTP ${r.status}: ${j.error || ''}`);
   return j;
@@ -62,7 +68,7 @@ for (const [i, b] of parsed.entries()) {
     s.homeId = home.id || home._id; console.log(`home ${b.id}: ${s.homeId}`);
   }
   if (!s.deviceId || !keys.devices[b.id]) {
-    const { device, deviceKey } = await api('POST', '/api/devices', { name: `HomeBeacon box ${b.id}`, type: b.id === 'A' ? 'xiao-esp32s3-sense' : 'esp32', meta: { mac: b.mac } });
+    const { device, deviceKey } = await api('POST', '/api/devices', { name: `Safe Home box ${b.id}`, type: b.id === 'A' ? 'xiao-esp32s3-sense' : 'esp32', meta: { mac: b.mac } });
     s.deviceId = device.id; keys.devices[b.id] = deviceKey;
     await api('PATCH', `/api/beacon/devices/${s.deviceId}/home`, { home_id: s.homeId });
     console.log(`device ${b.id}: ${s.deviceId} (assigned to its home)`);
@@ -83,9 +89,11 @@ const file = (id) => [
 
 for (const b of parsed) {
   const out = b.id === 'A' ? 'firmware/box_a/secrets.h' : b.id === 'B' ? 'firmware/box_b/secrets.h' : `firmware/box_b/secrets.${b.id}.h`;
-  writeFileSync(join(ROOT, out), file(b.id));
+  writeFileSync(join(ROOT, out), file(b.id), {mode:0o600});
+  chmodSync(join(ROOT, out),0o600);
   console.log(`wrote ${out}`);
 }
 writeFileSync(STATE, JSON.stringify(state, null, 2));
-writeFileSync(KEYS, JSON.stringify(keys, null, 2));
+writeFileSync(KEYS, JSON.stringify(keys, null, 2), {mode:0o600});
+chmodSync(KEYS,0o600);
 console.log('Flash every box now. Extra boxes: copy firmware/box_b/secrets.<ID>.h over secrets.h before flashing the box_b sketch.');

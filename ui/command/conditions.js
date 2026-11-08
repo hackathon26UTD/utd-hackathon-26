@@ -2,7 +2,7 @@
 // browser-side fallback used when the timeline service has not answered. No DOM, no fetch.
 // Safety rules: missing data is unknown, a stale critical reading stays critical (marked last known),
 // nothing here infers occupancy, safe entry, damage, insurance coverage or dispatch.
-import { displayStatus, STATUS_LABEL, readingRows, latestFromValues, ageText } from './core.js';
+import { observationClock, observationFreshMs, displayStatus, STATUS_LABEL, readingRows, latestFromValues, ageText } from './core.js';
 
 export const ADVISORY_LINE = 'Advisory only. A person must review this.';
 export const OBSERVATION_FRESH_S = 120;
@@ -56,6 +56,7 @@ const WHY = {
 
 // Plain sentences for the Conditions tab. Same shape the timeline service returns in `conditions`.
 export function deriveConditions({ p, risk, latest, now = Date.now(), exercise = false } = {}) {
+  now=observationClock(p,now);
   const shown = displayStatus(p || {}, now);
   const status = shown.status;
   const reasons = reasonList(p, risk);
@@ -81,7 +82,7 @@ export function deriveConditions({ p, risk, latest, now = Date.now(), exercise =
   if (shown.lastKnown && status !== 'unknown') why.push('The tier shown is the last known condition. It stays until a newer report replaces it, because quiet is not the same as clear.');
   let freshness;
   if (!seen) freshness = 'No report has arrived, so there is no data age to show.';
-  else if (shown.silent) freshness = `The last report was ${seenAge}. That is older than 15 minutes, so everything here is last known, not current.`;
+  else if (shown.silent) freshness = `The last report was ${seenAge}. That exceeds the ${observationFreshMs(p,15*60000)/60000}-minute reporting limit, so these values are last known.`;
   else freshness = `The last report was ${seenAge}. Reports usually arrive every few minutes.`;
   const unknown = ['Whether anyone is at the home. This product does not infer that.', 'What the box recorded on its own storage, and which relay path it used. Neither is reported to the cloud.'];
   if (missing.length) unknown.unshift('Not reported: ' + missing.slice(0, 8).join(', ') + '. Not reported means unknown, not zero.');
@@ -128,6 +129,7 @@ function exerciseLead(p, shown, base) {
 // Builds the same document the timeline service returns, from what the browser already has.
 // `D` is the /api/ops/device response when it exists. Everything here is labeled derived.
 export function deriveTimeline({ p, D = null, now = Date.now(), exercise = false, reason = 'service' } = {}) {
+  now=observationClock(p,now);
   const dev = D?.data?.device || D?.data || {};
   const risk = dev.risk || D?.data?.risk || p?.risk || null;
   const latest = dev.latest || D?.data?.latest || p?.live?.latest || latestFromValues(p?.values, p?.observedAt);
@@ -138,14 +140,16 @@ export function deriveTimeline({ p, D = null, now = Date.now(), exercise = false
   const events = [];
   const add = e => { if (e && time(e.at) !== null) events.push(e); };
 
-  if (exercise && !D?.data) for (const e of exerciseLead(p, shown, seenAt ?? now)) add(e);
+  const studio=p?.synthetic===true&&p?.source==='simulation-studio';
+  if(studio)for(const e of p.simulationEvents||[])add(e);
+  else if (exercise && !D?.data) for (const e of exerciseLead(p, shown, seenAt ?? now)) add(e);
   for (const [sensor, r] of Object.entries(latest || {})) {
     if (r?.value === undefined || r.value === null || !r.ts) continue;
     const row = readingRows({ [sensor]: r }, now).flatMap(g => g.rows).find(x => x.sensor === sensor && x.reported);
     if (row) add(ev('observation', r.ts, `${row.label}: ${row.text}`, { kind: 'reading', refs: [`reading:${sensor}`], simulated: exercise }));
   }
   for (const l of D?.data?.logs || []) add(ev('cloud_ingest', l.at || l.ts, `${l.code ? l.code + ': ' : ''}${l.msg || 'Log entry'}`, { kind: 'log', level: l.level === 'error' ? 'critical' : l.level === 'warn' ? 'warn' : 'info', refs: [`log:${l.id || l.code || ''}`] }));
-  for (const i of D?.data?.incidents || []) add(ev('rules_latch', i.updatedAt || i.openedAt || i.createdAt, i.title || i.summary || `Incident ${i.status || 'open'}`, { kind: 'incident', level: i.severity === 'critical' ? 'critical' : 'warn', refs: [`incident:${i.id || i._id || ''}`] }));
+  for (const i of (studio ? [] : D?.data?.incidents || [])) add(ev('rules_latch', i.updatedAt || i.openedAt || i.createdAt, i.title || i.summary || `Incident ${i.status || 'open'}`, { kind: 'incident', level: i.severity === 'critical' ? 'critical' : 'warn', refs: [`incident:${i.id || i._id || ''}`] }));
   for (const m of D?.data?.messages || []) add(ev('message_help', m.updatedAt || m.createdAt, `Message "${m.title}" ${String(m.state || 'queued').replace(/_/g, ' ')}`, { kind: 'message', refs: [`message:${m.id}`] }));
   for (const h of help?.history || D?.data?.helpHistory || []) add(ev('message_help', h.updatedAt || h.at, `Help status set to ${String(h.status || 'none').replace(/_/g, ' ')}`, { kind: 'help', refs: [`help:${h.updatedAt || h.at}`] }));
   const topReason = reasonList(p, risk)[0];
@@ -162,9 +166,9 @@ export function deriveTimeline({ p, D = null, now = Date.now(), exercise = false
   const messages = D?.data?.messages || [];
   const helpOn = help?.status && help.status !== 'none';
   const tier = shown.status;
-  const open = (D?.data?.incidents || []).length;
+  const open = (studio ? p.incidents || [] : D?.data?.incidents || []).length;
   const nodes = [
-    { id: 'observation', status: seenAt === null ? 'unknown' : obsAgeS <= OBSERVATION_FRESH_S ? 'ok' : 'stale', lastAt: seenAt === null ? null : iso(seenAt), source: 'derived', note: seenAt === null ? 'No reading received.' : `Newest reading arrived ${ageText(iso(seenAt), now)}.` },
+    { id: 'observation', status: seenAt === null ? 'unknown' : obsAgeS <= observationFreshMs(p,OBSERVATION_FRESH_S*1000)/1000 ? 'ok' : 'stale', lastAt: seenAt === null ? null : iso(seenAt), source: 'derived', note: seenAt === null ? 'No reading received.' : `Newest reading arrived ${ageText(iso(seenAt), now)}.` },
     { id: 'local_record', status: 'not_reported', lastAt: null, source: 'not_recorded', note: 'The box keeps its own record. It is not reported to the cloud.' },
     { id: 'gateway_mesh', status: 'unknown', lastAt: null, source: 'not_recorded', note: wan === false ? 'The box reported its internet link as lost. The relay path is unknown.' : wan === true ? 'The box reported its internet link as connected. The relay path is unknown.' : 'The relay path is not reported.' },
     { id: 'cloud_ingest', status: seenAt === null ? 'unknown' : 'ok', lastAt: seenAt === null ? null : iso(seenAt), source: 'derived', note: reason === 'exercise' ? 'Receipt detail is not part of the exercise data.' : 'Receipt detail comes from the timeline service, which has not answered. Showing what the summary holds.' },

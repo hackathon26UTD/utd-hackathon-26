@@ -6,7 +6,7 @@ import { matchCustomerAddress } from './customer-location.js';
 import { withDatabase } from '../lib/mongodb.js';
 import { HttpError, badRequest, notFound } from './http.js';
 import { sha256Hex, isAdmin } from './auth.js';
-import { passwordHash, equal, sameOrigin, issueCustomerSession, readCustomerSession, customerCookie } from './operator-session.js';
+import { passwordHash, equal, sameOrigin, issueCustomerSession, readCustomerSession, customerCookie, authenticationAccount } from './operator-session.js';
 
 export const FAIL_TEXT = 'Those details do not match an available device.';
 export const LOGIN_FAIL_TEXT = 'Email or password is incorrect.';
@@ -84,6 +84,9 @@ const loadRiskMod = () => tryImport('risk', () => import('./risk/load.js'));
 const customerViewMod = () => tryImport('view', () => import('./risk/customer.js'));
 const liveMod = () => tryImport('live', () => import('./live.js'));
 const messagesMod = () => tryImport('messages', () => import('./messages.js'));
+const emailMod = () => tryImport('email-events', () => import('./email-events.js'));
+// Email is fire-and-forget: it can never fail or slow the request. Off unless RESEND_API_KEY is set.
+const mail = (ctx, name, args) => { try { emailMod().then(m => m?.fire(ctx, (db, env) => m[name](db, env, args))).catch(() => {}); } catch { /* ignore */ } };
 
 async function depsFor(ctx) {
   const d = ctx.deps || {};
@@ -166,7 +169,7 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
     throw new ClaimFailed();
   }
   const matched = address === undefined ? null : await matchCustomerAddress(address, deps.fetcher);
-  const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName, nickname: nickname || 'My HomeBeacon', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
+  const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName, nickname: nickname || 'My Safe Home', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
   const actor = await customerActor(email);
   const session = db.client.startSession();
   try {
@@ -268,7 +271,7 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
     try { messages = deps.customerMessages ? await deps.customerMessages(db, link.deviceId, now) : []; } catch { messages = []; }
     const help = helpOf.get(link.deviceId);
     out.push({
-      id: link._id, nickname: link.nickname || 'My HomeBeacon', exercise: link.exercise === true,
+      id: link._id, nickname: link.nickname || 'My Safe Home', exercise: link.exercise === true,
       ...base, lastSeen: lastSeen ? new Date(lastSeen).toISOString() : null,
       messages: (messages || []).slice(0, 5).map(m => ({ id: String(m.id), title: String(m.title ?? '').slice(0, 20), body: String(m.body ?? '').slice(0, 80), severity: m.severity, expiresAt: m.expiresAt })),
       help: { status: help?.status || 'none', text: HELP_TEXT[help?.status || 'none'], note: help?.note || '', updatedAt: help?.updatedAt ? new Date(help.updatedAt).toISOString() : null },
@@ -280,7 +283,7 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
 // ---------- route handlers ----------
 const run = (ctx, fn) => ctx.db ? fn(ctx.db) : withDatabase(ctx.env, fn);
 const originOk = request => sameOrigin(request) || false;
-const originError = () => reply({ error: 'This request must come from HomeBeacon.' }, 403);
+const originError = () => reply({ error: 'This request must come from Safe Home.' }, 403);
 
 async function signedIn(ctx, db) {
   const session = await readCustomerSession(ctx.request, ctx.env, db);
@@ -312,7 +315,7 @@ const routes = {
       if (serial && !await takeAttempt(db, await rateKey(ctx.env, 'cust-serial', serial), 5, now)) return tooMany();
       const deps = await depsFor(ctx);
       const accounts = db.collection('customer_accounts');
-      const existing = await accounts.findOne({ _id: email });
+      const existing = await authenticationAccount(db, 'customer', email);
       // Hash on every path so timing does not reveal whether the email is registered.
       const salt = existing?.salt || crypto.randomUUID();
       const hash = await passwordHash(password, salt);
@@ -320,21 +323,25 @@ const routes = {
       const wantsDevice = body.serial !== undefined || body.code !== undefined;
       if (!wantsDevice) {
         if (existing) return reply({ error: 'Use sign in for an existing account.' }, 400);
-        try { await accounts.insertOne({ _id: email, hash, salt, contactName, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
+        const created = { _id: email, hash, salt, contactName, createdAt: now, sessionGeneration:crypto.randomUUID(), termsVersion: '2026-11-07', termsAcceptedAt: now };
+        try { await accounts.insertOne(created); }
         catch { return reply({ error: FAIL_TEXT }, 400); }
         await audit(deps, db, {actor:await customerActor(email),action:'customer.register',details:{newAccount:true,acceptedTerms:true,termsVersion:'2026-11-07'}});
-        const token = await issueCustomerSession(ctx.env, email);
+        const token = await issueCustomerSession(ctx.env, email, {verifiedAccount:created,db});
+        mail(ctx, 'notifyWelcome', { email, contactName, linked: false, consent: body.consent });
         return reply({ authenticated: true, linked: false }, 201, { 'Set-Cookie': customerCookie(token) });
       }
       let link;
       try { link = await claimDevice(db, { email, serial, code: body.code, contactName, consent: body.consent, nickname }, deps); }
       catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
+      const verifiedAccount = existing || { _id: email, hash, salt, createdAt: now, sessionGeneration:crypto.randomUUID(), termsVersion: '2026-11-07', termsAcceptedAt: now };
       if (!existing) {
-        try { await accounts.insertOne({ _id: email, hash, salt, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
+        try { await accounts.insertOne(verifiedAccount); }
         catch { await unlinkQuiet(db, link); return reply({ error: FAIL_TEXT }, 400); }
       }
       await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing, termsVersion: '2026-11-07', acceptedTerms: true }, exercise: link.exercise });
-      const token = await issueCustomerSession(ctx.env, email);
+      const token = await issueCustomerSession(ctx.env, email, {verifiedAccount,db});
+      mail(ctx, 'notifyWelcome', { email, contactName, nickname: link.nickname, linked: true, consent: link.consent, linkId: link._id, exercise: link.exercise });
       return reply({ authenticated: true, linked: true, id: link._id }, 201, { 'Set-Cookie': customerCookie(token) });
     });
   },
@@ -348,10 +355,10 @@ const routes = {
     if (!email || typeof body.password !== 'string' || body.password.length > 512) return reply({ error: 'Enter your email and password.' }, 400);
     return run(ctx, async db => {
       if (!await takeAttempt(db, await rateKey(ctx.env, 'cust-ip', clientIp(ctx.request)), 8)) return tooMany();
-      const account = await db.collection('customer_accounts').findOne({ _id: email });
+      const account = await authenticationAccount(db, 'customer', email);
       const hash = await passwordHash(body.password, account?.salt || 'invalid-customer');
       if (!account || !equal(hash, account.hash)) return reply({ error: LOGIN_FAIL_TEXT }, 401);
-      const token = await issueCustomerSession(ctx.env, email);
+      const token = await issueCustomerSession(ctx.env, email, {verifiedAccount:account,db});
       return reply({ authenticated: true }, 200, { 'Set-Cookie': customerCookie(token) });
     });
   },
@@ -387,6 +394,7 @@ const routes = {
       if (serial && !await takeAttempt(db, await rateKey(ctx.env, 'cust-serial', serial), 5, now)) return tooMany();
       try {
         const link = await claimDevice(db, { email, serial: body.serial, code: body.code, contactName, consent: body.consent, nickname, address: body.address }, await depsFor(ctx));
+        mail(ctx, 'notifyWelcome', { email, contactName, nickname: link.nickname, linked: true, consent: link.consent, linkId: link._id, exercise: link.exercise });
         return reply({ linked: true, id: link._id }, 201);
       } catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
     });
@@ -520,6 +528,7 @@ export async function helpStatusHandler(ctx) {
         $push: { history: { $each: [{ status, note, at: now, by }], $slice: -50 } },
       }, { upsert: true });
       await audit(await depsFor(ctx), db, { actor: { type: 'operator', id: by }, action: 'help.set', deviceId, details: { status }, exercise });
+      mail(ctx, 'notifyHelpStatus', { deviceId, status, updatedAt: now });
       return reply({ help: { status, note, updatedAt: now.toISOString() } });
     });
   } catch (e) {

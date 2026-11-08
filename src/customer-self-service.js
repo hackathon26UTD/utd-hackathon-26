@@ -1,6 +1,7 @@
+import {migrateProfilePhoto} from './profile-photo.js';
 import { ObjectId } from "mongodb";
 import { sha256Hex, newSecret } from "./auth.js";
-import { issueCustomerSession, customerCookie } from "./operator-session.js";
+import { issueCustomerSession, customerCookie, credentialSnapshotFilter } from "./operator-session.js";
 import { matchCustomerAddress } from "./customer-location.js";
 import { ensureCustomerIndexes, makeSerial } from "./customer.js";
 import {
@@ -42,12 +43,13 @@ export function accountHandler(ctx) {
       if (next === email) return reply({ email });
       const account = await reauthenticate(db, ctx.env, email, b.password);
       const session = db.client.startSession();
+      let renamedAccount;
       try {
         await session.withTransaction(async () => {
           // Re-read inside the transaction so simultaneous account changes cannot resurrect an old identity.
           const current = await db
             .collection("customer_accounts")
-            .findOne({ _id: email, hash: account.hash }, { session });
+            .findOne(credentialSnapshotFilter(account), { session });
           if (!current) fail(409, "Account changed. Sign in again.");
           if (
             await db
@@ -58,17 +60,14 @@ export function accountHandler(ctx) {
           const setting = await db
             .collection("customer_assistant_settings")
             .findOne({ _id: email }, { session });
-          await db
-            .collection("customer_accounts")
-            .insertOne(
-              {
-                ...current,
-                _id: next,
-                passwordChangedAt: new Date(),
-                emailVerified: false,
-              },
-              { session },
-            );
+          renamedAccount = {
+            ...current,
+            _id: next,
+            passwordChangedAt: new Date(),
+            emailVerified: false,
+          };
+          await db.collection("customer_accounts").insertOne(renamedAccount, { session });
+          await migrateProfilePhoto(db,{oldEmail:email,newEmail:next,account:current,session});
           await db
             .collection("customer_accounts")
             .deleteOne({ _id: email }, { session });
@@ -79,6 +78,15 @@ export function accountHandler(ctx) {
               { $set: { customerEmail: next } },
               { session },
             );
+          // Email is an access boundary for households. End old shares atomically;
+          // changing away and back must not revive a previously accepted invitation.
+          const owned = await db.collection('households').find({ownerEmail:email,ownerGeneration:current.sessionGeneration,active:true},{session,projection:{_id:1}}).toArray();
+          const ownedIds = owned.map(h=>h._id);
+          const affected = await db.collection('household_members').find({$or:[{email},{householdId:{$in:ownedIds}}],status:{$in:['active','pending']}},{session,projection:{_id:1}}).toArray();
+          await db.collection('households').updateMany({_id:{$in:ownedIds}},{$set:{active:false,linkIds:[],closedAt:new Date(),closedReason:'owner_email_changed'}},{session});
+          await db.collection('household_members').updateMany({_id:{$in:affected.map(m=>m._id)}},{$set:{status:'revoked',revokedAt:new Date(),inviteHash:null,preferences:{device:false,weather:false},emailVerifiedAt:null,verifiedEmail:null},$inc:{preferencesVersion:1}},{session});
+          await db.collection('household_email_tokens').deleteMany({memberId:{$in:affected.map(m=>m._id)}},{session});
+          await db.collection('household_mail_outbox').updateMany({memberId:{$in:affected.map(m=>m._id)},status:{$in:['pending','retry','sending']}},{$set:{status:'suppressed',finishedAt:new Date()}},{session});
           await db
             .collection("mcp_grants")
             .updateMany(
@@ -109,7 +117,7 @@ export function accountHandler(ctx) {
                   id: (await sha256Hex("customer:" + email)).slice(0, 12),
                 },
                 action: "customer.email.change",
-                details: { sessionsRevoked: true },
+                details: { sessionsRevoked: true, householdAccessRevoked: true },
                 exercise: false,
               },
               { session },
@@ -122,11 +130,11 @@ export function accountHandler(ctx) {
         await session.endSession();
       }
       return reply(
-        { email: next, emailVerified: false, reconnectAssistants: true },
+        { email: next, emailVerified: false, reconnectAssistants: true, householdAccessRevoked:true },
         200,
         {
           "Set-Cookie": customerCookie(
-            await issueCustomerSession(ctx.env, next),
+            await issueCustomerSession(ctx.env, next, {verifiedAccount:renamedAccount,db}),
           ),
         },
       );

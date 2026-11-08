@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
+import {simulationSchema,simulationFrame} from '../domain/simulation.js';
 import { authenticateMcp, SCOPE } from "./customer-oauth.js";
 import {
   run,
@@ -28,7 +29,7 @@ export function mcpHandler(ctx) {
       const grant = await authenticateMcp(db, ctx.request);
       if (!grant)
         return reply(
-          { error: "Connect your HomeBeacon customer account." },
+          { error: "Connect your Safe Home customer account." },
           401,
           {
             "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", scope="${SCOPE}"`,
@@ -79,7 +80,7 @@ export function mcpHandler(ctx) {
         {
           title: "Build and register a box",
           description:
-            "Get the supported hardware API, private registration link and safe setup steps. Register on HomeBeacon so credentials never enter chat.",
+            "Get the supported hardware API, private registration link and safe setup steps. Register on Safe Home so credentials never enter chat.",
           inputSchema: {},
           annotations,
         },
@@ -119,6 +120,8 @@ export function mcpHandler(ctx) {
           deviceContext(db, grant.email, device_link_id, ctx.env, ctx.deps),
         ),
       );
+      server.registerTool('homebeacon_simulation_settings', {title:'Simulation settings', description:'Get defaults and places for a fictional simulation. No live data.', inputSchema:{}, annotations}, wrap(async()=>simulationSchema()));
+      server.registerTool('homebeacon_run_simulation', {title:'Run a simulation', description:'Generate a deterministic synthetic frame. No real device data or writes. Event effects are illustrative, not physical predictions.', inputSchema:{config:z.record(z.string(),z.unknown()).optional(),minute:z.number().int().min(0).max(240).default(0)}, annotations}, async({config,minute})=>{try{const value=simulationFrame(config,minute);return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:value};}catch(e){return {isError:true,content:[{type:'text',text:e instanceof RangeError?e.message:'Simulation unavailable.'}]};}});
       const transport = new WebStandardStreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
         enableJsonResponse: true,

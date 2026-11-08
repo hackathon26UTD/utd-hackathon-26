@@ -1,0 +1,330 @@
+{
+ "cases": [
+  {
+   "id": "threshold-temp-critical",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "At what temperature does a box go critical?",
+   "pack": [
+    "temp_c",
+    "critical >= 55"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "A box goes critical when its temperature reading is 55 C or higher. It is elevated at 48 C and a watch at 40 C.",
+    "basis": [
+     "temp_c",
+     "temp_critical"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "A box goes critical at 70 C.",
+     "basis": [
+      "temp_c"
+     ]
+    },
+    {
+     "status": "answered",
+     "answer": "Critical starts at 40 degrees.",
+     "basis": [
+      "temp_c"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "55"
+    ]
+   }
+  },
+  {
+   "id": "threshold-water-level",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "How deep does the water reading have to be before it is critical?",
+   "pack": [
+    "water_level_mm",
+    "critical >= 20",
+    "elevated >= 10",
+    "watch >= 5"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "Water depth at the sensor is critical at 20 mm or more, elevated at 10 mm and a watch at 5 mm. A water detected signal is critical by itself.",
+    "basis": [
+     "water_level_mm",
+     "water_detected"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Critical is 50 mm.",
+     "basis": [
+      "water_level_mm"
+     ]
+    },
+    {
+     "status": "answered",
+     "answer": "Any water is fine until it floods the room.",
+     "basis": [
+      "water_level_mm"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "20 mm"
+    ]
+   }
+  },
+  {
+   "id": "threshold-offline-time",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "After how long without a report is a box offline, and is that an emergency?",
+   "pack": [
+    "Offline",
+    "15 min",
+    "never critical"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "A box silent for more than 15 minutes is offline. Offline alone is never critical and never normal, so the home status is unknown.",
+    "basis": [
+     "offline"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "After 5 minutes the box is offline and critical.",
+     "basis": [
+      "offline"
+     ]
+    },
+    {
+     "status": "answered",
+     "answer": "Offline means the box is normal.",
+     "basis": [
+      "offline"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "15 minutes",
+     "unknown"
+    ]
+   }
+  },
+  {
+   "id": "threshold-co",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "What carbon monoxide readings trigger each level?",
+   "pack": [
+    "co_ppm",
+    "critical >= 150",
+    "elevated >= 70",
+    "watch >= 35"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "Carbon monoxide is a watch at 35 ppm, elevated at 70 ppm and critical at 150 ppm. The box is not a certified CO alarm.",
+    "basis": [
+     "co_ppm"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Critical is 400 ppm.",
+     "basis": [
+      "co_ppm"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "150 ppm",
+     "70 ppm"
+    ]
+   }
+  },
+  {
+   "id": "threshold-battery",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "When is the backup battery reading flagged?",
+   "pack": [
+    "battery_pct",
+    "elevated <= 20",
+    "watch <= 40"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "Battery is a watch at 40 percent or less and elevated at 20 percent or less. With mains off and battery 30 percent or less the box is elevated.",
+    "basis": [
+     "battery_pct",
+     "mains_off_battery_low"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "The battery is only flagged at 5 percent.",
+     "basis": [
+      "battery_pct"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "20 percent",
+     "40 percent"
+    ]
+   }
+  },
+  {
+   "id": "threshold-priority-tiers",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "What are the priority tiers and what does P1 mean?",
+   "pack": [
+    "P1>=80 Review now",
+    "P2>=40 Check soon",
+    "P3>=0 Routine"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "P1 is a score of 80 or more and means review now. P2 starts at 40 and means check soon. P3 is routine.",
+    "basis": [
+     "priority tiers"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "P1 means send a crew.",
+     "basis": [
+      "priority tiers"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "80",
+     "review now"
+    ]
+   }
+  },
+  {
+   "id": "threshold-card-stale",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "How old can a reading be on the map card before it counts as stale?",
+   "pack": [
+    "Command-center card stale after 300 s"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "The command-center card treats a box as stale when its newest reading is more than 300 seconds old, which is five minutes. A stale card is unknown unless it is critical.",
+    "basis": [
+     "command-center card"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "It is stale after 60 minutes.",
+     "basis": [
+      "card"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "300 seconds"
+    ]
+   }
+  },
+  {
+   "id": "threshold-message-limits",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "How long can an operator message to a box be?",
+   "pack": [
+    "title <= 20",
+    "body <= 80"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "A title can be up to 20 characters and the body up to 80, in plain keyboard characters with no links.",
+    "basis": [
+     "messages"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Messages can be 500 characters with links.",
+     "basis": [
+      "messages"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "20",
+     "80"
+    ]
+   }
+  },
+  {
+   "id": "threshold-power-profiles",
+   "category": "threshold",
+   "purpose": "qa",
+   "question": "What are the saver and normal power profiles?",
+   "pack": [
+    "saver sample 2s report 120s wifi retry 300s",
+    "normal sample 2s report 30s wifi retry 60s"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "Normal samples every 2 seconds and reports every 30 seconds. Saver samples every 2 seconds, reports every 120 seconds and retries Wi-Fi every 300 seconds. These are proposals, not applied to hardware, and alarms are never shed.",
+    "basis": [
+     "power profiles"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Saver turns the alarm off to save battery.",
+     "basis": [
+      "power profiles"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "120 seconds"
+    ],
+    "excludes": [
+     "turns? (the )?alarms? off"
+    ]
+   }
+  }
+ ]
+}

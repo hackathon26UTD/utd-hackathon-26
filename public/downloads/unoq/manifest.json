@@ -1,0 +1,11 @@
+{
+  "name": "homebeacon-unoq",
+  "version": "0.1.0",
+  "file": "homebeacon-unoq-0.1.0.tar.gz",
+  "size": 50133,
+  "sha256": "4d5835d0ac025989f8c3e198088498b06718ef147e59e7e70bd652e0a27272fb",
+  "minPython": "3.11",
+  "installer": "install.sh",
+  "installerSha256": "0944876e7271fc8cc7d10250c9f9b8445aa26db7afba71d6707d709524ee094d",
+  "notes": "Checksum is verified by install.sh. Pass --pubkey to also verify the Ed25519 signature when one is listed."
+}

@@ -1,24 +1,29 @@
-import { MongoClient, ObjectId } from 'mongodb';
+import { ObjectId } from 'mongodb';
 import { HttpError, badRequest } from './http.js';
+import { withDatabase, isManagedDb, DEFAULT_DB } from '../lib/mongodb.js';
 
-// Cloudflare Workers cannot safely reuse sockets across requests, so each request
-// opens one small client and closes it when done. Tests inject `db` directly.
+// Cloudflare Workers cannot safely reuse sockets across requests. lib/mongodb.js opens one small
+// client per request (shared with the auth middleware) and closes it when done.
+// Tests inject `db` directly.
 export async function withDb(env, injected, fn) {
   if (injected) return fn(injected);
   if (!env.MONGODB_URI) throw new HttpError(503, 'MONGODB_URI is not configured on the server');
-  const client = new MongoClient(env.MONGODB_URI, {
-    maxPoolSize: 1,
-    minPoolSize: 0,
-    serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 5000,
-    appName: 'utd-hackathon-26-api',
-  });
-  try {
-    await client.connect();
-    return await fn(client.db(env.MONGODB_DB || 'utd_hackathon_26'));
-  } finally {
-    await client.close().catch(() => {});
+  return withDatabase(env, fn, { timeoutMs: 5000, dbName: env.MONGODB_DB || DEFAULT_DB });
+}
+
+// Run one-time setup (indexes, catalog sync) once per isolate instead of on every request.
+// Injected test databases always run it. A failed setup is retried on the next request.
+const setupDone = new Map();
+export function ensureOnce(db, key, setup) {
+  if (!isManagedDb(db)) return setup();
+  const id = `${db.databaseName}:${key}`;
+  let run = setupDone.get(id);
+  if (!run) {
+    run = Promise.resolve().then(setup);
+    setupDone.set(id, run);
+    run.catch(() => setupDone.delete(id));
   }
+  return run;
 }
 
 export function oid(id, what = 'id') {

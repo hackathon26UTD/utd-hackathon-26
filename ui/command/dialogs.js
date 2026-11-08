@@ -1,7 +1,8 @@
 // Dialogs: send an information box, record a follow-up, public sources, operator view builder, pairing code.
-import { MSG_LIMITS, MSG_KINDS, MSG_SEVERITIES, EXPIRY_CHOICES, validateMessage, messageBody, oledPreview, devicesInBbox, failText, ageText, SOURCE_STATUS_TEXT } from './core.js';
+import { MSG_LIMITS, MSG_KINDS, MSG_SEVERITIES, EXPIRY_CHOICES, validateMessage, messageBody, oledPreview, devicesInBbox, failText, ageText, SOURCE_STATUS_TEXT, STATUS_LABEL } from './core.js';
 import { toast } from './dom.js';
 import { api } from './api.js';
+import { thresholdTable, durationText, HAZARD_LABEL, OFFLINE_MIN } from '../../src/risk/config.js';
 
 const KIND_TEXT = { info: 'Information', condition: 'Current conditions', instruction: 'Instruction' };
 const SEV_TEXT = { info: 'Information', advisory: 'Advisory', urgent: 'Urgent. Interrupts the screen' };
@@ -95,6 +96,34 @@ export function mountDialogs(ctx) {
       $('#follow-status').textContent = 'Follow-up recorded.';
     } catch { $('#follow-status').textContent = 'Could not save. Please try again.'; }
   };
+
+  // ---- alert thresholds (read only, generated from the risk configuration) ----
+
+  const levelOrder = { critical: 0, elevated: 1, watch: 2 };
+  function renderThresholds(query = '') {
+    const q = query.trim().toLowerCase();
+    const groups = new Map();
+    for (const r of thresholdTable()) {
+      const hay = `${r.label} ${r.sensor} ${HAZARD_LABEL[r.hazard] || ''} ${r.when}`.toLowerCase();
+      if (q && !hay.includes(q)) continue;
+      const key = r.label + '|' + r.sensor;
+      if (!groups.has(key)) groups.set(key, { label: r.label, sensor: r.sensor, staleMin: r.staleMin, rows: [] });
+      groups.get(key).rows.push(r);
+    }
+    const out = [...groups.values()].map(g => {
+      const rows = g.rows.sort((a, b) => levelOrder[a.level] - levelOrder[b.level] || b.forMin - a.forMin);
+      return `<section class="threshold-group"><h3>${esc(g.label)} <small>${esc(g.sensor)}${g.staleMin ? ` · a report older than ${esc(durationText(g.staleMin * 60000))} is treated as out of date` : ''}</small></h3><table class="threshold-table"><thead><tr><th scope="col">Level</th><th scope="col">When the reading is</th><th scope="col">For at least</th></tr></thead><tbody>${rows.map(r => `<tr><td><span class="tag ${esc(r.level)}">${esc(STATUS_LABEL[r.level])}</span></td><td>${esc(r.when)}</td><td>${r.forMin ? esc(durationText(r.forMin * 60000)) : 'Any single report'}</td></tr>`).join('')}</tbody></table></section>`;
+    });
+    if (!q || 'no report silent offline'.includes(q)) out.push(`<section class="threshold-group"><h3>No report <small>any box</small></h3><p>Silent for ${esc(durationText(OFFLINE_MIN * 60000))} or more: shown as not reporting, with an unknown status. A box whose last report was a hazard keeps that hazard and is reviewed sooner.</p></section>`);
+    $('#threshold-list').innerHTML = out.length ? out.join('') : '<p>No sensor matches that search.</p>';
+  }
+  $('#thresholds').onclick = () => {
+    $('#threshold-find').value = '';
+    renderThresholds();
+    $('#threshold-dialog').showModal();
+    $('#threshold-find').focus();
+  };
+  $('#threshold-find').oninput = e => renderThresholds(e.target.value);
 
   // ---- public sources ----
 

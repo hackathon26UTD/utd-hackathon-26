@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-08 — Safe Home name and organization documentation
+
+### Changed
+
+- Renamed first-party website, account/assistant copy, page metadata, prepared email subjects and brand assets to Safe Home.
+- Published a current [documentation hub](docs/README.md), [product guide](docs/PRODUCT_GUIDE.md), [architecture](docs/ARCHITECTURE.md), [development guide](docs/DEVELOPMENT.md), [operations runbook](docs/OPERATIONS_RUNBOOK.md) and [team guide](docs/TEAM.md).
+- Replaced stale entry-point claims about unfinished customer signup, sharing, simulations and model integration with current implementation and verification boundaries.
+
+No protocol, credential, stored-data or infrastructure rename. Read [brand compatibility](docs/BRAND.md) and the [decision](docs/decisions/0001-safe-home-name.md). Email delivery remains off. Physical hardware and complete manual accessibility review remain separate verification work. Release evidence is recorded in [WORKLOG.md](docs/WORKLOG.md).
+
+
 ## 2026-11-07: Ayan's full workstream handoff
 
 Documented current product/stack, observed teammate attribution, coordination rules, request history, research/constraints, verified delivery and known gaps. Replaced stale starter context and architecture. Start at [HANDOFF.md](HANDOFF.md).
@@ -15,3 +26,7 @@ Added operator access/profile/recovery, exercise-only demo, live Mongo summaries
 ## 2026-11-07: Team API and hosting integration
 
 Integrated Dhruv's core API/client work with Ayan's Cloudflare/Mongo application access, readiness-tested deployment and CI/CD. Later preserved Dhruv's shared credential loader/access checker. See [API](docs/API.md), [architecture](docs/ARCHITECTURE.md) and [work log](docs/WORKLOG.md).
+
+## 2026-11-08: Operations readiness
+
+Faster database path, developer CLI (`npm run hb`), Uno Q agent and installer, Resend email templates, NVIDIA grounding harness with generated thresholds and runbook, and a demo day runbook. Branch only, not deployed. See [TOMORROW.md](docs/TOMORROW.md).

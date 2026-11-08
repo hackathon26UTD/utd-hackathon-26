@@ -1,14 +1,29 @@
 import { readSession,sameOrigin } from '../../src/operator-session.js';
 import { isAdmin } from '../../src/auth.js';
+import { withRequestDatabase } from '../../lib/mongodb.js';
 const json=(body,status,extra={})=>Response.json(body,{status,headers:{'Cache-Control':'no-store',...extra}});
 // Device-key requests pass through: the handler checks the key itself. Anything with a device key is never treated as an operator.
-const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings'];
+const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings','/api/device/history-sync'];
 const DEVICE_GET=['/api/device/messages','/api/device/settings'];
 // Read-only paths a demo account may GET (exercise data only; handlers filter on the exercise flag).
 const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
-export async function onRequest(context){
+// One database connection per API request, shared by the session check and the handler.
+export const onRequest=async context=>{
+  // DB_TRACE=1 (never set in production) reports connections and commands for one request, for diagnosis only.
+  let flag;try{flag=context.env?.DB_TRACE==='1'}catch{flag=false}
+  const trace=flag?(globalThis.__dbTrace||=[]):null,from=trace?.length||0,t0=Date.now();
+  const response=await withRequestDatabase(()=>route(context));
+  if(!trace)return response;
+  const mine=trace.slice(from),out=new Response(response.body,response);
+  out.headers.set('X-DB-Trace',`connects=${mine.filter(x=>x.cmd==='connect').length}${mine.filter(x=>x.cmd==='connect').map(x=>` (seeded=${x.seeded} lookup=${x.lookupMs}ms connect=${x.connectMs}ms)`).join('')}; commands=${mine.filter(x=>x.cmd!=='connect').length}; cmdMs=${Math.round(mine.reduce((a,x)=>a+(x.ms||0),0))}; totalMs=${Date.now()-t0}; names=${mine.filter(x=>x.cmd!=='connect').map(x=>x.cmd).join(',')}`);
+  return out;
+};
+async function route(context){
   const {request,env}=context;const path=new URL(request.url).pathname;const method=request.method;
+  // Dedicated public context routes never confer operator/device authority.
+  if(['/api/public/feeds','/api/public/overlays','/api/public/news'].includes(path)&&['GET','HEAD'].includes(method))return context.next();
   // 1) public
+  if(path==='/api/simulations'&&['GET','HEAD','POST'].includes(method))return context.next();
   if(path==='/api/demo'&&['GET','HEAD'].includes(method))return context.next();
   if(['/api/session','/api/health','/api/ready','/api/weather','/api/recovery','/api/customer/register','/api/customer/login'].includes(path)||(method==='GET'&&path==='/api/customer/me'))return passCustomer(context,path);
   // A dedicated scheduler credential is accepted only by its exact refresh endpoint.

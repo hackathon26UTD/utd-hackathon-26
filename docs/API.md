@@ -91,3 +91,47 @@ Verified 2026-11-07 against live FEMA + Atlas: Richardson (32.95, -96.73) → mi
 ## Production data operations
 
 See [DATA_OPERATIONS.md](DATA_OPERATIONS.md) for source coverage, retention, baselines and board configuration semantics. Operator-only endpoints: GET `/api/ops/data-catalog`, GET `/api/ops/data-history?source=nws`, GET `/api/ops/sensor-stats?id=...&days=7`, GET `/api/ops/location?id=...`, GET `/api/ops/location-image?id=...`, POST `/api/ops/response-preview` with `{deviceId,service}`, and GET/PATCH `/api/ops/device-settings?id=...`. POST `/api/ops/data-refresh` accepts an operator or the dedicated scheduler credential on that exact path. Device-key-only GET/POST `/api/device/settings` reads desired message polling or reports the applied revision. Exercise/demo sessions cannot access production data endpoints.
+
+### Retained box history
+
+`POST /api/device/history-sync` accepts only a registered box's `X-Device-Key`.
+It stores finite on-box snapshots separately from live hazard ingest. It never
+changes current status, alerts, thresholds or incident resolution.
+
+Body: version `1`, `snapshot:{boot,seq}`, `samples` (1–8 original snapshots),
+`metrics` (device-reported learned aggregates) and `overwritten`. See
+[DEVICE_HISTORY.md](DEVICE_HISTORY.md) for fields, units and firmware limits.
+Unknown observation time is epoch zero with its validity flag clear. The server
+keeps it unknown, separately from receipt time. Bodies are streamed with a
+16 KiB limit; no client-selected database identity is accepted.
+
+Acknowledgement: `{version:1,accepted:["boot:seq",...],stored:N}`. Exact raw and
+aggregate retries do not duplicate records or refresh their timestamps/expiry.
+Changed content under an existing identity returns 409 and requires review.
+Partial network failures can be retried with the same frozen batch. Local raw
+records and aggregate snapshots expire after 365 days; known raw observation
+times determine raw expiry. No fabricated missing samples are inserted.
+
+Owners read their linked device through `GET /api/customer/history?id=<linkId>`;
+operators use `GET /api/ops/device-history?id=<deviceId>`. Both accept `days=1..365`
+for canonical daily summaries. The `local` member includes the latest 64 retained
+box samples and latest device-reported aggregate, independent of that summary
+range. Demo accounts cannot read live history. Local recorded references and
+cloud-qualified references remain distinct and never replace fixed alarms.
+
+### Checking hardware setup access
+
+`npm run provision -- --check` checks the existing admin credential without
+creating a home, device or key. Script settings load from environment, then
+`.env`, then `.dev.vars`; blank placeholders do not mask later sources. Transfer
+an existing admin credential only through a private channel. Do not rotate the
+shared production key to fix a missing setting on one laptop. Board headers
+contain device keys, never the admin credential.
+
+### Household customer endpoints
+
+Customer cookie only; operator/admin headers do not grant access. `GET/POST /api/customer/households` lists, selects and manages households; POST actions create/update/delete/invite/accept/revoke/leave. Owners select currently owned live link IDs; viewer access is read-only. `GET /api/customer/household-context?id=<householdId>` provides scoped official weather and regional headlines, never raw coordinates. `GET/POST /api/customer/household-email` manages only the signed-in member’s preferences and address verification; purpose-scoped unsubscribe tokens can only disable mail. Email delivery is disabled by default and sender setup was deferred. The signed provider callback is `/api/customer/household-email-events`; it does not accept customer/operator credentials as webhook authority. Contracts and bounds: [household sharing](HOUSEHOLDS.md), [context and optional alerts](HOUSEHOLD_CONTEXT_ALERTS.md).
+
+## Public weather context (November 8)
+
+Anonymous GET/HEAD `/api/public/feeds`, `/api/public/overlays` and `/api/public/news` expose only allowlisted public-source data. They do not grant operator or device authority. News supports a bounded `bbox` or exact `alert` ID, polls national active NWS bulletins and resolves official county/forecast boundaries. Mutations remain protected. See [request parameters, budgets and interpretation](PUBLIC_WEATHER_NEWS.md).

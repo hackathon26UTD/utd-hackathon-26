@@ -1,0 +1,39 @@
+# HomeBeacon Uno Q agent. The device key is NOT stored here: put HB_DEVICE_KEY=... in
+# /etc/homebeacon/unoq.env (mode 600) or point api.key_file at a mode 600 file.
+[api]
+base_url = "https://utd-hackathon-26.pages.dev"
+device_id = ""                  # 24-character id from device registration
+
+[agent]
+state_dir = "/var/lib/homebeacon-unoq"
+
+[mcu]
+source = "serial"               # serial | bridge | fake | none
+port = ""                       # empty = first /dev/ttyACM* or /dev/ttyUSB*
+identify_line = ""              # e.g. "beep" (box A has a beep test command); empty = never write to the MCU
+
+[status]
+port = 8765                     # read-only, 127.0.0.1 only; 0 = off
+
+[uplink]
+relay_mains = true
+relay_water_from = ""           # e.g. "A" to gap-fill box A's water flag under this device; empty = off
+
+[commands]
+allow = true
+allow_reboot_agent = false
+
+[power]
+battery_mah = 0                 # nameplate capacity of the pack feeding the Uno Q; 0 = unknown
+nominal_v = 0                   # pack nominal volts at the converter input
+chemistry = "unknown"           # alkaline_aa | nimh_aa | liion | lifepo4 | lead_acid | unknown
+converter = "buck"              # buck | ldo | boost
+assumed_soc_pct = 100           # used only when no gauge is available (low confidence)
+source = "manual"               # manual | file | sysfs
+need_hours = 24                 # outage length to plan for
+last_gasp_hours = 2             # heartbeat the pack must still be able to run at the end
+load_basis = "assumption"       # set to bench_measurement only after a USB power meter run
+assume_mains = "unknown"
+# [power.measured_mw]           # fill from a USB meter, then load_basis becomes bench_measurement
+# full = 0
+# beacon = 0

@@ -1,8 +1,9 @@
 // Map top bar: one row of real ARGUS kit parts under the main top bar, inside the map area.
-// View, Go to, Layers, Hazards, Reports, Zones and Ask. It never fetches data; it calls overlays.js and the map.
+// View, Go to, Layers, Hazards, Reports and Ask. It never fetches data; it calls overlays.js and the map.
 import { OVERLAYS, SOURCE_STATUS_TEXT, ageText } from './core.js';
 import { BASE_OPTIONS } from './map.js';
 import { setOverlay } from './overlays.js';
+import { mountWorldControls } from './world-controls.js';
 
 const VIEW_KEY = 'homebeacon-map-view', AREA_KEY = 'homebeacon-map-area';
 const glyph = {
@@ -19,9 +20,9 @@ const HAZARD_NAMES = { nws: 'Weather alerts', nfhl: 'Flood zones', gauges: 'Rive
 const HAZARD_GROUPS = [
   ['Alerts and declarations', ['nws', 'declarations']],
   ['Water', ['nfhl', 'gauges', 'nwps', 'river_forecast', 'tides']],
-  ['Earth and fire', ['quakes', 'firms']],
+  ['Earth and fire', ['faults', 'quakes', 'firms']],
   ['Air and power', ['airnow', 'eia', 'ercot']],
-  ['Forecasts and shelters', ['weather', 'nws_forecast', 'shelters']],
+  ['Forecasts and shelters', ['atmosphere', 'weather', 'nws_forecast', 'shelters']],
 ];
 const KEY_NAMES = { firms: 'FIRMS_MAP_KEY', airnow: 'AIRNOW_API_KEY', eia: 'EIA_API_KEY' };
 
@@ -46,13 +47,14 @@ export function mountToolbar({ root, map, ctx }) {
     if (saved.hillshade) map.setOverlayVisible('hillshade', true);
     if (saved.hydro) map.setOverlayVisible('hydro', true);
   }
-  const persist = () => { if (!ctx.embed) write(VIEW_KEY, { base: map.styleKey, ...map.getViewState().overlays }); };
+  const persist = () => { if (!ctx.embed && map.worldKey === 'street') write(VIEW_KEY, { base: map.styleKey, ...map.getViewState().overlays }); };
 
   const group = (label, ...kids) => { const g = document.createElement('div'); g.className = 'mapbar-group'; g.setAttribute('role', 'group'); g.setAttribute('aria-label', label); g.append(...kids.filter(Boolean)); return g; };
   const caption = text => { const c = document.createElement('div'); c.className = 'kit-filter-button__caption'; c.textContent = text; return c; };
 
   // ---- View ----
   const view = Kit.toolbarDropdown({ id: 'map-view', ariaLabel: 'Base map', icon: glyph.map, options: BASE_OPTIONS, value: map.styleKey, onChange: value => { map.setBase(value); sync(); } });
+  const worlds = mountWorldControls({ root, map, ctx });
 
   // ---- Go to ----
   const area = () => read(AREA_KEY);
@@ -74,7 +76,7 @@ export function mountToolbar({ root, map, ctx }) {
   const layerRows = [];
   const layerDefs = () => [
     { id: 'regions', label: 'Risk areas', help: 'Grouped by area, colored by the worst reported condition. Grey means unknown.' },
-    { id: 'zones', label: 'Operator zones', help: ctx.demo ? 'Fictional exercise zones.' : 'Drawn by your team.' },
+
     { id: 'hillshade', label: 'Hillshade', help: 'USGS shaded relief over the base map.' },
     { id: 'hydro', label: 'Hydrography', help: 'USGS rivers and lakes.' },
     ctx.demo ? { id: 'exerciseWind', label: 'Exercise wind', help: 'Fictional wind circles. Not a forecast.' } : null,
@@ -102,8 +104,7 @@ export function mountToolbar({ root, map, ctx }) {
     const src = S.feeds?.get(o.id), m = S.ov?.[o.id] || {};
     const needsKey = src?.status === 'needs_key';
     let help;
-    if (ctx.demo) help = 'Sign in as an operator to load public layers.';
-    else if (needsKey) help = `Needs ${KEY_NAMES[o.id] || 'a server key'}`;
+    if (needsKey) help = `Needs ${KEY_NAMES[o.id] || 'a server key'}`;
     else {
       const parts = [o.note];
       if (src) parts.push(SOURCE_STATUS_TEXT[src.status] || src.status);
@@ -114,7 +115,7 @@ export function mountToolbar({ root, map, ctx }) {
       if (m.error) parts.push(m.error);
       help = parts.filter(Boolean).join(' · ');
     }
-    return { help, disabled: ctx.demo || needsKey };
+    return { help, disabled: needsKey };
   };
   const hazards = Kit.filterButton({
     id: 'map-hazards', label: 'Hazards', icon: glyph.hazard, popLabel: 'Hazard and data layers',
@@ -122,7 +123,7 @@ export function mountToolbar({ root, map, ctx }) {
       const box = document.createElement('div');
       box.className = 'mapbar-pop mapbar-pop--tall';
       hazardRows.clear();
-      if (!ctx.demo) ctx.overlays?.loadFeeds();
+      ctx.overlays?.loadFeeds();
       for (const [title, ids] of HAZARD_GROUPS) {
         box.append(caption(title));
         for (const id of ids) {
@@ -175,7 +176,8 @@ export function mountToolbar({ root, map, ctx }) {
     });
   }
 
-  bar.append(group('Base map', view), group('Navigate', goTo), group('Layers', layers, hazards, zones, radar), group('Homes', power, water), group('Assistance', ask));
+  zones.hidden=true;root.append(zones);
+  bar.append(group('Map view', worlds.select), group('Base map', view), group('Navigate', goTo), group('Layers', layers, hazards, radar), group('Homes', power, water), group('Assistance', ask));
 
   // ---- state mirror ----
   function sync() {
@@ -189,16 +191,18 @@ export function mountToolbar({ root, map, ctx }) {
       const t = hazardRows.get(o.id); if (!t) continue;
       t.kitSet(!!S.ovOn?.has(o.id));
       const help = t.querySelector('.kit-tick-box__help'), st = hazardState(o);
+      t.disabled=st.disabled;t.setAttribute('aria-disabled',String(st.disabled));
       if (help && help.textContent !== st.help) help.textContent = st.help;
     }
     power.kitSet(map.highlights.power); water.kitSet(map.highlights.water);
     zones.classList.toggle('is-on', !!document.querySelector('#overlay-panel.open'));
     refreshAsk();
+    worlds.sync();
     persist();
   }
   map.handlers.base = () => sync();
   sync();
 
   const setBusy = busy => { bar.setAttribute('aria-busy', String(!!busy)); };
-  return { destroy: () => { bar.remove(); delete map.handlers.base; }, sync, setBusy };
+  return { destroy: () => { worlds.destroy(); bar.remove(); delete map.handlers.base; }, sync, setBusy };
 }
