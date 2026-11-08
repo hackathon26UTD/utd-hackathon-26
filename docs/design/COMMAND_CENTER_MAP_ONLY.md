@@ -15,6 +15,7 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 - **Selection opens an expandable card anchored to the selected house**, not a permanent side panel or a separate default device screen. Exact answer to the selection question, November 7.
 - **The compact card shows status, why the house needs attention, and when it last reported.** Sensor details/history/logs/actions follow on expansion.
 - **Disaster regions are the default visual priority; individual devices appear as the operator zooms in.** Do not open on a wall of house markers.
+- **Selecting a disaster region zooms into it and opens a compact summary anchored to that area.** Exact answer to region-selection question, November 7.
 - **Open on a U.S. disaster overview, then move into regions and neighborhoods.** The target is national, not a Dallas or Texas default.
 - The experience must feel animated, dynamic and modern while remaining operationally useful.
 - Use Ayan's actual Argus UI components. A kit import, a gallery or CSS-class decoration is not enough evidence of a component-led product.
@@ -23,12 +24,12 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 
 ### Remaining design review
 
-The five foundational choices above are locked. Exact visual composition, map style, tool placement, expansion dimensions and motion treatment still need a rendered design review. Backend national coverage remains implementation/research work, not an unanswered user preference.
+The foundational layout and selection choices above are locked. Exact visual composition, map style, tool placement, expansion dimensions and motion treatment still need a rendered design review. Backend national coverage remains implementation/research work, not an unanswered user preference.
 
 ### Proposed, not yet approved
 
 - A single compact floating command launcher and region/data-status label are the only app chrome at rest. Conventional map controls and attribution remain.
-- Region selection can open an area inspector, with the same information hierarchy as device selection.
+- The exact content, dimensions and edge placement of the locked anchored region summary require visual review.
 - Dusk/paper tokens and Hanken/Spline typography continue; avoid a new brand/palette invention. Use display serif sparingly in operator UI, not a large marketing headline above the map.
 - Historical replay is an explicit mode, not an always-visible timeline. Its UI is a later priority after live/selection behavior is correct.
 
@@ -217,10 +218,10 @@ The existing `ui/product-kit.js` class-decorating bridge is migration debt, not 
 
 ## 9. Cookie/privacy experience
 
-Current technical behavior, confirmed in `ui/app.js`:
+Rejected baseline behavior at main 3ce2834, confirmed in `ui/app.js`:
 - No analytics or advertising tools are installed.
 - Both "Essential only" and "Save preferences" write the same essential choice.
-- Closing then focuses the footer preferences button, causing the observed scroll jump.
+- Closing focused the footer preferences button, causing the observed scroll jump. PR #25 now prevents that scroll movement. Duplicate choices and an unnecessary first-visit notice still need the redesign treatment.
 
 UX decision proposal: no consent-style banner inside the command workspace while the product only has necessary access storage and explicit preferences. Keep privacy/cookie information and preference access in account/settings. The marketing site's privacy treatment can be reviewed separately; do not force a choice between duplicate actions.
 
@@ -273,7 +274,7 @@ Required implementation verification when that phase starts:
 - Ayan chose region selection to zoom into the region and open a compact anchored area summary.
 - Ayan reports heavy loading and blank space at scroll boundaries. Keep the command canvas anchored, prevent page overscroll, and keep marketing, operator and household access discoverable.
 - Performance repair shipped separately in PR #25: scoped component updates, smaller runtime/font payload, contained page scrolling and cookie focus repair. This does not implement the map-only redesign.
-- Design review next: exact visual composition; source/layer defaults within the chosen national overview; event attention/coalescing; mobile tool fit. The five foundational user choices above are already answered.
+- Design review next: exact visual composition; source/layer defaults within the chosen national overview; event attention/coalescing; mobile tool fit. The foundational user choices above are already answered.
 
 This document remains a draft until the pending decisions and visual review are resolved. No production UI change is claimed by writing it.
 
@@ -394,3 +395,43 @@ Use cluster/aggregation detail appropriate to zoom, geographic request bounds, c
 - How does the anchored card behave at map edges, on mobile, during a burst of reports and while the operator is typing?
 
 Do not report the national UI complete until actual current-state data and rendered behavior prove it.
+
+
+## 18. Region summary, continuity and speed
+
+### Locked selection and proposed content
+
+Clicking a disaster region zooms to its usable geographic bounds and opens a compact summary attached to that region. Respect reduced motion by changing the view without a flight. Preserve a stable geographic anchor if the shape changes on refresh. Do not place a region card at an invented affected house.
+
+Proposed compact content for visual review: event/area name, type of evidence, source freshness, and the plain reason it needs review. An optional observed-device count must include reporting coverage and unknowns. No permanent national totals, fabricated affected-home counts or count-based damage claims. Expanded content can compare neighborhoods, source evidence and reported home conditions. Region cards and house cards share a selection model; avoid overlapping stacks of inspectors.
+
+Near-edge behavior must keep the marker/region context, card controls and map attribution reachable. A bounded pan is permitted for deliberate selection; background polling must not repeat it. If an event expires or disappears while selected, retain a clearly labeled ended/unavailable summary until the user closes it. Do not silently move selection to another event.
+
+### Proposed speed and stability gates
+
+These are engineering targets, not user-approved measured claims:
+- App chrome responds to clicks and keyboard input within 200 ms on the agreed test device; record the device and network profile.
+- Render the map shell and source loading states independently. One slow external feed cannot block search, selection, account access or other loaded layers.
+- National load starts with coarse event/cluster data, then fetches viewport detail. Do not mount every house as a DOM marker at U.S. scale.
+- Controls are composed once and updated in place. No full-document style scans after map or telemetry mutations; no reload of the entire panel while typing.
+- Bound histories and lists; paginate or window long collections. Cancel obsolete viewport requests and discard out-of-order responses.
+- Root viewport stays fixed at rest. Internal tool content may scroll, with no scroll chaining, white overscroll canvas or camera change from page focus.
+- Capture cold and warm load, interaction responsiveness, requested bytes and long tasks for national, dense neighborhood and open-card states. Compare to the rejected baseline rather than reporting a fast local server as production evidence.
+
+### Research starting points, checked November 7
+
+- [NWS alerts service](https://www.weather.gov/documentation/services-web-alerts) and [API documentation](https://www.weather.gov/documentation/services-web-api): official active alert discovery and GeoJSON/CAP semantics. Verify null/missing geometry, affected-zone references, expiry/update relationships and actual request limits before choosing the regional shape.
+- [USGS GeoJSON summary format](https://earthquake.usgs.gov/earthquakes/feed/v1.0/geojson.php): event discovery and time/magnitude semantics. An event point is not a damage perimeter. Detailed event products require deliberate source interpretation.
+- [FEMA official API examples](https://github.com/FEMA/openfema-samples/blob/master/analysis-examples/API_Tutorial_Part_1_GettingStarted.ipynb): declaration dataset discovery and query patterns. Administrative declarations remain distinct from current sensor evidence or active hazard boundaries.
+
+These links establish source starting points, not proof of national integration. Teammates must document the actual query, coverage, pagination/limits, cache age and shape semantics they implement.
+
+## 19. Handoff review sequence
+
+1. Read the locked decisions and current rejection evidence. Cross-check the current main branch and teammate API/hardware changes.
+2. Present three actual rendered compositions: U.S. idle overview; selected region with anchored summary; selected house compact then expanded. Include mobile and reduced motion.
+3. Identify each actual Argus factory used and show its interactive states. Keep vendor source intact.
+4. Resolve visual direction, launcher placement, card edge behavior and cookie treatment with Ayan. Record answers here, without reopening settled choices.
+5. Implement the accepted composition, preserve roles/data semantics, then run the scope-matched acceptance gates in section 11.
+
+No implementation is accepted merely because the requirements packet is complete. This brief is ready for teammate design work, while visual review and the replacement command center remain outstanding.
