@@ -419,6 +419,18 @@ Production completion: PR #37 merged as `7f182b5`; Cloudflare run `42457470116` 
 - Mesh changes from this: radio power saving off (`WIFI_PS_NONE`), throttled resends (3 oldest held messages per 0.5 s instead of the whole backlog every 4 s), `mesh` command shows radio ok/failed counts. Test script reads serial via .NET on Windows and builds C3/S2 with USB CDC.
 - Next: store-and-forward test (unplug box A ~30 s, replug), then sensors via the Uno Q (wired: D11 buzzer, A4/A5 DS1307 I2C, D13 tilt, A0 water, A1 flame) -> UART -> XIAO.
 
+## 2026-11-08 ~01:30: mesh hardware test results (Dhruv)
+
+Boards: box A = XIAO ESP32S3 (gateway forced, no hotspot), box B = XIAO ESP32C3, both running `firmware/mesh_test`, antennas attached.
+
+| Test | Result |
+| --- | --- |
+| Encrypted mesh, both directions | PASS: radio 0 failed each way; every hello ACKed |
+| Store-and-forward (`TESTING.md` M2, bare-board version) | PASS: box A unplugged ~42 s; box B held 14 messages (waiting 1 -> 14), then drained 14 -> 0 within ~7 s of box A rebooting; none lost |
+| Wrong key (E1) | PASS: box B flashed with one `ESPNOW_LMK` digit changed: radio `sent ok=60` (frames heard over the air) but `acked=0`, `rx=0`, waiting climbed to 12. Correct key restored: ACKs resumed immediately |
+
+Not yet run: power-outage sensing (Power MB 3.3 V rail -> box A D3, no resistors/multimeter available), sensor bench tests (sensors currently wired to the Uno Q: D11 buzzer, A4/A5 DS1307, D13 tilt, A0 water, A1 flame), box B real firmware (needs remap from classic ESP32 to XIAO C3 pins), API end-to-end (needs `API_ADMIN_KEY` + hotspot).
+
 ## 2026-11-08: guided simulations and customer/box records
 
 Implemented a five-page Simulations setup using the vendored Argus tabs/selects. Controls cover region/extent, event intensity and timing, device count/distribution/seed, starting readings and isolated detection limits. A single deterministic engine serves the UI, public bounded HTTP, CLI, local stdio MCP and personal OAuth MCP. Saved runs round-trip with their minute; editing a draft does not change the running world until Start. Pause/seek uses one simulation clock through map/list/details/workflow. Actual emitted temperature crossings latch from minute zero. Legacy scenario URLs and the homepage preset embed remain available.
@@ -429,6 +441,6 @@ Added owner-scoped history views backed by existing canonical daily archives and
 
 Local evidence: 367 tests passed before the final teammate merge, with actual CLI/MCP SDK, disposable MongoDB, C++ recorder/transport and installed-Chrome photo coverage. Headless real local Pages flows covered profile upload/email change/removal, retained sample upload/retry to owner history, anonymous and shared-demo simulation details with no live-device calls, draft activation, run reopening, legacy links, desktop/390px layouts and zero automated accessibility findings. Email preview was visually inspected on a phone layout. No production fixtures or outgoing emails were created.
 
-Dhruv's main PR #38 hardware-test fixes were fetched and merged without replacing his mesh changes. Existing private admin credentials were confirmed present locally and accepted by the production read API. Added a read-only provisioning access check and clearer settings-source errors; no shared credential was rotated. Private handoff values remain in ignored owner-readable storage only. Real box provisioning needs the actual board MACs/hotspot details and was not run here.
+Dhruv's main PR #38 hardware-test fixes were fetched and merged without replacing his mesh changes. Existing private admin credentials were confirmed present locally and accepted by the production read API. Added a read-only provisioning access check and clearer settings-source errors; no shared credential was rotated. Private handoff values remain in ignored owner-readable storage only. Real box provisioning was not run here. Dhruv’s later log supplies board MACs, but hotspot settings and the C3 sensor pin remap still need his hardware setup.
 
 Physical board flashing, power-cut persistence, outage/reconnect delivery, calibration and battery endurance remain unverified. The recorder is finite (64 sampled snapshots, roughly 5h20 continuous coverage; checkpoint loss can reach 15 minutes), not an unlimited event journal. Manual accessibility and legal review remain separate from automated checks. Final combined checks and deployment evidence follow below.
