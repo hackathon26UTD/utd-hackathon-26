@@ -91,6 +91,33 @@ test('history limits do not hide the latest reading of a less chatty sensor', as
   assert.equal(e.coverage[0].historyTruncated, true); assert.equal(e.devices[0].latest.mains_power.stale, true);
 });
 
+test('same-time opposing hazard/power readings stay visible beyond history limits without forcing either value', async () => {
+  const id = new ObjectId();
+  await db.collection('devices').insertOne({ _id: id, meta: { exercise: true }, lastSeen: NOW });
+  const waterYes = row(id, 'water_detected', true, 10), waterNo = row(id, 'water_detected', false, 10);
+  const powerNo = row(id, 'mains_power', false, 10), powerYes = row(id, 'mains_power', true, 10);
+  const tempHot = row(id, 'temp_c', 70, 10), tempCool = row(id, 'temp_c', 22, 10);
+  // Generated ids make negative water / positive mains / cool temperature the deterministic latest ties.
+  await db.collection('readings').insertMany([waterYes, waterNo, powerNo, powerYes, tempHot, tempCool]);
+  await db.collection('readings').insertMany(Array.from({ length: 205 }, () => row(id, 'rssi', -60, 1)));
+  const e = await loadSystemEvidence(db, { deviceId: String(id), exercise: true, now: NOW });
+  assert.equal(e.devices[0].latest.water_detected.value, false);
+  assert.equal(e.devices[0].latest.mains_power.value, true);
+  assert.equal(e.devices[0].latest.temp_c.value, 22);
+  for (const sensor of ['water_detected', 'mains_power', 'temp_c']) assert.equal(e.observations.filter(o => o.sensor === sensor).length, 2);
+  assert.equal(e.devices[0].criticalObservationConflict, true);
+  assert.equal(e.devices[0].mainsObservationConflict, true);
+  assert.equal(e.policies[0].mode, 'critical'); assert.equal(e.policies[0].mains, null);
+  assert.match(e.policies[0].reason, /reports disagree/);
+  const result = await investigateSystem({ evidence: e, complete: simulatedCompletion(e), interpretationSource: 'simulator_not_ai' });
+  for (const sensor of ['water_detected', 'mains_power', 'temp_c']) {
+    const check = result.checkpoint.sensorChecks.items.find(c => c.code === `conflicting_${sensor}`);
+    assert.equal(check.evidenceIds.length, 2);
+    assert.ok(result.checkpoint.responderBrief.facts.some(f => f.id === check.evidenceIds[0]));
+    assert.ok(result.checkpoint.responderBrief.facts.some(f => f.id === check.evidenceIds[1]));
+  }
+});
+
 test('an old OK event arriving later cannot supersede a newer help request', async () => {
   const id = new ObjectId();
   await db.collection('devices').insertOne({ _id: id, meta: { exercise: true } });
@@ -155,11 +182,19 @@ test('checkpoint is persisted once; retries are idempotent and labeled as simula
   const first = await read(await opsAgent(ctx('POST', url, body)));
   assert.equal(first.status, 201); assert.equal(first.body.simulated, true); assert.equal(first.body.modelVerified, false);
   assert.equal(first.body.model, null); assert.equal(first.body.checkpoint.interpretationSource, 'simulator_not_ai');
+  assert.equal(first.body.checkpoint.sensorChecks.source, 'deterministic_rules');
+  assert.equal(first.body.checkpoint.responderBrief.status, 'pending_review');
+  assert.equal(first.body.checkpoint.responderBrief.interpretation.source, 'simulator_not_ai');
+  assert.match(first.body.checkpoint.responderBrief.text, /SIMULATOR OUTPUT — NOT AI/);
   const second = await read(await opsAgent(ctx('POST', url, body)));
   assert.equal(second.status, 200); assert.equal(second.body.id, first.body.id);
   assert.equal(await db.collection('system_agent_runs').countDocuments({ _id: first.body.id }), 1);
   const changed = await opsAgent(ctx('POST', url, { ...body, goalHours: 48 })); assert.equal(changed.status, 409);
   const retrieved = await read(await opsAgent(ctx('GET', `${url}&run_id=${first.body.id}`)));
+  assert.deepEqual(retrieved.body.checkpoint.responderBrief, first.body.checkpoint.responderBrief);
+  assert.equal((await opsAgent(ctx('GET', `/api/ops/agent?run_id=${first.body.id}`))).status, 404);
+  assert.equal((await opsAgent(ctx('GET', `${url}&run_id=${first.body.id}`, null,
+    { data: { operator: { role: 'operator', email: 'different-operator@example.test', id: 'different-operator' } } }))).status, 404);
   assert.equal(retrieved.body.trace.length, 4);
   assert.equal(retrieved.body.citedEvidence.length, retrieved.body.checkpoint.evidenceIds.length);
   for (const cited of retrieved.body.citedEvidence) {

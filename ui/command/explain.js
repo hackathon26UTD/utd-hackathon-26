@@ -67,7 +67,26 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
   const errorBox = node('p', null, 'ex-error'); errorBox.setAttribute('role', 'alert');
   const resultBox = node('div', null, 'ex-result');
   let enginePicker = null;
+  const budgetFields = {};
+  const budgetHelp = note('Leave energy and draw blank to keep runtime unknown. The target alone is not verified endurance.');
+  const budgetForm = node('details', null, 'ex-details ex-budget-input');
+  budgetForm.append(node('summary', 'Runtime estimate · optional'));
+  const budgetGrid = node('div', null, 'ex-budget-fields');
+  for (const [key, label, max, initial] of [
+    ['goalHours', 'Runtime target (hours)', 168, '24'], ['remainingWh', 'Usable battery energy remaining (Wh)', 10000, ''],
+    ['normal', 'Normal mode draw (W)', 1000, ''], ['saver', 'Saver mode draw (W)', 1000, ''], ['critical', 'Critical mode draw (W)', 1000, ''],
+  ]) {
+    const field = node('label', label), input = node('input');
+    input.type = 'number'; input.inputMode = 'decimal'; input.min = key === 'goalHours' ? '1' : '0'; input.max = String(max); input.step = 'any'; input.value = initial; input.dataset.exBudget = key;
+    field.append(input); budgetGrid.append(field); budgetFields[key] = input;
+  }
+  const basisLabel = node('label', 'Where the values came from'), basis = node('select'); basis.dataset.exBudget = 'basis';
+  for (const [value, label] of [['assumption', 'Estimate'], ['bench_measurement', 'Bench measurement']]) { const option = node('option', label); option.value = value; basis.append(option); }
+  basisLabel.append(basis); budgetGrid.append(basisLabel); budgetFields.basis = basis;
+  const clearBudget = button('Clear estimate', 'clear-budget');
+  budgetForm.append(budgetGrid, budgetHelp, note('Calculations reserve 15% of supplied energy. They do not change hardware settings.'), clearBudget);
   root.replaceChildren(head, intro);
+  if (!ctx.demo) root.append(budgetForm);
   if (!ctx.demo && exercise) {
     enginePicker = window.Kit.pickOne({ label: 'Investigation engine', value: engine,
       options: [{ value: 'nemotron', label: 'Nemotron', help: 'NVIDIA model' }, { value: 'simulator', label: 'Simulator', help: 'Scripted, not AI' }],
@@ -87,10 +106,29 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
   }
   root.append(status, errorBox, resultBox);
 
+  function budgetInput() {
+    const goalHours = Number(budgetFields.goalHours.value);
+    if (!budgetFields.goalHours.value || !Number.isFinite(goalHours) || goalHours < 1 || goalHours > 168) return { valid: false, message: 'Enter a runtime target from 1 to 168 hours.' };
+    const keys = ['remainingWh', 'normal', 'saver', 'critical'];
+    if (keys.every(key => !budgetFields[key].value)) return { valid: true, goalHours, message: 'Runtime stays unknown until you supply energy and all three mode draws.' };
+    if (keys.some(key => !budgetFields[key].value || !Number.isFinite(Number(budgetFields[key].value)) || Number(budgetFields[key].value) <= 0 || Number(budgetFields[key].value) > (key === 'remainingWh' ? 10000 : 1000))) return { valid: false, message: 'Supply positive energy and all three mode draws, or clear the estimate. Energy is limited to 10,000 Wh and draw to 1,000 W per mode.' };
+    return { valid: true, goalHours, budget: { remainingWh: Number(budgetFields.remainingWh.value), basis: budgetFields.basis.value, reserveFraction: 0.15,
+      loadsWatts: { normal: Number(budgetFields.normal.value), saver: Number(budgetFields.saver.value), critical: Number(budgetFields.critical.value) } },
+      message: budgetFields.basis.value === 'bench_measurement' ? 'Uses the bench values you supplied. Projected runtime still needs an endurance test.' : 'Uses your estimates. Projected runtime is illustrative, not measured endurance.' };
+  }
+  function budgetChanged(event) {
+    if (!event.target.dataset.exBudget || dead || busy || pendingRequest || currentRun?.state === 'running') return;
+    currentRun = null; pendingRequest = null; detailPreferences.clear(); error = ''; renderResult(); paint();
+  }
+
   function paint() {
     if (dead) return;
     const denied = cfg?.known === false && [401, 403].includes(cfg.status);
     const modelReady = cfg?.known && cfg.configured;
+    const input = budgetInput();
+    budgetHelp.textContent = input.message; budgetHelp.classList.toggle('ex-error', !input.valid);
+    for (const field of Object.values(budgetFields)) field.disabled = busy || !!pendingRequest || currentRun?.state === 'running';
+    clearBudget.disabled = busy || !!pendingRequest || currentRun?.state === 'running';
     engineHelp.textContent = engine === 'simulator'
       ? 'Scripted exercise run. Uses the same tools and validation without calling NVIDIA.'
       : 'Nemotron chooses the four bounded tools. Its interpretation requires human review.';
@@ -101,7 +139,7 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
       : !cfg.configured ? 'Nemotron is not configured on this server.' : 'NVIDIA is configured. A successful investigation verifies a model call.';
     configButton.hidden = ctx.demo || engine === 'simulator' || (modelReady && !error);
     configButton.disabled = busy || configBusy;
-    runButton.disabled = busy || configBusy || denied || (engine === 'nemotron' && !modelReady);
+    runButton.disabled = !input.valid || busy || configBusy || denied || (engine === 'nemotron' && !modelReady);
     runButton.textContent = busy ? 'Investigation running…' : currentRun?.state === 'running' ? 'Check run status'
       : pendingRequest ? 'Retry request' : currentRun ? 'Run again with fresh evidence' : 'Run investigation';
     stopButton.hidden = !busy;
@@ -165,7 +203,74 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
     if (!list(checkpoint.policies).length) body.append(note('No device policy was returned.'));
     if (budget.formula) body.append(note(budget.formula));
     body.append(note('These are server-computed proposals. No hardware setting has been applied by this investigation.'));
-    return fold('policy', 'Power, connectivity and 24-hour target', [body]);
+    return fold('policy', 'Power, connectivity and runtime target', [body]);
+  }
+
+  function sensorChecksDetail(checks) {
+    const items = list(checks?.items);
+    const body = node('div');
+    body.append(node('p', 'Rule-based observation checks', 'ex-sub'));
+    body.append(note(checks?.note || 'Rule-based checks identify missing or conflicting evidence. They do not confirm a hazard or a safe condition.'));
+    const entries = node('ul', null, 'ex-evidence ex-checks');
+    for (const check of items) {
+      const item = node('li');
+      const heading = node('div', null, 'ex-card-head');
+      heading.append(node('strong', text(check.title) || 'Observation needs review'), node('span', check.status === 'review' ? 'Review' : check.status === 'unknown' ? 'Unknown' : 'Context', 'ex-chip'));
+      item.append(heading, node('p', text(check.detail)));
+      if (check.observedAt) item.append(note('Observed ' + when(check.observedAt) + (check.stale ? ' · stale at snapshot' : '')));
+      const citations = node('div', null, 'ex-check-ids');
+      list(check.evidenceIds).forEach(id => citations.append(node('code', id)));
+      if (citations.childElementCount) item.append(citations);
+      entries.append(item);
+    }
+    body.append(items.length ? entries : note('No additional checks were returned. This does not establish that the home is safe.'));
+    if (number(checks?.omittedCount) && checks.omittedCount > 0) body.append(note(`${checks.omittedCount} additional findings are outside this bounded result.`));
+    return fold('sensor-checks', `Sensor cross-checks · ${items.length}`, [body]);
+  }
+
+  function briefDetail(brief) {
+    const body = node('div', null, 'ex-brief');
+    body.append(node('h4', text(brief.title) || 'Responder brief'), note('Draft for human review · ' + (brief.mode === 'exercise' ? 'Exercise records' : 'Device records') + ' · Snapshot ' + when(brief.sourceGeneratedAt)));
+    const interpretation = brief.interpretation || {};
+    body.append(node('h4', interpretation.source === 'simulator_not_ai' ? 'Scripted interpretation · not AI' : 'Nemotron interpretation'), node('p', text(interpretation.text) || 'No interpretation supplied.'));
+    body.append(node('h4', 'Recorded facts'));
+    const facts = node('ul', null, 'ex-evidence');
+    for (const fact of list(brief.facts)) {
+      const item = node('li');
+      const value = typeof fact.value === 'boolean' || number(fact.value) || typeof fact.value === 'string' ? `: ${fact.value}` : '';
+      item.append(node('strong', (text(fact.label) || text(fact.kind) || 'Recorded observation') + value));
+      item.append(note('Observed ' + when(fact.observedAt) + (fact.stale ? ' · stale at snapshot' : '')));
+      if (fact.receivedAt) item.append(note('Received ' + when(fact.receivedAt)));
+      if (fact.id) item.append(node('code', fact.id));
+      facts.append(item);
+    }
+    body.append(facts.childElementCount ? facts : note('No individual facts were supplied.'));
+    if (list(brief.unknowns).length) {
+      body.append(node('h4', 'Still unknown'));
+      const unknowns = node('ul'); list(brief.unknowns).forEach(value => unknowns.append(node('li', value))); body.append(unknowns);
+    }
+    body.append(node('h4', 'Proposed follow-up'), node('p', text(brief.nextAction?.label) || 'Review the observations.'));
+    list(brief.limitations).forEach(value => body.append(note(value)));
+    const actions = node('div', null, 'ex-actions');
+    actions.append(button('Copy brief', 'copy-brief'), button('Download .txt', 'download-brief'));
+    for (const b of actions.children) b.disabled = !text(brief.text);
+    body.append(actions, note('Copy or save a local file. No message is sent from this panel.'));
+    return fold('brief', 'Responder brief · draft', [body]);
+  }
+
+  async function exportBrief(action) {
+    const brief = currentRun?.state === 'completed' && currentRun.checkpoint?.responderBrief;
+    if (!text(brief?.text) || dead) return;
+    if (action === 'copy-brief') {
+      try { await navigator.clipboard.writeText(brief.text); if (!dead) status.textContent = 'Brief copied. Review it before sharing.'; }
+      catch { if (!dead) { error = 'Copy is unavailable in this browser. Use Download .txt instead.'; paint(); } }
+    } else {
+      const url = URL.createObjectURL(new Blob([brief.text], { type: 'text/plain;charset=utf-8' }));
+      const a = node('a'); a.href = url; a.download = `safe-home-brief-${String(deviceId).replace(/[^a-z0-9_-]/gi, '')}.txt`;
+      a.hidden = true; root.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      status.textContent = 'Brief downloaded. Review it before sharing.';
+    }
   }
 
   function renderResult() {
@@ -211,6 +316,8 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
     resultBox.append(fold('trace', `Tool activity · ${list(run.trace).length} reported steps`, [trace.children.length ? trace : note('No tool steps have been reported.')]));
     if (run.checkpoint && run.state === 'completed') {
       const c = run.checkpoint;
+      if (c.sensorChecks) resultBox.append(sensorChecksDetail(c.sensorChecks));
+      if (c.responderBrief) resultBox.append(briefDetail(c.responderBrief));
       resultBox.append(evidenceDetail(run, c), policyDetail(c));
       if (list(c.relations).length) {
         const relations = node('ul', null, 'ex-evidence');
@@ -245,12 +352,14 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
 
   async function go() {
     if (dead || busy || ctx.demo || runButton.disabled) return;
+    const input = budgetInput();
+    if (!input.valid) return;
     const token = ++generation;
     controller = new AbortController(); const signal = controller.signal;
     const timeout = setTimeout(() => controller?.abort('timeout'), 90_000);
     let runId = currentRun?.state === 'running' ? currentRun.id : null;
     if (!runId && !pendingRequest) {
-      pendingRequest = { requestId: requestId(deviceId), deviceId, engine, goalHours: 24 };
+      pendingRequest = { requestId: requestId(deviceId), deviceId, engine, goalHours: input.goalHours, ...(input.budget ? { budget: input.budget } : {}) };
       currentRun = null; detailPreferences.clear(); renderResult();
     }
     busy = true; error = ''; paint();
@@ -290,12 +399,19 @@ export function mountExplain({ root, ctx, deviceId, exercise = false }) {
     if (target.dataset.ex === 'run') void go();
     else if (target.dataset.ex === 'config') void loadConfig();
     else if (target.dataset.ex === 'stop') controller?.abort('user');
+    else if (['copy-brief', 'download-brief'].includes(target.dataset.ex)) void exportBrief(target.dataset.ex);
+    else if (target.dataset.ex === 'clear-budget' && !clearBudget.disabled) {
+      for (const key of ['remainingWh', 'normal', 'saver', 'critical']) budgetFields[key].value = '';
+      budgetFields.goalHours.value = '24'; budgetFields.basis.value = 'assumption';
+      currentRun = null; pendingRequest = null; detailPreferences.clear(); error = ''; renderResult(); paint();
+    }
   }
   root.addEventListener('click', clicked);
+  root.addEventListener('input', budgetChanged); root.addEventListener('change', budgetChanged);
   paint();
   if (!ctx.demo) void loadConfig();
   return { destroy() {
     dead = true; generation++; lifetime.abort(); controller?.abort('destroyed');
-    root.removeEventListener('click', clicked); root.replaceChildren(); root.classList.remove('ex'); root.removeAttribute('aria-busy');
+    root.removeEventListener('click', clicked); root.removeEventListener('input', budgetChanged); root.removeEventListener('change', budgetChanged); root.replaceChildren(); root.classList.remove('ex'); root.removeAttribute('aria-busy');
   } };
 }
