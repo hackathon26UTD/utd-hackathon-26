@@ -129,6 +129,12 @@ Type these in each board's Serial Monitor. Run them in order; each prints PASS/F
 
 Limits to state honestly: all boxes must share one Wi-Fi channel (the hotspot's when visible, else channel 1), so boxes far from the hotspot can miss a gateway that sits on another channel; ESP-NOW range is ~100–200 m open air per hop; real deployments would use LoRa or Thread (ESP32-C6/H2) radios.
 
+### Results so far (2026-11-08, XIAO ESP32S3 + XIAO ESP32C3, `mesh_test`)
+
+- Mesh both directions: PASS (0 radio failures with antennas attached).
+- Store-and-forward: PASS (14 messages held during a 42 s gateway outage, all delivered within 7 s of its return).
+- Wrong key (E1): PASS (60 frames heard over the air, 0 accepted; rejoined when the key was restored).
+
 ## 6. Security tests (prove the encryption claim)
 
 | # | Test | Steps | Pass when |
