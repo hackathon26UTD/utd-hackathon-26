@@ -418,3 +418,15 @@ Production completion: PR #37 merged as `7f182b5`; Cloudflare run `42457470116` 
 - Debugging: the C3's original USB cable was charge-only (Windows saw no device). First run: B -> A worked (52 hellos incl. held backlog) but A -> B failed (B rx=0). Added radio-level send counters to `mesh.h`: A's sends failed 100%, B's ~90%. Cause: **antennas not attached** on the XIAO boards. With antennas: 0 failed both ways, every hello ACKed, 0 waiting. `npm run mesh-test -- --no-flash` reports PASS.
 - Mesh changes from this: radio power saving off (`WIFI_PS_NONE`), throttled resends (3 oldest held messages per 0.5 s instead of the whole backlog every 4 s), `mesh` command shows radio ok/failed counts. Test script reads serial via .NET on Windows and builds C3/S2 with USB CDC.
 - Next: store-and-forward test (unplug box A ~30 s, replug), then sensors via the Uno Q (wired: D11 buzzer, A4/A5 DS1307 I2C, D13 tilt, A0 water, A1 flame) -> UART -> XIAO.
+
+## 2026-11-08 ~01:30: mesh hardware test results (Dhruv)
+
+Boards: box A = XIAO ESP32S3 (gateway forced, no hotspot), box B = XIAO ESP32C3, both running `firmware/mesh_test`, antennas attached.
+
+| Test | Result |
+| --- | --- |
+| Encrypted mesh, both directions | PASS: radio 0 failed each way; every hello ACKed |
+| Store-and-forward (`TESTING.md` M2, bare-board version) | PASS: box A unplugged ~42 s; box B held 14 messages (waiting 1 -> 14), then drained 14 -> 0 within ~7 s of box A rebooting; none lost |
+| Wrong key (E1) | PASS: box B flashed with one `ESPNOW_LMK` digit changed: radio `sent ok=60` (frames heard over the air) but `acked=0`, `rx=0`, waiting climbed to 12. Correct key restored: ACKs resumed immediately |
+
+Not yet run: power-outage sensing (Power MB 3.3 V rail -> box A D3, no resistors/multimeter available), sensor bench tests (sensors currently wired to the Uno Q: D11 buzzer, A4/A5 DS1307, D13 tilt, A0 water, A1 flame), box B real firmware (needs remap from classic ESP32 to XIAO C3 pins), API end-to-end (needs `API_ADMIN_KEY` + hotspot).
