@@ -128,7 +128,7 @@ export function combineProperties(base = [], liveDevices = [], now = Date.now())
   for (const d of liveDevices) {
     const prev = byId.get(String(d.id)) || { id: String(d.id) };
     const coordinates = finite(d.lng) && finite(d.lat) ? [d.lng, d.lat] : prev.coordinates || null;
-    byId.set(String(d.id), { ...prev, id: String(d.id), name: d.name || prev.name, area:d.address || prev.area, coordinates, lastSeen: d.lastSeen ?? prev.lastSeen, offline: d.offline, live: d, link: d.link, help: d.help, risk: d.risk, observedAt: d.risk?.observedAt || prev.observedAt || d.lastSeen });
+    byId.set(String(d.id), { ...prev, id: String(d.id), name: d.name || prev.name, selfBuilt: d.selfBuilt === true || prev.selfBuilt === true, area:d.address || prev.area, coordinates, lastSeen: d.lastSeen ?? prev.lastSeen, offline: d.offline, live: d, link: d.link, help: d.help, risk: d.risk, observedAt: d.risk?.observedAt || prev.observedAt || d.lastSeen });
   }
   return [...byId.values()].map(p => {
     const shown = displayStatus(p, now);
