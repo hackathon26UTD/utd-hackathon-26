@@ -2,6 +2,9 @@
 
 > System integration: [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md) defines the additive evidence/Nemotron backend and power-policy reference. The user chose a labeled simulator for now; actual NVIDIA inference and automatic firmware load shedding remain unverified. A November 7 6:53 PM screenshot confirms pickup, including **one** AA holder (not the earlier draft's two).
 
+> Design correction: Ayan rejected the current command layout. The evolving [map-only contract](design/COMMAND_CENTER_MAP_ONLY.md) locks a U.S. disaster-region-first map with tools on demand, devices revealed on zoom, and expandable cards anchored to selected houses. Compact cards show status, attention reason and last report time. Ayan approved the rendered satellite-map direction for Astra to develop and refine. That direction is accepted; the production replacement remains implementation work.
+
+
 > Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
 
 

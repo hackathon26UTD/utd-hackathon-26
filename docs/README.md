@@ -21,3 +21,5 @@
 - [Team](TEAM.md) and private [contacts](CONTACTS.md): observed contributions and authorized contacts. Do not publish contacts.
 
 - [Claude continuation](CLAUDE_CONTINUATION.md): recovered work, real kit integration, validation and outstanding hardware/feed keys.
+
+- [Map-only command-center design](design/COMMAND_CENTER_MAP_ONLY.md) and [Astra brief](design/ASTRA_COMMAND_CENTER_BRIEF.md): current requirements, evidence, pending decisions and acceptance gates.
