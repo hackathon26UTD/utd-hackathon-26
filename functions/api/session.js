@@ -25,6 +25,6 @@ export async function onRequest({request,env}){
     const hash=await passwordHash(body.password,salt);
     if(account?.disabled===true||(!isOperator&&!isDemo)||!equal(hash,account?.hash||(isLegacyOperator?verifiedLegacy.hash:'')))return reply({error:'Email or password is incorrect.'},401);
     const token=await issueSession(env,email,isDemo?'demo':'operator',{accountBacked:account?.role==='operator'||isDemo,verifiedAccount:account,verifiedLegacy});
-    return reply({authenticated:true},200,{'Set-Cookie':sessionCookie(token)});
+    return reply({authenticated:true,role:isDemo?'demo':'operator'},200,{'Set-Cookie':sessionCookie(token)});
   }catch(error){return reply({error:error.status===401?'Account changed. Sign in again.':'Sign-in is temporarily unavailable. Try again shortly.'},error.status===401?401:503);}
 }

@@ -48,7 +48,7 @@ async function setup({ signed = true, fragment = '', devices = [], width = 1280 
     calls.push({ path, method, body });
     let status = 200, result = {};
     if (path === '/api/customer/me') { status = data.signed ? 200 : 401; result = data.signed ? { email: 'owner@example.test', contactName: 'Owner' } : { error: 'Sign in' }; }
-    else if (path === '/api/customer/login' || path === '/api/customer/register') { data.signed = true; result = { ok: true }; }
+    else if (path === '/api/access') { data.signed = true; result = { authenticated:true,role:'customer',destination:'/customer' }; }
     else if (path === '/api/customer/logout') data.signed = false;
     else if (path === '/api/customer/devices') { status = data.expire ? 401 : data.failGet ? 503 : 200; result = { devices: data.devices }; }
     else if (path === '/api/customer/claim') {
@@ -76,10 +76,10 @@ async function setup({ signed = true, fragment = '', devices = [], width = 1280 
 }
 async function tick(page) { await page.clock.runFor(10020); }
 async function signIn(page) {
-  await page.getByRole('button', { name: 'Sign in', exact: true }).first().click();
+  await page.getByRole('tab', { name: 'Sign in', exact: true }).click();
   await page.getByLabel('Email', { exact: true }).fill('owner@example.test');
   await page.getByLabel('Password', { exact: true }).fill('fixture-password');
-  await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).click();
+  await page.locator('form').getByRole('button', { name: 'Open dashboard', exact: true }).click();
 }
 
 for (const code of ['012345', 'K4M7-XP2R']) test(`QR ${code.length === 6 ? 'legacy' : 'v2'} survives sign-in; claims without address or extra consents`, async () => {
@@ -259,9 +259,17 @@ test('expired login stops device polling; malformed QR is removed before login',
     assert.equal(new URL(page.url()).hash, '');
     await expect(page.getByText('Waiting for your box to report', { exact: true })).toBeVisible();
     data.expire = true; await tick(page);
-    await expect(page.getByRole('heading', { name: 'Create your Safe Home account', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your home, connected.', exact: true })).toBeVisible();
     const count = calls.filter(c => c.path === '/api/customer/devices').length;
     await tick(page); assert.equal(calls.filter(c => c.path === '/api/customer/devices').length, count);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
+});
+
+
+test('new signup destination and Add device shortcut open the pairing form', async()=>{
+ const first=await setup({signed:true,devices:[],fragment:'#add-device'});
+ await expect(first.page.locator('#add-device details')).toHaveAttribute('open','');await first.context.close();
+ const existing=await setup({signed:true,devices:[box()]});
+ await existing.page.getByRole('link',{name:'Add device',exact:false}).click();await expect(existing.page.locator('#add-device details')).toHaveAttribute('open','');await existing.context.close();
 });
