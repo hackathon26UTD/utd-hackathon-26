@@ -1,3 +1,5 @@
+Current rollout: inventory routes are released. See [DASHBOARD_ONBOARDING.md](DASHBOARD_ONBOARDING.md) for the shared account entry and repeatable hardware-to-live-view acceptance process.
+
 # Safe Home inventory CLI
 
 Implemented locally on November 8, 2026. Server routes are a separate workstream; these commands do not deploy, flash hardware, or prove that a box reports.
