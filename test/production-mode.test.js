@@ -16,6 +16,23 @@ test('failed demo logout cannot claim a production transition',async()=>{
 test('anonymous exit uses the protected route without creating a session',async()=>{
  let target;await endDemoSession(null,{request:()=>{throw Error('unexpected auth mutation');},navigate:p=>target=p});assert.equal(target,'/command-center');
 });
+test('operator leaving public or registered exercise Review stays in live Review without signing out',async()=>{
+ const paths=[];await endDemoSession('operator',{view:'review',request:()=>{throw Error('must not sign operator out');},navigate:p=>paths.push(p)});assert.deepEqual(paths,['/command-center?view=review']);
+});
+test('operator can explicitly enter registered exercise Review',async()=>{
+ let target;await endDemoSession('operator',{view:'review',mode:'exercise',request:()=>{throw Error('must not sign operator out');},navigate:p=>target=p});assert.equal(target,'/command-center?mode=exercise&view=review');
+});
+test('shared demo Review exit removes the demo session before preserving its destination',async()=>{
+ const calls=[];await endDemoSession('demo',{view:'review',request:async(p,o)=>{calls.push([p,o.method]);return {ok:true};},navigate:p=>calls.push(p)});assert.deepEqual(calls,[['/api/session','DELETE'],'/command-center?view=review']);
+});
+test('failed shared demo Review exit cannot navigate to registered records',async()=>{
+ let navigated=false;await assert.rejects(endDemoSession('demo',{view:'review',request:async()=>({ok:false}),navigate:()=>{navigated=true;}}));assert.equal(navigated,false);
+});
+test('registered exercise entry requires an operator and destinations cannot be redirected',async()=>{
+ for(const role of [null,'demo'])await assert.rejects(endDemoSession(role,{view:'review',mode:'exercise',request:()=>{throw Error('unexpected auth mutation');},navigate:()=>{assert.fail('must not enter registered exercise');}}),/Sign in as an operator/);
+ let target;await endDemoSession('operator',{view:'https://example.com',navigate:p=>target=p});assert.equal(target,'/command-center');
+ await assert.rejects(endDemoSession('operator',{mode:'https://example.com',navigate:()=>{assert.fail('must reject unsupported mode');}}),/Choose live or exercise/);
+});
 test('sensor descriptions label stale and missing time and never invent power or Wi-Fi',()=>{
  const now=Date.parse('2026-11-08T15:00:00Z');const rows=readingSummary({water_detected:{value:false,ts:'2026-11-08T15:00:00Z'},flame:{value:1,ts:'2026-11-08T14:30:00Z'},tilt:{value:0}},now);assert.equal(rows[0].value,'not detected');assert.equal(rows[0].stale,false);assert.equal(rows[1].value,'active');assert.equal(rows[1].stale,true);assert.equal(rows[2].note,'Report time unknown');assert.equal(rows.length,3);assert.deepEqual(readingSummary({},now),[]);
 });
