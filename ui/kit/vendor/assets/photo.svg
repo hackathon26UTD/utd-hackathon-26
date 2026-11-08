@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- The UI library's stand-in for an uploaded photo: soft abstract shapes
+       on a gradient. It is not a picture of anyone. -->
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9fc3b4"/>
+      <stop offset="1" stop-color="#4f7d8c"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" fill="url(#ground)"/>
+  <circle cx="84" cy="92" r="58" fill="#e8f1ea" fill-opacity="0.45"/>
+  <circle cx="178" cy="150" r="74" fill="#2f5566" fill-opacity="0.4"/>
+  <circle cx="150" cy="70" r="26" fill="#f6e7c8" fill-opacity="0.6"/>
+</svg>

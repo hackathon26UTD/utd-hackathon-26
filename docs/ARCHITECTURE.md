@@ -35,3 +35,8 @@ GitHub Actions on Node 22 run backend tests, a real MongoDB service/readiness ch
 ## Hardware boundary
 
 ESP32 boxes and Arduino Uno Q gateway are planned/current inventory, not proof of flashed or calibrated devices. Existing ingest/client contracts must be reconciled with actual sensors. Durable replay/idempotency, battery endurance, fallback networking, voltage/current limits and physical survivability require demonstration. Synthetic UI behavior is not hardware verification. See [hardware](HARDWARE.md).
+
+
+## Live platform and real kit continuation
+
+The resumed Claude work adds polling cursors, device downlink/delivery acknowledgements, logs, deterministic device/region risk, cached overlays/operator zones and household pairing/accounts. Operator and household cookies/authority are separate. Product pages use the actual vendored owner Argus kit with dusk/paper themes. See [continuation evidence and limitations](CLAUDE_CONTINUATION.md), [system contract](SYSTEM_SPEC.md), [customer](CUSTOMER.md), [risk](risk.md), [feeds](FEEDS.md) and [downlink](LIVE_DOWNLINK.md). These supersede earlier sections stating the customer role or exact library are not implemented.

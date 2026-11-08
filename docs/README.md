@@ -17,3 +17,5 @@
 - [Cloudflare](CLOUDFLARE.md) and [MongoDB](MONGODB.md): provider setup and deployment details.
 - [Research](RESEARCH.md): earlier track/source observations; reverify current event criteria.
 - [Team](TEAM.md) and private [contacts](CONTACTS.md): observed contributions and authorized contacts. Do not publish contacts.
+
+- [Claude continuation](CLAUDE_CONTINUATION.md): recovered work, real kit integration, validation and outstanding hardware/feed keys.

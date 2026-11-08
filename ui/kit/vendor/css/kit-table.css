@@ -1,0 +1,1087 @@
+/* ============================================================================
+ * ArgusTable (js/kit/table.js): the shared Mercury-density table.
+ *
+ * ⛔ FRAMED SINCE 2026-09-24. Owner, on Inventory: "it doesn't even look like
+ *    we have a table below". Mercury's floating hairlines read as loose text
+ *    on a busy page, so the table now sits in one bordered block with a
+ *    tinted header band, full-width row rules and a square hover band. The
+ *    density below (48px rows, 40px header, 15px type) is unchanged.
+ *
+ * Owner, 2026-09-22: "make those transactions look like this, and expand this
+ * type of spreadsheet to other areas with the same zoom, so it's not too large
+ * nor small." Geometry from docs/financials/mercury-reference/transactions.md
+ * section 6 and the owner's own Mercury screenshot (2x, halved):
+ *
+ *     header row   40px, 13px, muted, sentence case, one hairline under it
+ *     body row     48px pitch, hairlines BETWEEN rows (never after the last)
+ *     names        15px ink, beside a 32px round initials avatar
+ *     amounts      15px, right aligned, cents a raised 11px superscript,
+ *                  money in green (--crm-revenue), money out ink
+ *     dates        14px ink, "Sep 22"
+ *     secondary    14px muted, darkening to ink while the row is hovered
+ *     hover        a rounded (12px) pale block that reaches 8px past the
+ *                  first and last column; the hairlines either side vanish
+ *
+ * NO RAW HEX, NO rgba() LITERAL. Neutrals are --ground-* (css/main.css),
+ *    everything else --crm-* (css/argus-crm.css). A missing tone is added to
+ *    argus-crm.css in BOTH theme blocks, never invented here.
+ *
+ * THE 44px TAP FLOOR. css/main.css puts `min-height: 44px; min-width: 44px`
+ *    on every button. That floor is why the Documents rows measure 69px
+ *    instead of the ~45px they were written for. Every button in this table
+ *    therefore declares its own box, and the ones drawn smaller than 44px get
+ *    their 44px back from an invisible ::before, so the row height is set by
+ *    this sheet and the tap target is still 44px.
+ *
+ * CLASS NAMES MISS THE SHELL'S WILDCARDS. css/shell-theme.css repaints any
+ *    [class*='card'|'panel'|'widget'|'tile'] inside .portal-main and forces
+ *    heading colours inside [class*='-page']; css/main.css re-animates
+ *    [class*='spin'] forever. So: no class here contains any of those (the
+ *    card glyph is data-icon="card", the pager is .atbl-foot__nav).
+ *
+ * `body.light-mode *` (shell-theme.css) puts a 240ms transition shorthand
+ *    on EVERY element in light mode at (0,1,1). Rules that set their own
+ *    transition are written `.atbl .atbl-x` (0,2,0) so both themes animate
+ *    the same way.
+ * ========================================================================== */
+
+.atbl {
+    --atbl-inset: 16px;
+    --atbl-gap: 16px;
+    --atbl-frame: var(--ground-line);
+    --atbl-line: color-mix(in srgb, var(--ground-line) 72%, transparent);
+    --atbl-hover: color-mix(in srgb, var(--ground-ink) 4%, transparent);
+    --atbl-hover-strong: color-mix(in srgb, var(--ground-ink) 6%, transparent);
+    /* What the stuck header paints so rows do not show through it: the
+       module sheet the table sits on. Light module pages sit on
+       --ground-page (shell-theme.css, `body.light-mode.module-active ...
+       .portal-main`); dark ones on the shell's --sheet-surface. A table on
+       any other ground (a card, a dialog) sets --atbl-bg on an ancestor. */
+    --atbl-ground: var(--atbl-bg, var(--ground-page));
+    --atbl-head-bg: color-mix(in srgb, var(--ground-ink) 4%, var(--atbl-ground));
+    position: relative;
+    margin: 0;
+    border: 1px solid var(--atbl-frame);
+    border-radius: 12px;
+    background: var(--atbl-ground);
+    color: var(--ground-ink);
+    font-size: 15px;
+    line-height: 20px;
+    /* No tabular-nums here: Inter's tabular set carries a wide hyphen, so every
+       name with one read "Coca - Cola". Figures that line up in a column
+       (dates, amounts, the footer count) set it themselves, as Mercury does. */
+    text-align: left;
+}
+
+body:not(.light-mode) .atbl {
+    /* A 4% ink wash is visible on white and lost on #1d1d1d. */
+    --atbl-hover: color-mix(in srgb, var(--ground-ink) 6%, transparent);
+    --atbl-hover-strong: color-mix(in srgb, var(--ground-ink) 9%, transparent);
+    --atbl-line: var(--ground-line);
+    --atbl-ground: var(--atbl-bg, var(--sheet-surface, var(--ground-page)));
+    --atbl-head-bg: color-mix(in srgb, var(--ground-ink) 6%, var(--atbl-ground));
+}
+
+.atbl *,
+.atbl *::before,
+.atbl *::after {
+    box-sizing: border-box;
+}
+
+/* -- Header --------------------------------------------------------------- */
+
+.atbl-head {
+    position: sticky;
+    /* --atbl-auto-top is written by js/kit/table.js: minus the scroll
+       container's top padding, so the stuck header is flush with its edge. */
+    top: var(--atbl-sticky-top, var(--atbl-auto-top, 0px));
+    z-index: 2;
+    display: grid;
+    grid-template-columns: var(--atbl-cols);
+    grid-template-rows: 40px;
+    column-gap: var(--atbl-gap);
+    align-items: center;
+    padding: 0 var(--atbl-inset);
+    /* A tinted band, opaque so rows scrolling under a stuck header do not
+       show through. The frame is its top rule. */
+    border-radius: 11px 11px 0 0;
+    background: var(--atbl-head-bg);
+    border-bottom: 1px solid var(--atbl-frame);
+}
+
+.atbl-th {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: 40px;
+    color: var(--ground-ink-2);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 16px;
+    white-space: nowrap;
+}
+
+.atbl-th--right {
+    justify-content: flex-end;
+}
+
+.atbl-th__label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.atbl-th--sortable {
+    overflow: visible;
+}
+
+/* The sort control: a full 44px tall button (the tap floor, kept) inside a
+   40px header, so it overflows 2px each way without moving the row. The
+   pale pill Mercury shows on hover is the inner span. */
+.atbl .atbl-sort {
+    display: inline-flex;
+    align-items: center;
+    height: 44px;
+    min-height: 44px;
+    min-width: 0;
+    max-width: calc(100% + 12px);
+    margin: 0 -6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.atbl .atbl-sort__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: var(--crm-r-xs, 6px);
+    transition: background-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl .atbl-sort:is(:hover, [data-kit-force~='hover']) .atbl-sort__pill,
+.atbl .atbl-sort[aria-expanded='true'] .atbl-sort__pill {
+    background: var(--atbl-hover-strong);
+    color: var(--ground-ink-2);
+}
+
+.atbl .atbl-sort:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: none;
+}
+
+.atbl .atbl-sort:is(:focus-visible, [data-kit-force~='focus']) .atbl-sort__pill {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 0;
+}
+
+.atbl .atbl-sort.is-active {
+    color: var(--ground-ink-2);
+}
+
+.atbl-sort .atbl-ic {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    stroke-width: 2;
+}
+
+/* The two-way arrow only answers "can I sort this?", so it waits for the
+   pointer. It keeps its box, so the label never shifts when it appears. */
+.atbl .atbl-sort__hint {
+    opacity: 0;
+    transition: opacity var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl .atbl-sort:is(:hover, [data-kit-force~='hover']) .atbl-sort__hint,
+.atbl .atbl-sort:is(:focus-visible, [data-kit-force~='focus']) .atbl-sort__hint,
+.atbl .atbl-sort[aria-expanded='true'] .atbl-sort__hint {
+    opacity: 1;
+}
+
+/* -- Rows ----------------------------------------------------------------- */
+
+.atbl-body {
+    position: relative;
+}
+
+.atbl .atbl-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--atbl-cols);
+    column-gap: var(--atbl-gap);
+    align-items: center;
+    height: 48px;
+    padding: 0 var(--atbl-inset);
+    border-radius: 0;
+    transition: background-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+/* The hairline sits INSIDE the top of every row but the first, inset to the
+   column edges. Drawn, not bordered, so the pitch stays exactly 48px and the
+   line can vanish under a hovered block without a gap opening. */
+.atbl-row + .atbl-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--atbl-line);
+    pointer-events: none;
+}
+
+.atbl .atbl-row:not(.atbl-ghost):is(:hover, [data-kit-force~='hover']),
+.atbl .atbl-row.is-selected,
+.atbl .atbl-row.is-open {
+    background: var(--atbl-hover);
+}
+
+.atbl-row:not(.atbl-ghost):is(:hover, [data-kit-force~='hover'])::before,
+.atbl-row:not(.atbl-ghost):is(:hover, [data-kit-force~='hover']) + .atbl-row::before,
+.atbl-row.is-selected::before,
+.atbl-row.is-selected + .atbl-row::before,
+.atbl-row.is-open::before,
+.atbl-row.is-open + .atbl-row::before {
+    opacity: 0;
+}
+
+.atbl-row.is-clickable {
+    cursor: pointer;
+}
+
+.atbl .atbl-row:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: -2px;
+}
+
+.atbl-cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.atbl-cell--right {
+    justify-content: flex-end;
+}
+
+.atbl-cell--select {
+    overflow: visible;
+}
+
+/* A right-aligned figure followed by a left-aligned label reads as one
+   phrase at a 16px gap ("-$642.18 Main Street"). Mercury leaves 32px there,
+   so the column after a right-aligned one starts 16px further in. */
+.atbl-cell--right + .atbl-cell--left,
+.atbl-th--right + .atbl-th--left {
+    padding-left: var(--atbl-gap);
+}
+
+/* -- Checkbox ------------------------------------------------------------- */
+
+.atbl-check {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* 44px of pointer target around an 18px box. */
+.atbl-check::before {
+    content: '';
+    position: absolute;
+    inset: -12px;
+}
+
+.atbl .atbl-check__box {
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border: 1px solid var(--ground-line-2);
+    border-radius: 4px;
+    background: var(--ground-raised);
+    cursor: pointer;
+    transition:
+        background-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease),
+        border-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl .atbl-check__box:is(:hover, [data-kit-force~='hover']) {
+    border-color: var(--ground-ink-3);
+}
+
+.atbl .atbl-check__box:checked,
+.atbl .atbl-check__box:indeterminate {
+    border-color: var(--ground-ink);
+    background: var(--ground-ink);
+}
+
+/* The tick and the bar are drawn in the page ground's own colour, so they
+   read on the ink fill in both themes without a literal. */
+.atbl-check__box:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 1.5px;
+    width: 5px;
+    height: 10px;
+    border: solid var(--ground-raised);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.atbl-check__box:indeterminate::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    right: 3px;
+    top: 7.5px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--ground-raised);
+}
+
+.atbl .atbl-check__box:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 2px;
+}
+
+.atbl .atbl-check__box:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* -- Cells by type -------------------------------------------------------- */
+
+.atbl-date {
+    font-size: 14px;
+    color: var(--ground-ink);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.atbl-party {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.atbl-av {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    /* Mercury: 16px from the avatar to the name. */
+    margin-right: 16px;
+    border-radius: 50%;
+    color: var(--ground-ink-2);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1;
+}
+
+/* Four pale tints, picked per name. Mixed from the categorical series so
+   they carry no meaning of their own: blue, teal, slate, violet. Green,
+   amber and red are left out on purpose; those say money in, needs a
+   human, and something is wrong. */
+.atbl-av--1 {
+    background: color-mix(in srgb, var(--crm-series-4) 16%, var(--ground-raised));
+}
+.atbl-av--2 {
+    background: color-mix(in srgb, var(--crm-series-1) 16%, var(--ground-raised));
+}
+.atbl-av--3 {
+    background: color-mix(in srgb, var(--crm-series-8) 18%, var(--ground-raised));
+}
+.atbl-av--4 {
+    background: color-mix(in srgb, var(--crm-series-2) 14%, var(--ground-raised));
+}
+
+.atbl-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ground-ink);
+}
+
+.atbl-badge {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    height: 20px;
+    margin-left: 8px;
+    padding: 0 7px;
+    border: 1px solid var(--ground-line-2);
+    border-radius: var(--crm-r-xs, 6px);
+    color: var(--ground-ink-2);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.atbl-cell--badge .atbl-badge {
+    margin-left: 0;
+}
+
+.atbl-badge--warn {
+    border-color: var(--crm-warn-bd);
+    color: var(--crm-warn-fg);
+}
+
+.atbl-badge--muted {
+    border-color: var(--ground-line);
+    color: var(--ground-ink-3);
+}
+
+.atbl-badge--danger {
+    border-color: var(--crm-danger-bd);
+    color: var(--crm-danger-fg);
+}
+
+/* Money: ink for money out and zero, --crm-revenue for money in (the one
+   green on the page), never --crm-danger. */
+.atbl-money {
+    color: var(--ground-ink);
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.atbl-money--in {
+    /* The text step of the money-in green: --crm-revenue itself is 2.99:1 as
+       15px text on the light page. Falls back to the mark green where a page
+       has not loaded argus-crm.css. */
+    color: var(--crm-revenue-text, var(--crm-revenue));
+}
+
+.atbl-money--spend {
+    color: var(--crm-spend);
+}
+
+/* A voided or failed amount keeps its colour and is struck through. The
+   line is drawn at the dollars' height and runs under the raised cents,
+   which is how Mercury draws it. */
+.atbl-money--struck {
+    text-decoration: line-through;
+    text-decoration-thickness: 1px;
+}
+
+/* Words for a screen reader that the eye gets from the strike. */
+.atbl-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.atbl-cents {
+    margin-left: 1px;
+    font-size: 11px;
+    /* Mercury's cents are medium (overview.md 7): at 11px a regular weight
+       reads fainter than the dollars beside it. */
+    font-weight: 500;
+    line-height: 1;
+    vertical-align: 4px;
+}
+
+.atbl-none {
+    color: var(--ground-ink-3);
+    cursor: default;
+}
+
+.atbl-text {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--ground-ink-2);
+    font-size: 14px;
+}
+
+.atbl .atbl-text {
+    transition: color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl-text--strong,
+.atbl .atbl-row:not(.atbl-ghost):is(:hover, [data-kit-force~='hover']) .atbl-text {
+    color: var(--ground-ink);
+}
+
+.atbl-text__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atbl-text .atbl-ic {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    stroke-width: 1.6;
+}
+
+.atbl-ic {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* -- Inline select (Mercury's Category combobox) ---------------------------
+   The box is 32px so the row stays 48px; the trigger inside it is the full
+   44px tall and overhangs the box by 6px each way, invisibly. */
+
+.atbl-combo {
+    position: relative;
+    width: 100%;
+    /* Mercury's category combobox: 40px, centred in its row. */
+    height: 40px;
+    border: 1px solid var(--ground-line-2);
+    border-radius: var(--crm-r-sm, 8px);
+    background: var(--ground-raised);
+}
+
+.atbl .atbl-combo {
+    transition: border-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl .atbl-combo:is(:hover, [data-kit-force~='hover']),
+.atbl-row.is-open .atbl-combo {
+    border-color: var(--ground-line-3);
+}
+
+.atbl .atbl-combo:focus-within {
+    border-color: var(--ground-ink-3);
+    box-shadow: 0 0 0 1px var(--ground-ink-3);
+}
+
+.atbl .atbl-combo__trigger {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    min-height: 44px;
+    min-width: 0;
+    padding: 0 10px 0 11px;
+    border: 0;
+    background: none;
+    color: var(--ground-ink);
+    font: inherit;
+    /* Mercury's Category value is 15px, the size of the name column. */
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.atbl .atbl-combo__trigger:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: none;
+}
+
+.atbl-combo.is-set .atbl-combo__trigger {
+    padding-right: 34px;
+}
+
+.atbl-combo__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.atbl-combo__label.is-placeholder {
+    color: var(--ground-ink-3);
+}
+
+.atbl .atbl-combo__chev {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--ground-ink);
+    stroke-width: 2;
+    transition: transform var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl-combo__trigger[aria-expanded='true'] .atbl-combo__chev {
+    transform: rotate(180deg);
+}
+
+.atbl .atbl-combo__clear {
+    position: absolute;
+    top: 7px;
+    right: 3px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--crm-r-xs, 6px);
+    background: none;
+    color: var(--ground-ink);
+    cursor: pointer;
+}
+
+/* 44px of pointer target around the 24px glyph. */
+.atbl-combo__clear::before {
+    content: '';
+    position: absolute;
+    inset: -10px;
+}
+
+.atbl .atbl-combo__clear:is(:hover, [data-kit-force~='hover']) {
+    background: var(--atbl-hover-strong);
+}
+
+.atbl .atbl-combo__clear:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 0;
+}
+
+.atbl-combo__clear .atbl-ic {
+    width: 14px;
+    height: 14px;
+    stroke-width: 2;
+}
+
+.atbl-combo.is-busy {
+    opacity: 0.6;
+}
+
+.atbl-combo.is-failed {
+    border-color: var(--crm-danger-bd);
+}
+
+/* -- Group labels --------------------------------------------------------- */
+
+.atbl-group {
+    padding: 20px var(--atbl-inset) 8px;
+}
+
+.atbl-group__label {
+    color: var(--ground-ink-3);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+}
+
+/* -- Loading, empty, failed ------------------------------------------------ */
+
+.atbl-bar {
+    display: block;
+    width: 60%;
+    height: 10px;
+    border-radius: 5px;
+    /* An ink wash, not --ground-chip: chip is one step off the light page
+       ground and the bars vanished on it. */
+    background: color-mix(in srgb, var(--ground-ink) 8%, transparent);
+}
+
+.atbl-bar[data-w='38'] {
+    width: 38%;
+}
+.atbl-bar[data-w='44'] {
+    width: 44%;
+}
+.atbl-bar[data-w='52'] {
+    width: 52%;
+}
+.atbl-bar[data-w='58'] {
+    width: 58%;
+}
+.atbl-bar[data-w='62'] {
+    width: 62%;
+}
+.atbl-bar[data-w='66'] {
+    width: 66%;
+}
+.atbl-bar[data-w='70'] {
+    width: 70%;
+}
+.atbl-bar[data-w='78'] {
+    width: 78%;
+}
+
+.atbl-bar--dot {
+    flex: none;
+    width: 32px;
+    height: 32px;
+    /* The ghost avatar holds the real one's place: 16px to the name. */
+    margin-right: 16px;
+    border-radius: 50%;
+}
+
+.atbl-bar--box {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+}
+
+.atbl-cell--date .atbl-bar {
+    width: 70%;
+}
+
+.atbl-cell--money .atbl-bar {
+    width: 64%;
+}
+
+.atbl-ghost:not(.is-still) .atbl-bar {
+    animation: atbl-breathe 1.4s var(--crm-ease, ease) infinite;
+}
+
+@keyframes atbl-breathe {
+    0%,
+    100% {
+        opacity: 0.55;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.atbl--empty .atbl-body {
+    min-height: 240px;
+}
+
+/* The empty table keeps its shape: five still ghost rows fading out behind
+   the sentence. */
+.atbl-behind {
+    opacity: 0.7;
+    -webkit-mask-image: linear-gradient(to bottom, black, transparent);
+    mask-image: linear-gradient(to bottom, black, transparent);
+}
+
+.atbl-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 40px var(--atbl-inset);
+    text-align: center;
+}
+
+.atbl-msg--empty {
+    position: absolute;
+    inset: 0;
+    /* A scrim of the table's own ground, thin at the top and solid by the
+       sentence, so the shape shows and the words do not sit on bars. */
+    background: linear-gradient(
+        to bottom,
+        color-mix(in srgb, var(--atbl-ground) 35%, transparent),
+        var(--atbl-ground) 62%
+    );
+}
+
+.atbl-msg__text {
+    max-width: 52ch;
+    margin: 0;
+    color: var(--ground-ink-2);
+    font-size: 15px;
+    line-height: 22px;
+}
+
+.atbl-msg--failed .atbl-msg__text {
+    color: var(--ground-ink);
+}
+
+.atbl .atbl-msg__action {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    min-height: 32px;
+    min-width: 0;
+    padding: 0 16px;
+    /* The page's one Try again: the same outlined button as every other
+       failure's (css/financials-controls.css .fc-btn--outline), so one
+       failure never shows three different controls. */
+    border: 1px solid var(--crm-border-strong, var(--ground-line-2));
+    border-radius: var(--crm-r-sm, 8px);
+    background: var(--ground-raised);
+    color: var(--ground-ink-2);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 24px;
+    cursor: pointer;
+    transition: background-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl-msg__action::before {
+    content: '';
+    position: absolute;
+    inset: -6px 0;
+}
+
+.atbl .atbl-msg__action:is(:hover, [data-kit-force~='hover']) {
+    border-color: var(--ground-line-3, var(--crm-border-strong));
+    color: var(--ground-ink);
+}
+
+.atbl .atbl-msg__action:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 2px;
+}
+
+/* -- Footer: "1,170 Transactions  <  >" ----------------------------------- */
+
+.atbl .atbl-body > .atbl-row:last-child {
+    border-radius: 0 0 11px 11px;
+}
+
+.atbl-foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px var(--atbl-inset);
+    border-top: 1px solid var(--atbl-frame);
+    color: var(--ground-ink-2);
+    font-size: 14px;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+}
+
+.atbl-foot__navs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.atbl .atbl-foot__nav {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: none;
+    color: var(--ground-ink-2);
+    cursor: pointer;
+    transition: background-color var(--crm-dur-fast, 120ms) var(--crm-ease, ease);
+}
+
+.atbl-foot__nav::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+}
+
+.atbl .atbl-foot__nav:is(:hover, [data-kit-force~='hover']):not(:disabled) {
+    background: var(--atbl-hover-strong);
+    color: var(--ground-ink);
+}
+
+.atbl .atbl-foot__nav:disabled {
+    color: var(--ground-ink-3);
+    opacity: 0.5;
+    cursor: default;
+}
+
+.atbl .atbl-foot__nav:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 0;
+}
+
+.atbl-foot__nav .atbl-ic {
+    width: 16px;
+    height: 16px;
+    stroke-width: 2;
+}
+
+/* -- Popups (children of <body>) -----------------------------------------
+   Positioned in JS against the viewport, so position: fixed. Above the
+   dialogs this table can be opened from, like .inv-menu__pop. */
+
+.atbl-pop {
+    position: fixed;
+    z-index: 10050;
+    padding: 4px;
+    border: 1px solid var(--ground-line);
+    border-radius: var(--crm-r-md, 12px);
+    background: var(--ground-raised);
+    box-shadow: var(--crm-shadow-3);
+    color: var(--ground-ink);
+    /* Mercury: sort-menu items and listbox options are 15px (transactions.md
+       6.3, 6.4), the same size as the names they sit beside. */
+    font-size: 15px;
+    line-height: 20px;
+}
+
+.atbl-pop *,
+.atbl-pop *::before,
+.atbl-pop *::after {
+    box-sizing: border-box;
+}
+
+.atbl-menu {
+    min-width: 148px;
+}
+
+.atbl-pop .atbl-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
+    min-width: 0;
+    padding: 0 12px 0 10px;
+    border: 0;
+    border-radius: var(--crm-r-xs, 6px);
+    background: none;
+    color: var(--ground-ink);
+    font: inherit;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.atbl-pop .atbl-menu__item:is(:hover, [data-kit-force~='hover']):not(.is-disabled),
+.atbl-pop .atbl-menu__item:is(:focus-visible, [data-kit-force~='focus']) {
+    background: var(--ground-chip);
+    outline: none;
+}
+
+.atbl-pop .atbl-menu__item.is-disabled {
+    color: var(--ground-ink-3);
+    opacity: 0.6;
+    cursor: default;
+}
+
+.atbl-menu__glyph {
+    flex: none;
+    width: 13px;
+    height: 13px;
+    color: var(--ground-ink-3);
+    stroke-width: 2;
+}
+
+.atbl-menu__item.is-checked .atbl-menu__glyph {
+    color: var(--crm-cta);
+}
+
+.atbl-lb {
+    display: flex;
+    flex-direction: column;
+    max-width: 360px;
+}
+
+.atbl-pop .atbl-lb__search {
+    height: 36px;
+    margin: 0 0 4px;
+    padding: 0 10px;
+    border: 0;
+    border-bottom: 1px solid var(--ground-line);
+    border-radius: 0;
+    background: none;
+    color: var(--ground-ink);
+    font: inherit;
+    outline: none;
+}
+
+.atbl-pop .atbl-lb__search::placeholder {
+    color: var(--ground-ink-3);
+}
+
+.atbl-lb__list {
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.atbl-pop .atbl-opt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 32px;
+    min-width: 0;
+    padding: 6px 10px;
+    border: 0;
+    border-radius: var(--crm-r-xs, 6px);
+    background: none;
+    color: var(--ground-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.atbl-pop .atbl-opt:is(:hover, [data-kit-force~='hover']),
+.atbl-pop .atbl-opt:is(:focus-visible, [data-kit-force~='focus']) {
+    background: var(--ground-chip);
+    outline: none;
+}
+
+.atbl-opt__check {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    color: var(--crm-cta);
+    stroke-width: 2;
+}
+
+.atbl-lb__none {
+    padding: 8px 10px;
+    color: var(--ground-ink-3);
+}
+
+.atbl-pop .atbl-ic {
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Reduced motion: no breathing ghosts, no easing. The end states stay. */
+@media (prefers-reduced-motion: reduce) {
+    .atbl-ghost:not(.is-still) .atbl-bar {
+        animation: none;
+    }
+    .atbl .atbl-row,
+    .atbl .atbl-text,
+    .atbl .atbl-sort__pill,
+    .atbl .atbl-sort__hint,
+    .atbl .atbl-combo,
+    .atbl .atbl-combo__chev {
+        transition: none;
+    }
+}
