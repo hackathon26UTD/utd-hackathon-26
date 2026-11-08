@@ -1,11 +1,15 @@
-// One-time setup for the two physical boxes. Needs API_ADMIN_KEY (from Ayan) and WIFI_SSID/WIFI_PASS in .env.
+// One-time setup for the mesh boxes. Needs API_ADMIN_KEY (from Ayan) and WIFI_SSID/WIFI_PASS in .env.
 //
-//   npm run provision -- --a-mac AA:BB:CC:DD:EE:01 --b-mac AA:BB:CC:DD:EE:02 --lat 32.9857 --lon -96.7502
+//   npm run provision -- --box A=AA:BB:CC:DD:EE:01 --box B=AA:BB:CC:DD:EE:02 [--box C=...] [--lat 32.98 --lon -96.75]
 //
-// Creates (once): a home for each box, a device for each box, assigns devices to homes, generates
-// ESP-NOW encryption keys, and writes firmware/box_a/secrets.h and firmware/box_b/secrets.h (git-ignored).
-// Created ids are remembered in firmware/.provisioned.json (git-ignored); --force makes new devices.
-// Device keys are written only to the secrets files, never printed.
+// For each box (once): creates a synthetic demo home, registers a device, assigns it to the home.
+// Generates the shared ESP-NOW AES keys, then writes a secrets.h for every box (git-ignored):
+//   box A  -> firmware/box_a/secrets.h      (XIAO ESP32S3 Sense sketch)
+//   box B  -> firmware/box_b/secrets.h      (ESP32 sketch)
+//   others -> firmware/box_b/secrets.<ID>.h (flash with the box_b sketch: copy over secrets.h first)
+// Every file has the same MESH_NODES table (each box can upload for the others); only MY_NODE_ID differs.
+// Created ids are remembered in firmware/.provisioned.json; device keys are written only to the
+// secrets files and never printed. --force registers new devices.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join, dirname } from 'node:path';
@@ -14,15 +18,27 @@ import { env } from './env.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const STATE = join(ROOT, 'firmware', '.provisioned.json');
-const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]?.startsWith('--') || all[i + 1] === undefined ? 'true' : all[i + 1]]] : acc), []));
+const KEYS = join(ROOT, 'firmware', '.mesh-keys.json');  // git-ignored: device keys + ESP-NOW keys
 
-const MAC = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i;
-function need(cond, msg) { if (!cond) { console.error(msg); process.exit(1); } }
-need(env.API_ADMIN_KEY, 'API_ADMIN_KEY missing in .env (get it from Ayan).');
-need(env.WIFI_SSID && env.WIFI_PASS, 'Add WIFI_SSID and WIFI_PASS (2.4 GHz hotspot) to .env.');
-need(MAC.test(args['a-mac'] || '') && MAC.test(args['b-mac'] || ''), 'Pass --a-mac and --b-mac (type `mac` in each board\'s serial monitor).');
-const lat = Number(args.lat ?? 32.9857), lon = Number(args.lon ?? -96.7502);  // default: UT Dallas
-need(Number.isFinite(lat) && Number.isFinite(lon), '--lat/--lon must be numbers');
+const argv = process.argv.slice(2);
+const opt = (name) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : undefined; };
+const boxes = [];
+argv.forEach((a, i) => { if (a === '--box') boxes.push(argv[i + 1]); });
+// Backward compatible: --a-mac / --b-mac
+if (opt('a-mac')) boxes.push(`A=${opt('a-mac')}`);
+if (opt('b-mac')) boxes.push(`B=${opt('b-mac')}`);
+
+const fail = (m) => { console.error(m); process.exit(1); };
+if (!env.API_ADMIN_KEY) fail('API_ADMIN_KEY missing in .env (get it from Ayan).');
+if (!env.WIFI_SSID || !env.WIFI_PASS) fail('Add WIFI_SSID and WIFI_PASS (2.4 GHz hotspot) to .env.');
+const parsed = boxes.map((b) => { const [id, mac] = String(b).split('='); return { id: (id || '').toUpperCase(), mac: (mac || '').toUpperCase() }; });
+if (parsed.length < 2) fail('Pass at least two boxes: --box A=<mac> --box B=<mac> (type `mac` in each serial monitor).');
+for (const b of parsed) {
+  if (!/^[A-Z0-9]{1,5}$/.test(b.id)) fail(`Bad box id "${b.id}" (1-5 letters/digits)`);
+  if (!/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(b.mac)) fail(`Bad MAC for box ${b.id}: ${b.mac}`);
+}
+if (parsed.length > 8) fail('At most 8 boxes (ESP-NOW encrypted peer limit).');
+const lat = Number(opt('lat') ?? 32.9857), lon = Number(opt('lon') ?? -96.7502);  // default: UT Dallas
 
 const BASE = (env.API_BASE || 'https://utd-hackathon-26.pages.dev').replace(/\/$/, '');
 async function api(method, path, body) {
@@ -32,43 +48,44 @@ async function api(method, path, body) {
   return j;
 }
 
-const state = existsSync(STATE) && args.force !== 'true' ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
-const secretsNeeded = {};
+const force = argv.includes('--force');
+const state = existsSync(STATE) && !force ? JSON.parse(readFileSync(STATE, 'utf8')) : {};
+const keys = existsSync(KEYS) && !force ? JSON.parse(readFileSync(KEYS, 'utf8')) : {};
+keys.devices ||= {};
+keys.pmk ||= randomBytes(16).toString('hex');
+keys.lmk ||= randomBytes(16).toString('hex');
 
-for (const [box, offset] of [['A', 0], ['B', 0.0004]]) {
-  const s = state[box] || {};
+for (const [i, b] of parsed.entries()) {
+  const s = state[b.id] || {};
   if (!s.homeId) {
-    const { home } = await api('POST', '/api/beacon/homes', { label: `Demo house ${box} (synthetic)`, location: { type: 'Point', coordinates: [lon + offset, lat + offset] } });
-    s.homeId = home._id || home.id;
-    console.log(`home ${box}: ${s.homeId}`);
+    const { home } = await api('POST', '/api/beacon/homes', { label: `Demo house ${b.id} (synthetic)`, location: { type: 'Point', coordinates: [lon + i * 0.0004, lat + i * 0.0004] } });
+    s.homeId = home.id || home._id; console.log(`home ${b.id}: ${s.homeId}`);
   }
-  if (!s.deviceId) {
-    const { device, deviceKey } = await api('POST', '/api/devices', { name: `HomeBeacon box ${box}`, type: box === 'A' ? 'xiao-esp32s3-sense' : 'esp32' });
-    s.deviceId = device.id; secretsNeeded[box] = deviceKey;
+  if (!s.deviceId || !keys.devices[b.id]) {
+    const { device, deviceKey } = await api('POST', '/api/devices', { name: `HomeBeacon box ${b.id}`, type: b.id === 'A' ? 'xiao-esp32s3-sense' : 'esp32', meta: { mac: b.mac } });
+    s.deviceId = device.id; keys.devices[b.id] = deviceKey;
     await api('PATCH', `/api/beacon/devices/${s.deviceId}/home`, { home_id: s.homeId });
-    console.log(`device ${box}: ${s.deviceId} (assigned to home)`);
+    console.log(`device ${b.id}: ${s.deviceId} (assigned to its home)`);
   }
-  state[box] = s;
+  s.mac = b.mac; state[b.id] = s;
 }
 
-const existingA = existsSync(join(ROOT, 'firmware/box_a/secrets.h')) ? readFileSync(join(ROOT, 'firmware/box_a/secrets.h'), 'utf8') : '';
-const keep = (name) => (existingA.match(new RegExp(`#define ${name}\\s+"([^"]*)"`)) || [])[1];
-const keyA = secretsNeeded.A || keep('BOX_A_DEVICE_KEY');
-const keyB = secretsNeeded.B || keep('BOX_B_DEVICE_KEY');
-need(keyA && keyB, 'Device keys are only shown once and the old secrets.h is missing. Re-run with --force to create new devices.');
-const pmk = keep('ESPNOW_PMK') || randomBytes(16).toString('hex');
-const lmk = keep('ESPNOW_LMK') || randomBytes(16).toString('hex');
 const q = (v) => JSON.stringify(String(v));
-const header = '// Generated by `npm run provision`. Git-ignored. Do not commit or share.\n#pragma once\n';
-
-writeFileSync(join(ROOT, 'firmware/box_a/secrets.h'), header + [
+const table = parsed.map((b) => `  { ${q(b.id)}, ${q(b.mac)}, ${q(state[b.id].deviceId)}, ${q(keys.devices[b.id])} }, \\`).join('\n');
+const file = (id) => [
+  '// Generated by `npm run provision`. Git-ignored. Do not commit or share.',
+  '#pragma once',
+  `#define MY_NODE_ID ${q(id)}`,
   `#define WIFI_SSID ${q(env.WIFI_SSID)}`, `#define WIFI_PASS ${q(env.WIFI_PASS)}`, `#define API_BASE ${q(BASE)}`,
-  `#define BOX_A_DEVICE_ID ${q(state.A.deviceId)}`, `#define BOX_A_DEVICE_KEY ${q(keyA)}`,
-  `#define BOX_B_DEVICE_ID ${q(state.B.deviceId)}`, `#define BOX_B_DEVICE_KEY ${q(keyB)}`,
-  `#define ESPNOW_PMK ${q(pmk)}`, `#define ESPNOW_LMK ${q(lmk)}`, `#define BOX_B_MAC ${q(args['b-mac'].toUpperCase())}`, '',
-].join('\n'));
-writeFileSync(join(ROOT, 'firmware/box_b/secrets.h'), header + [
-  `#define WIFI_SSID ${q(env.WIFI_SSID)}`, `#define ESPNOW_PMK ${q(pmk)}`, `#define ESPNOW_LMK ${q(lmk)}`, `#define BOX_A_MAC ${q(args['a-mac'].toUpperCase())}`, '',
-].join('\n'));
+  `#define ESPNOW_PMK ${q(keys.pmk)}`, `#define ESPNOW_LMK ${q(keys.lmk)}`,
+  '#define MESH_NODES { \\', table, '}', '',
+].join('\n');
+
+for (const b of parsed) {
+  const out = b.id === 'A' ? 'firmware/box_a/secrets.h' : b.id === 'B' ? 'firmware/box_b/secrets.h' : `firmware/box_b/secrets.${b.id}.h`;
+  writeFileSync(join(ROOT, out), file(b.id));
+  console.log(`wrote ${out}`);
+}
 writeFileSync(STATE, JSON.stringify(state, null, 2));
-console.log('wrote firmware/box_a/secrets.h and firmware/box_b/secrets.h (git-ignored). Flash both boards now.');
+writeFileSync(KEYS, JSON.stringify(keys, null, 2));
+console.log('Flash every box now. Extra boxes: copy firmware/box_b/secrets.<ID>.h over secrets.h before flashing the box_b sketch.');
