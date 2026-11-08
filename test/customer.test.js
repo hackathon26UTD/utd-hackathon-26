@@ -1,10 +1,10 @@
 // Customer role: pairing, registration, IDOR, help status, session separation, middleware routing.
 import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
-import {MongoMemoryServer} from 'mongodb-memory-server';
+import {MongoMemoryReplSet} from 'mongodb-memory-server';
 import {MongoClient,ObjectId} from 'mongodb';
 import {issueSession,sessionCookie,readSession,issueCustomerSession,readCustomerSession,customerCookie,CUSTOMER_COOKIE} from '../src/operator-session.js';
-import {normalizeSerial,normalizeCode,makeSerial,makeCode,customerStatus,FAIL_TEXT} from '../src/customer.js';
+import {normalizeSerial,normalizeCode,makeSerial,makeCode,customerStatus,FAIL_TEXT,claimDevice} from '../src/customer.js';
 import {onRequest as register} from '../functions/api/customer/register.js';
 import {onRequest as login} from '../functions/api/customer/login.js';
 import {onRequest as logout} from '../functions/api/customer/logout.js';
@@ -18,7 +18,7 @@ import {onRequest as middleware} from '../functions/api/_middleware.js';
 
 const ADMIN='ak_test_admin',ORIGIN='https://home.test';
 let server,client,db,env,ipCounter=0;
-before(async()=>{if(!process.env.TEST_MONGODB_URI)server=await MongoMemoryServer.create();const uri=process.env.TEST_MONGODB_URI||server.getUri();client=await MongoClient.connect(uri);env={MONGODB_URI:uri,MONGODB_DB:'customer_test',SESSION_SECRET:'customer-test-secret',API_ADMIN_KEY:ADMIN};db=client.db(env.MONGODB_DB);await db.dropDatabase();});
+before(async()=>{if(!process.env.TEST_CUSTOMER_MONGODB_URI)server=await MongoMemoryReplSet.create({replSet:{count:1}});const uri=process.env.TEST_CUSTOMER_MONGODB_URI||server.getUri();client=await MongoClient.connect(uri);env={MONGODB_URI:uri,MONGODB_DB:'customer_test',SESSION_SECRET:'customer-test-secret',API_ADMIN_KEY:ADMIN};db=client.db(env.MONGODB_DB);await db.dropDatabase();});
 after(async()=>{await db?.dropDatabase();await client?.close();await server?.stop();});
 
 const newIp=()=>`10.0.${Math.floor(++ipCounter/250)}.${ipCounter%250}`;
@@ -35,7 +35,7 @@ async function call(fn,method,path,{body,cookie,admin,ip,origin=ORIGIN,deps,oper
 const cookieFrom=res=>res.headers.get('Set-Cookie').split(';')[0];
 async function addDevice(extra={}){const r=await db.collection('devices').insertOne({name:'Hallway box',type:'beacon',meta:{exercise:true},lastSeen:new Date(),keyHash:'x'+Math.random(),...extra});return String(r.insertedId);}
 async function pair(deviceId){const r=await call(pairing,'POST','/api/ops/pairing',{admin:true,body:{device_id:deviceId}});assert.equal(r.status,201,r.text);return r.body;}
-const signup=(p,over={})=>call(register,'POST','/api/customer/register',{body:{email:'a@example.test',password:'long-password-1',serial:p.serial,code:p.pairingCode,contactName:'Alex',consent:true,...over},ip:over.ip});
+const signup=(p,over={})=>call(register,'POST','/api/customer/register',{body:{email:'a@example.test',password:'long-password-1',serial:p.serial,code:p.pairingCode,contactName:'Alex',consent:true,acceptTerms:true,...over},ip:over.ip});
 
 test('serial and code normalizers accept human formatting and reject junk',()=>{
   assert.equal(normalizeSerial('hb-7k3q-9xmd'),'HB-7K3Q-9XMD');assert.equal(normalizeSerial('HB7K3Q9XMD'),'HB-7K3Q-9XMD');
@@ -273,4 +273,53 @@ test('middleware routes credentials correctly',async()=>{
   for(const p of ['/api/ops/live','/api/ops/device','/api/ops/logs','/api/risk','/api/overlays','/api/feeds','/api/command-center'])assert.equal((await run('GET',p,{cookie:demoC})).passed,true,p);
   for(const [m,p] of [['POST','/api/ops/messages'],['POST','/api/ops/pairing'],['POST','/api/ops/help-status'],['GET','/api/ops/pairing'],['GET','/api/ops/messages'],['POST','/api/overlays'],['DELETE','/api/overlays']])assert.equal((await run(m,p,{cookie:demoC})).status,403,m+p);
   assert.equal((await run('POST','/api/layers',{cookie:demoC})).passed,true);
+});
+
+
+test('registration requires explicit terms acceptance before creating a link', async()=>{
+  const id=await addDevice(), p=await pair(id);
+  for(const acceptTerms of [undefined,false,'true']){
+    const r=await signup(p,{email:'terms@example.test',acceptTerms});
+    assert.equal(r.status,400);
+    assert.match(r.body.error,/terms/);
+  }
+  assert.equal(await db.collection('customer_links').countDocuments({deviceId:id,active:true}),0);
+  const r=await signup(p,{email:'terms@example.test',acceptTerms:true});
+  assert.equal(r.status,201,r.text);
+  const account=await db.collection('customer_accounts').findOne({_id:'terms@example.test'});
+  assert.equal(account.termsVersion,'2026-11-07');
+  assert.ok(account.termsAcceptedAt instanceof Date);
+});
+
+
+test('create profile first, then claim a device and expose the customer link in the next operator poll',async()=>{
+  const email='profile-first@example.test';
+  const r=await call(register,'POST','/api/customer/register',{body:{email,password:'long-password-profile',contactName:'Alex',consent:false,acceptTerms:true}});
+  assert.equal(r.status,201,r.text); assert.equal(r.body.linked,false);
+  const cookie=cookieFrom(r);
+  assert.equal((await call(devices,'GET','/api/customer/devices',{cookie})).body.devices.length,0);
+  const id=await addDevice(), p=await pair(id);
+  const {getLive}=await import('../src/live.js');
+  const before=await getLive(db,{deviceId:id,exercise:true,env,now:new Date(Date.now()-1000)});
+  const linked=await call(claim,'POST','/api/customer/claim',{cookie,body:{serial:p.serial,code:p.pairingCode,contactName:'Alex',consent:false,address:'800 W Campbell Rd, Richardson, TX 75080'},deps:{fetcher:async()=>new Response(JSON.stringify({result:{addressMatches:[{matchedAddress:'800 W CAMPBELL RD, RICHARDSON, TX, 75080',coordinates:{x:-96.75,y:32.98}}]}}),{headers:{'Content-Type':'application/json'}})}});
+  assert.equal(linked.status,201,linked.text);
+  const snapshot=await getLive(db,{deviceId:id,exercise:true,env,since:before.cursor,now:new Date()});
+  assert.equal(snapshot.devices[0].link.linked,true);
+  assert.equal(snapshot.devices[0].lng,-96.75); assert.match(snapshot.devices[0].address,/CAMPBELL/);
+  assert.equal((await call(devices,'GET','/api/customer/devices',{cookie})).body.devices.length,1);
+});
+
+test('address failures leave pairing available and existing home history intact',async()=>{
+  const homeId=new ObjectId();
+  await db.collection('homes').insertOne({_id:homeId,label:'Existing home',location:{type:'Point',coordinates:[-96.75,32.98]}});
+  const id=await addDevice({homeId}), p=await pair(id);
+  const input={email:'address-test@example.test',serial:p.serial,code:p.pairingCode,contactName:'Alex',consent:false,address:'800 W Campbell Rd, Richardson, TX 75080'};
+  const match=(x,y)=>({fetcher:async()=>Response.json({result:{addressMatches:[{matchedAddress:input.address,coordinates:{x,y}}]}})});
+  await assert.rejects(claimDevice(db,input,{fetcher:async()=>Response.json({result:{addressMatches:[]}})}),/could not be matched/);
+  await assert.rejects(claimDevice(db,input,match(-82.5,28)),/different registered location/);
+  assert.equal((await db.collection('device_pairing').findOne({_id:id})).claimed,false);
+  assert.equal(await db.collection('customer_links').countDocuments({deviceId:id}),0);
+  assert.equal(String((await db.collection('devices').findOne({_id:new ObjectId(id)})).homeId),String(homeId));
+  await claimDevice(db,input,match(-96.75,32.98));
+  assert.equal(String((await db.collection('devices').findOne({_id:new ObjectId(id)})).homeId),String(homeId));
 });

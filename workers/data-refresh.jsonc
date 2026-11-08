@@ -1,0 +1,8 @@
+{
+ "name":"homebeacon-data-refresh",
+ "main":"data-refresh.js",
+ "compatibility_date":"2026-11-07",
+ "triggers":{"crons":["* * * * *"]},
+ "vars":{"SITE_URL":"https://utd-hackathon-26.pages.dev"},
+ "observability":{"enabled":true}
+}

@@ -101,14 +101,23 @@ export function mountDialogs(ctx) {
   $('#sources').onclick = async () => {
     $('#source-dialog').showModal();
     const out = $('#source-list');
+    if (ctx.demo) {
+      out.innerHTML = '<p><strong>OpenFreeMap and USGS The National Map</strong><br>The street map is OpenStreetMap data. Topographic, hillshade and rivers layers are optional USGS maps. They give geographic context only.</p><p><strong>Exercise observations</strong><br>Dallas and Florida homes, readings, wind exposure and zones are fictional. Wind circles are not official storm radii or a forecast.</p><p>Sign in as an operator to load public weather and hazard feeds. National imagery does not imply national monitoring coverage.</p>';
+      return;
+    }
     out.textContent = 'Loading source status.';
-    const [w, f] = await Promise.all([api('/api/weather'), api('/api/feeds')]);
-    let html = '';
-    if (f.ok) html += (f.data?.sources || []).map(s => `<p><strong>${esc(s.name || s.id)}</strong><br>${esc(SOURCE_STATUS_TEXT[s.status] || s.status)}${s.fetchedAt ? ' · Updated ' + esc(ageText(s.fetchedAt)) : ''}${s.featureCount != null ? ' · ' + esc(s.featureCount) + ' items' : ''}${s.attribution ? `<br><small>${esc(s.attribution)}</small>` : ''}</p>`).join('');
+    const [w, f, catalog] = await Promise.all([api('/api/weather'), api('/api/feeds'),api('/api/ops/data-catalog')]);
+    let html = catalog.ok?'<details><summary>Data history and coverage</summary><p>'+esc(catalog.data.history)+'</p>'+catalog.data.datasets.map(d=>'<p><strong>'+esc(d.label)+'</strong><br>'+esc(d.description)+'</p>').join('')+'</details>':'';
+    if (f.ok) {
+      S.feeds = new Map((f.data?.sources || []).map(s => [s.id, s]));
+      const weatherArea = S.feeds.get('nws')?.coverage?.area;
+      ctx.toolbar?.sync(); // MAP-V2
+      html += (f.data?.sources || []).map(s => `<p><strong>${esc(s.name || s.id)}</strong><br>${esc(SOURCE_STATUS_TEXT[s.status] || s.status)}${s.fetchedAt ? ' · Updated ' + esc(ageText(s.fetchedAt)) : ''}${s.featureCount != null ? ' · ' + esc(s.featureCount) + ' items' : ''}${s.coverage?.area ? `<br><small>Coverage: ${esc(s.coverage.area)}${s.coverage.type ? ' (' + esc(s.coverage.type) + ')' : ''}</small>` : ''}${s.note ? `<br><small>${esc(s.note)}</small>` : ''}${s.attribution ? `<br><small>${esc(s.attribution)}</small>` : ''}</p>`).join('');
+    }
     if (w.ok) {
       const d = w.data;
       if (!f.ok) html += (d.sources || []).map(s => `<p><strong>${esc(s.name)}</strong><br>${esc(s.status)}${s.fetchedAt ? ' · Updated ' + esc(new Date(s.fetchedAt).toLocaleTimeString()) : ''}</p>`).join('');
-      html += `<p>${d.weather?.features?.length || 0} active Texas weather alerts · ${d.earthquakes?.features?.length || 0} regional earthquakes · ${d.declarations?.length || 0} recent declarations</p>`;
+      if(!f.ok)html += '<p>Legacy regional context. Coverage may differ from the source-specific layers above.</p>';
     }
     if (!f.ok && !w.ok) html = '<p>Public feeds are currently unavailable.</p>';
     out.innerHTML = html + '<p>Source availability is checked live. Regional events do not establish individual property damage.</p>';
@@ -116,43 +125,133 @@ export function mountDialogs(ctx) {
 
   // ---- operator view builder (existing /api/layers) ----
 
-  $('#build-layer').onclick = () => {
-    let dialog = $('#layer-dialog');
-    if (!dialog) dialog = createBuilder();
-    dialog.showModal();
+  let resetBuilder = () => {};
+  ctx.resetViewBuilder = () => {
+    resetBuilder(); S.layerIds = null;
+    $('#active-layer').classList.add('hidden'); $('#active-layer').textContent = '';
   };
 
+  const builderTriggers = () => [$('#build-layer'), $('#open-view-builder')].filter(Boolean);
+  let builderReturnFocus = null;
+  ctx.closeViewBuilder = ({ focus = true } = {}) => {
+    const panel = $('#layer-dialog');
+    if (!panel || panel.hidden) return false;
+    panel.hidden = true;
+    $('.workspace').classList.remove('has-view-builder');
+    builderTriggers().forEach(button => button.setAttribute('aria-expanded', 'false'));
+    if (focus) (builderReturnFocus?.offsetParent !== null ? builderReturnFocus : $('#command-more summary'))?.focus({ preventScroll: true });
+    return true;
+  };
+  const openBuilder = e => {
+    let panel = $('#layer-dialog');
+    if (!panel) panel = createBuilder();
+    builderReturnFocus = ctx.builderReturnOverride || e.currentTarget; ctx.builderReturnOverride = null; // MAP-V2
+    $('#command-more').open = false;
+    ctx.closeWorkspace?.({ focus: false });
+    ctx.closeDetail?.({ restoreFocus: false });
+    $('#overlay-panel').classList.remove('open');
+    $('#overlay-toggle').setAttribute('aria-expanded', 'false');
+    panel.hidden = false;
+    $('.workspace').classList.add('has-view-builder');
+    builderTriggers().forEach(button => button.setAttribute('aria-expanded', 'true'));
+    $('#layer-title').focus({ preventScroll: true });
+  };
+  builderTriggers().forEach(button => {
+    button.setAttribute('aria-controls', 'layer-dialog');
+    button.setAttribute('aria-expanded', 'false');
+    button.onclick = openBuilder;
+  });
+
   function createBuilder() {
-    const dialog = document.createElement('dialog');
-    dialog.id = 'layer-dialog';
-    dialog.setAttribute('aria-labelledby', 'layer-title');
-    dialog.innerHTML = '<h2 id="layer-title">Build an operator view</h2><p>Choose a verified observation layer or ask the NVIDIA model to suggest one. Original readings stay unchanged.</p><form id="layer-form"><label>Question<textarea name="question" maxlength="1000" placeholder="Which homes lost power and need a check?"></textarea></label><label>Observation layer<select name="filter"><option value="power_lost">Power lost</option><option value="water">Water detected</option><option value="connectivity_lost">Internet interrupted</option><option value="stale">No recent observations</option><option value="battery_low">Low battery</option><option value="critical">Critical observations</option></select></label><div class="tools"><button name="method" value="preset">Preview selected layer</button><button name="method" value="nvidia" class="primary">Ask NVIDIA</button></div></form><div id="layer-result" role="status"></div><div class="tools"><button id="apply-layer" disabled>Apply view</button><button id="close-layer">Close</button></div>';
-    document.body.append(dialog);
-    let proposal = null;
-    const checks = { power_lost: p => p.sensors?.mains === false, water: p => p.sensors?.water === true, connectivity_lost: p => p.sensors?.wan === false, stale: p => p.stale || p.silent, battery_low: p => p.sensors?.battery_pct <= 20, critical: p => p.severity === 'critical' };
-    $('#close-layer').onclick = () => dialog.close();
-    $('#layer-form').onsubmit = async e => {
+    const panel = document.createElement('aside');
+    panel.id = 'layer-dialog';
+    panel.className = 'view-builder';
+    panel.hidden = true;
+    panel.setAttribute('aria-labelledby', 'layer-title');
+    panel.innerHTML = `<header class="view-builder-head"><div><span class="view-builder-kicker">Map tools</span><h2 id="layer-title" tabindex="-1">Create a view</h2></div><button id="close-layer" type="button" aria-label="Close view builder"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg></button></header>
+<div id="layer-tabs" class="view-builder-tabs"></div>
+<div class="view-builder-scroll"><form id="layer-form"><div id="layer-input-panel">
+<section id="layer-ai-fields"><label for="layer-question">What would you like to see?</label><textarea id="layer-question" name="question" maxlength="1000" rows="3" placeholder="Homes with power loss and water reports"></textarea><div class="view-builder-examples" aria-label="Example questions"><button type="button" data-question="Which homes have lost power and reported water?">Power loss + water</button><button type="button" data-question="Which homes have low batteries?">Low batteries</button></div>
+${ctx.demo ? '<div class="view-builder-access"><strong>Use your operator account</strong><p>NVIDIA can query connected devices after you sign in. You can explore this demo with Filters.</p><a class="button" href="/login?role=operator">Operator sign-in <span aria-hidden="true">↗</span></a></div>' : '<button id="ask-nvidia" type="submit" class="primary view-builder-submit">Ask NVIDIA <span aria-hidden="true">↗</span></button><p class="view-builder-help">Uses the latest connected-device observations.</p>'}</section>
+<section id="layer-filter-fields"><label for="layer-filter">Observation</label><select id="layer-filter" name="filter"><option value="power_lost">Power lost</option><option value="water">Water detected</option><option value="connectivity_lost">Internet interrupted</option><option value="stale">No recent observations</option><option value="battery_low">Low battery</option><option value="critical">Critical observations</option></select><p class="view-builder-help">Match recorded readings directly.</p><button type="submit" class="view-builder-submit" id="preview-layer">Preview filter</button></section>
+</div></form><div id="layer-status" role="status" aria-live="polite"></div><div id="layer-result"></div></div>
+<footer class="view-builder-footer"><p id="layer-apply-note">Preview a view, then apply it to the map.</p><button id="apply-layer" class="primary" disabled>Apply view</button><span>Original readings stay unchanged.</span></footer>`;
+    $('.workspace').append(panel);
+    let proposal = null, request = 0, method = ctx.demo ? 'preset' : 'nvidia', controller = null;
+    const form = $('#layer-form'), status = $('#layer-status'), resultBox = $('#layer-result'), apply = $('#apply-layer');
+    const tabs = window.Kit.subTabs({
+      tabs: [{ id: 'nvidia', label: 'Ask NVIDIA' }, { id: 'preset', label: 'Filters' }],
+      active: method, label: 'Create a map view', panel: $('#layer-input-panel'),
+      onChange: next => { method = next; resetProposal(); showMethod(); },
+    });
+    // Kit already implements the tab keyboard pattern; the product decorator needn't add it again.
+    tabs.el.dataset.hbKeys = '1';
+    $('#layer-tabs').append(tabs.el);
+    function showMethod() {
+      $('#layer-ai-fields').hidden = method !== 'nvidia';
+      $('#layer-filter-fields').hidden = method !== 'preset';
+    }
+    function setBusy(busy) {
+      form.setAttribute('aria-busy', String(busy));
+      form.querySelectorAll('button[type="submit"]').forEach(button => button.disabled = busy);
+      $('#ask-nvidia')?.classList.toggle('is-loading', busy && method === 'nvidia');
+      if ($('#ask-nvidia')) $('#ask-nvidia').innerHTML = busy && method === 'nvidia' ? 'Checking observations…' : 'Ask NVIDIA <span aria-hidden="true">↗</span>';
+      $('#preview-layer').textContent = busy && method === 'preset' ? 'Preparing view…' : 'Preview filter';
+    }
+    function resetProposal() {
+      proposal = null; request++;
+      controller?.abort(); controller = null;
+      apply.disabled = true;
+      status.textContent = ''; status.classList.remove('is-error', 'sr-only');
+      resultBox.replaceChildren();
+      $('#layer-apply-note').textContent = 'Preview a view, then apply it to the map.';
+      setBusy(false);
+    }
+    showMethod();
+    resetBuilder = () => {
+      resetProposal(); ctx.closeViewBuilder({ focus: false });
+    };
+    const checks = { power_lost: p => p.sensors?.mains === false, water: p => p.sensors?.water === true, connectivity_lost: p => p.sensors?.wan === false, stale: p => p.stale || p.silent, battery_low: p => typeof p.sensors?.battery_pct === 'number' && p.sensors.battery_pct <= 20, critical: p => p.severity === 'critical' };
+    $('#close-layer').onclick = () => ctx.closeViewBuilder();
+    form.addEventListener('input', resetProposal);
+    form.addEventListener('change', resetProposal);
+    panel.querySelectorAll('[data-question]').forEach(button => { button.onclick = () => { $('#layer-question').value = button.dataset.question; resetProposal(); $('#layer-question').focus(); }; });
+    form.onsubmit = async e => {
       e.preventDefault();
-      $('#apply-layer').disabled = true;
-      $('#layer-result').textContent = 'Preparing view.';
-      const body = Object.fromEntries(new FormData(e.currentTarget));
-      body.method = e.submitter?.value || 'preset';
+      resetProposal();
+      const body = { ...Object.fromEntries(new FormData(form)), method };
+      if (method === 'nvidia' && !body.question.trim()) { status.textContent = 'Enter a question about device observations.'; status.classList.add('is-error'); $('#layer-question').focus(); return; }
+      const current = ++request;
+      controller = new AbortController();
+      setBusy(true);
+      status.textContent = method === 'nvidia' ? 'NVIDIA is checking recorded observations…' : 'Preparing view…';
       try {
         let result;
         if (ctx.demo) {
           if (body.method === 'nvidia') throw Error('Sign in as an operator to use the NVIDIA connection.');
-          result = { title: $('#layer-form select').selectedOptions[0].textContent, summary: 'Exercise observation filter. No model was used.', ids: S.props.filter(checks[body.filter]).map(p => p.id), mode: 'exercise', generatedAt: new Date().toISOString() };
+          result = { title: $('#layer-filter').selectedOptions[0].textContent, summary: 'Matches fictional exercise observations. No model was used.', ids: S.props.filter(checks[body.filter]).map(p => p.id), mode: 'exercise', generatedAt: new Date().toISOString() };
         } else {
-          const r = await api('/api/layers', { method: 'POST', body });
+          const r = await api('/api/layers', { method: 'POST', body, signal: controller.signal });
           if (!r.ok) throw Error(r.error || 'Could not build view.');
           result = r.data;
         }
+        if (current !== request) return;
         proposal = result;
-        $('#layer-result').textContent = `${result.title}: ${result.ids.length} homes. ${result.summary} Source: ${result.mode}. Prepared ${new Date(result.generatedAt).toLocaleTimeString()}.`;
-        $('#apply-layer').disabled = false;
-      } catch (error) { $('#layer-result').textContent = error.message; }
+        const bodyNode = document.createElement('div');
+        const count = document.createElement('p'); count.className = 'view-builder-count';
+        count.innerHTML = `<strong>${result.ids.length}</strong><span>matching home${result.ids.length === 1 ? '' : 's'}</span>`;
+        const summary = document.createElement('p'); summary.className = 'view-builder-summary'; summary.textContent = result.summary;
+        const meta = document.createElement('p'); meta.className = 'view-builder-meta'; meta.textContent = `${result.mode === 'exercise' ? 'Fictional exercise' : 'Connected devices'} · ${new Date(result.generatedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+        bodyNode.append(count, summary, meta);
+        resultBox.replaceChildren(window.Kit.sectionBox({ title: result.title, level: 3, actions: window.Kit.pill(result.model ? 'NVIDIA' : 'Recorded filter', 'muted'), body: bodyNode }));
+        status.textContent = `${result.ids.length} matching homes. View ready to apply.`;
+        status.classList.add('sr-only');
+        $('#layer-apply-note').textContent = result.ids.length ? 'Ready to show on your map.' : 'No matches. Applying this view will hide all homes.';
+        apply.disabled = false;
+      } catch (error) { if (current === request) { status.classList.remove('sr-only'); status.classList.add('is-error'); status.textContent = error.message; } }
+      finally { if (current === request) setBusy(false); }
     };
-    $('#apply-layer').onclick = () => {
+    apply.onclick = () => {
       if (!proposal) return;
       S.layerIds = new Set(proposal.ids);
       const box = $('#active-layer');
@@ -163,9 +262,10 @@ export function mountDialogs(ctx) {
       clear.onclick = () => { S.layerIds = null; box.classList.add('hidden'); ctx.renderAll(); };
       box.append(clear);
       ctx.renderAll();
-      dialog.close();
+      toast(`View applied: ${proposal.ids.length} matching home${proposal.ids.length === 1 ? '' : 's'}.`);
+      ctx.closeViewBuilder();
     };
-    return dialog;
+    return panel;
   }
 
   // ---- pairing code (shown once) ----
