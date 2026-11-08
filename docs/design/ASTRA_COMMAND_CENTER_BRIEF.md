@@ -10,6 +10,8 @@ You are helping Ayan's workstream redesign an existing operational map. Start wi
 
 **Compact card:** status, why attention is needed, last report time. Everything else expands on demand.
 
+**Map style, locked:** satellite imagery with disaster layers. Imagery is geographic context, not a current disaster photograph. Show attribution, source age/coverage and an honest unavailable state.
+
 **Geography:** U.S. overview, then regions and neighborhoods, then individual houses. National source discovery/aggregation is required; existing Texas-only data is not national coverage. Exact visual/motion treatment still needs review. The source brief separates Ayan's decisions from proposals.
 
 Use the actual Argus library under `ui/kit/vendor/` and its picked standards. Read `docs/UI_KIT.md`, the registry, and the specific component APIs. Compose actual factories for search, menus, layer controls, inspection, message forms and histories. A universal class-decorating observer over old markup does not satisfy this request. Keep vendor files unchanged.
@@ -23,3 +25,5 @@ Review the cookie experience honestly: current choices are identical, no optiona
 Deliver the component bill of materials, annotated compositions, motion demonstration and open decisions. Compare rendered results with the source brief. Do not treat imported styles, a passing gallery, a green build or an axe result as design acceptance. Keep adding accepted decisions to the living brief. Do not deploy another redesign until the design is reviewed with Ayan.
 
 Keep the outer command canvas anchored without blank scroll space. Avoid expensive whole-page rescans or unnecessary font/module downloads. Public website, operator login and household access must remain discoverable. PR #25 repairs the current layout performance and scrolling; it does not replace this redesign.
+
+An independent interactive proposal lives in `docs/design/prototype/`. Read its README, build it locally and inspect the rendered states. It uses actual Argus factories with USGS imagery and a dated NWS geometry subset; fictional devices are labeled. It is a starting point for review, not production wiring or accepted national coverage.
