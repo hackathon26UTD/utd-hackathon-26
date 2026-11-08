@@ -8,21 +8,23 @@ function object(v,keys){if(!v||typeof v!=='object'||Array.isArray(v)||Object.key
 function integer(v,min,max){if(!Number.isSafeInteger(v)||v<min||v>max)throw new HttpError(400,'Invalid history value.');return v;}
 function epoch(v,now,unknown=false){integer(v,unknown?0:1700000000,Math.floor(+now/1000)+300);if(v!==0&&v<1700000000)throw new HttpError(400,'Invalid observation time.');return v?new Date(v*1000):null;}
 export function validateHistorySync(body,now=new Date()){
- object(body,['version','samples','metrics','overwritten']);if(body.version!==1||!Array.isArray(body.samples)||body.samples.length<1||body.samples.length>8)throw new HttpError(400,'Send 1 to 8 history samples.');
+ object(body,['version','samples','metrics','overwritten','snapshot']);if(body.version!==1||!Array.isArray(body.samples)||body.samples.length<1||body.samples.length>8)throw new HttpError(400,'Send 1 to 8 history samples.');
+ object(body.snapshot,['boot','seq']);const snapshot={boot:integer(body.snapshot.boot,1,4294967295),seq:integer(body.snapshot.seq,1,4294967295)};
  const seen=new Set();const samples=body.samples.map(s=>{
   object(s,['boot','seq','epoch','uptimeMs','flags','waterRaw','flameRaw','accelMilliG','batteryMv','soundHits']);
   for(const k of ['boot','seq'])integer(s[k],1,4294967295);
   integer(s.uptimeMs,0,4294967295);integer(s.flags,0,0x17f1f);if(s.flags&~0x17f1f)throw new HttpError(400,'Unsupported history flags.');
   const observedAt=epoch(s.epoch,now,true);if(Boolean(s.flags&65536)!==Boolean(observedAt))throw new HttpError(400,'Observation time and validity flag disagree.');
   for(const k of ['waterRaw','flameRaw','batteryMv','soundHits'])integer(s[k],0,65535);integer(s.accelMilliG,-32768,32767);
+  if(s.boot>snapshot.boot||(s.boot===snapshot.boot&&s.seq>snapshot.seq))throw new HttpError(400,'Snapshot predates its samples.');
   const key=s.boot+':'+s.seq;if(seen.has(key))throw new HttpError(400,'Duplicate sample in batch.');seen.add(key);
   return {key,raw:{boot:s.boot,seq:s.seq,epoch:s.epoch,uptimeMs:s.uptimeMs,flags:s.flags,waterRaw:s.waterRaw,flameRaw:s.flameRaw,accelMilliG:s.accelMilliG,batteryMv:s.batteryMv,soundHits:s.soundHits},observedAt};
  });
- const metrics={};if(body.metrics!==undefined){object(body.metrics,Object.keys(LOCAL_METRICS));for(const [key,m]of Object.entries(body.metrics)){
+ const metrics={};if(body.metrics!==undefined){object(body.metrics,Object.keys(LOCAL_METRICS));for(const key of Object.keys(LOCAL_METRICS).filter(k=>Object.hasOwn(body.metrics,k))){const m=body.metrics[key];
   object(m,['count','sum','min','max','firstEpoch','lastEpoch']);const meta=LOCAL_METRICS[key];integer(m.count,1,4294967295);integer(m.sum,meta.min*m.count,meta.max*m.count);integer(m.min,meta.min,meta.max);integer(m.max,m.min,meta.max);const first=epoch(m.firstEpoch,now),last=epoch(m.lastEpoch,now);if(last<first||m.sum/m.count<m.min||m.sum/m.count>m.max)throw new HttpError(400,'Invalid learned range.');
-  metrics[key]={...m,mean:m.sum/m.count,label:meta.label,unit:meta.unit,status:m.count>=30&&+last-+first>=2*DAY?'device_reported_reference':'insufficient_history'};
+  metrics[key]={count:m.count,sum:m.sum,min:m.min,max:m.max,firstEpoch:m.firstEpoch,lastEpoch:m.lastEpoch,mean:m.sum/m.count,label:meta.label,unit:meta.unit,status:m.count>=30&&+last-+first>=2*DAY?'device_reported_reference':'insufficient_history'};
  }}
- const overwritten=integer(body.overwritten??0,0,4294967295);return {samples,metrics,overwritten};
+ const overwritten=integer(body.overwritten??0,0,4294967295);return {samples,metrics,overwritten,snapshot};
 }
 async function bodyJson(request){
  if(Number(request.headers.get('Content-Length')||0)>MAX_BYTES)throw new HttpError(413,'History batch too large.');
@@ -44,17 +46,17 @@ export async function syncDeviceHistory(ctx){
     try{await rows.updateOne({_id,digest},{$setOnInsert:{_id,digest,deviceId:device._id,...sample.raw,observedAt:sample.observedAt,clockSource:sample.observedAt?'device':'unknown',receivedAt:now,expiresAt:new Date(+(sample.observedAt||now)+365*DAY)}},{upsert:true});}catch(e){if(e.code===11000)throw new HttpError(409,'A retained sample conflicts with its earlier copy. Sync is paused for review.');throw e;}
     accepted.push(sample.key);
    }
-   // Only advance the reported aggregate with a newer original (boot,sequence), not request arrival order.
-   const latest=batch.samples.at(-1).raw, reports=db.collection('device_local_reports');
-   await reports.createIndex({expiresAt:1},{expireAfterSeconds:0});
-   const id=String(device._id),revision={boot:latest.boot,seq:latest.seq};
-   try{await reports.updateOne({_id:id,$or:[{boot:{$lt:revision.boot}},{boot:revision.boot,seq:{$lte:revision.seq}},{boot:{$exists:false}}]},{$set:{deviceId:device._id,...revision,metrics:batch.metrics,overwritten:batch.overwritten,updatedAt:now,expiresAt:new Date(+now+365*DAY)}},{upsert:true});}catch(e){if(e.code!==11000)throw e;}
+   // An aggregate has its own immutable observation revision, independent of upload chunking.
+   const reports=db.collection('device_local_reports'),revision=batch.snapshot;
+   await reports.createIndex({expiresAt:1},{expireAfterSeconds:0});await reports.createIndex({deviceId:1,boot:-1,seq:-1});
+   const _id=String(device._id)+':'+revision.boot+':'+revision.seq,digest=await sha256Hex(JSON.stringify({metrics:batch.metrics,overwritten:batch.overwritten}));
+   try{await reports.updateOne({_id,digest},{$setOnInsert:{deviceId:device._id,...revision,digest,metrics:batch.metrics,overwritten:batch.overwritten,updatedAt:now,expiresAt:new Date(+now+365*DAY)}},{upsert:true});}catch(e){if(e.code===11000)throw new HttpError(409,'A learned-history snapshot conflicts with its earlier copy. Sync is paused for review.');throw e;}
    return json({version:1,accepted,stored:accepted.length},200);
   });
  }catch(e){return json({error:e instanceof HttpError?e.message:'History sync unavailable. Retry the same batch.'},e instanceof HttpError?e.status:503);}
 }
 export async function localDeviceHistory(db,deviceId){
  const samples=await db.collection('device_local_samples').find({deviceId},{projection:{_id:0,digest:0,deviceId:0,expiresAt:0}}).sort({boot:-1,seq:-1}).limit(64).toArray();
- const report=await db.collection('device_local_reports').findOne({_id:String(deviceId)},{projection:{_id:0,deviceId:0,expiresAt:0}});
+ const report=await db.collection('device_local_reports').findOne({deviceId},{sort:{boot:-1,seq:-1},projection:{_id:0,deviceId:0,digest:0,expiresAt:0}});
  return {samples,metrics:report?.metrics||{},overwritten:report?.overwritten??null,updatedAt:report?.updatedAt||null,note:'Retained box samples and device-reported averages. Unknown observation times stay unknown. This finite record is separate from live hazard checks.'};
 }

@@ -8,8 +8,8 @@ let server,client,db,id;const now=new Date('2026-11-08T12:00:00Z'),key='isolated
 before(async()=>{server=await MongoMemoryServer.create();client=await MongoClient.connect(server.getUri());db=client.db('isolated-history-sync');id=new ObjectId();await db.collection('devices').insertOne({_id:id,keyHash:await sha256Hex(key)});});
 after(async()=>{await client?.close();await server?.stop();});
 const sample=(seq,epoch=1794132000)=>({boot:1,seq,epoch,uptimeMs:seq*300000,flags:(epoch?65536:0)+4096+2048+8,waterRaw:120,flameRaw:0,accelMilliG:0,batteryMv:8000,soundHits:0});
-const payload=(samples)=>({version:1,samples,metrics:{water_raw:{count:30,sum:3600,min:120,max:120,firstEpoch:1793858400,lastEpoch:1794132000}},overwritten:2});
-const call=(body,headers={'X-Device-Key':key})=>syncDeviceHistory({env:{},db,now,request:new Request('https://test.local/api/device/history-sync',{method:'POST',headers,body:typeof body==='string'?body:JSON.stringify(body)})});
+const payload=(samples)=>({version:1,snapshot:{boot:1,seq:samples.at(-1).seq},samples,metrics:{water_raw:{count:30,sum:3600,min:120,max:120,firstEpoch:1793858400,lastEpoch:1794132000}},overwritten:2});
+const call=(body,headers={'X-Device-Key':key},at=now)=>syncDeviceHistory({env:{},db,now:at,request:new Request('https://test.local/api/device/history-sync',{method:'POST',headers,body:typeof body==='string'?body:JSON.stringify(body)})});
 test('retained batch replay is idempotent, unknown time stays unknown, and conflicts do not overwrite',async()=>{
  const body=payload([sample(1),sample(2,0)]);
  for(let i=0;i<2;i++){const r=await call(body);assert.equal(r.status,200);assert.deepEqual((await r.json()).accepted,['1:1','1:2']);}
@@ -22,7 +22,7 @@ test('retained batch replay is idempotent, unknown time stays unknown, and confl
 test('partial retry and concurrent replay produce one stored record per original identity',async()=>{
  const r=await Promise.all([call(payload([sample(3),sample(4)])),call(payload([sample(3),sample(4)]))]);assert.ok(r.every(x=>x.status===200));
  assert.equal(await db.collection('device_local_samples').countDocuments({deviceId:id}),4);
- const older=payload([sample(1)]);older.metrics={};await call(older);assert.equal((await localDeviceHistory(db,id)).metrics.water_raw.mean,120);
+ const older=payload([sample(1)]);older.snapshot.seq=2;assert.equal((await call(older)).status,200);assert.equal((await localDeviceHistory(db,id)).metrics.water_raw.mean,120);
 });
 test('device authentication, disabled/synthetic devices, malformed fields and streaming bounds fail closed',async()=>{
  assert.equal((await call(payload([sample(5)]),{})).status,401);assert.equal((await call(payload([sample(5)]),{Authorization:'Bearer '+key})).status,401);assert.equal((await call(payload([sample(5)]),{'X-Device-Key':'wrong'})).status,401);
@@ -31,4 +31,17 @@ test('device authentication, disabled/synthetic devices, malformed fields and st
  assert.equal((await call('x'.repeat(17000))).status,413);
  assert.throws(()=>validateHistorySync({...payload([sample(5)]),metrics:{water_raw:{count:2,sum:1,min:3,max:4,firstEpoch:1793858400,lastEpoch:1794132000}}},now));
  assert.equal(await db.collection('device_local_samples').countDocuments(),4);
+});
+
+test('aggregate revisions are immutable, retention-neutral and independent of upload chunks',async()=>{
+ const first=payload([sample(10)]);first.snapshot={boot:1,seq:20};assert.equal((await call(first)).status,200);
+ const original=await db.collection('device_local_reports').findOne({_id:String(id)+':1:20'});
+ assert.equal((await call(first,{'X-Device-Key':key},new Date(+now+86400000))).status,200);
+ assert.deepEqual(await db.collection('device_local_reports').findOne({_id:original._id}),original);
+ const chunk={...first,samples:[sample(11)]};assert.equal((await call(chunk)).status,200);
+ assert.deepEqual(await db.collection('device_local_reports').findOne({_id:original._id}),original);
+ assert.equal((await call({...first,metrics:{}})).status,409);assert.equal((await call({...first,overwritten:999})).status,409);
+ const next={...first,snapshot:{boot:1,seq:21}},conflict={...next,metrics:{}};
+ const results=await Promise.all([call(next),call(conflict)]);assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
+ const latest=await localDeviceHistory(db,id);assert.equal(latest.updatedAt.toISOString(),now.toISOString());
 });
