@@ -70,9 +70,9 @@ test('signed release verifies with the right key and not with another', () => {
     assert.deepEqual(verifyPackage({ outDir: out, pubkey: pubA, runSelfTest: false }).problems, []);
     assert.ok(verifyPackage({ outDir: out, pubkey: pubB, runSelfTest: false }).problems.some((p) => /signature/.test(p)));
     // the device checks the same signature with openssl 3, as install.sh does
-    const o = spawnSync('openssl', ['pkeyutl', '-verify', '-pubin', '-inkey', pubA, '-rawin', '-in', r.file, '-sigfile', '/dev/stdin'], {
-      input: Buffer.from(readFileSync(join(out, r.manifest.signature), 'utf8').trim(), 'base64'),
-    });
+    const sigFile = join(d, 'release.sig.bin');   // a real file: openssl 3.0 on Ubuntu 22.04 cannot read the signature from a pipe
+    writeFileSync(sigFile, Buffer.from(readFileSync(join(out, r.manifest.signature), 'utf8').trim(), 'base64'));
+    const o = spawnSync('openssl', ['pkeyutl', '-verify', '-pubin', '-inkey', pubA, '-rawin', '-in', r.file, '-sigfile', sigFile]);
     assert.ok(!o.error, 'openssl is needed for the device-side signature check');
     assert.equal(o.status, 0, String(o.stderr));
   } finally { rmSync(d, { recursive: true, force: true }); }
@@ -130,7 +130,8 @@ test('committed download matches the sources', { skip: !hasPython }, () => {
   try {
     const fresh = buildPackage({ outDir: d, signingKey: undefined });
     const published = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'));
-    if (!published.signature) assert.equal(published.sha256, fresh.manifest.sha256, 'sources changed since the release was built: run npm run hb -- agent package');
+    // tar and gzip output differs between macOS and Linux, so compare the rebuilt hash only on the machine that built it.
+    if (!published.signature && !process.env.CI) assert.equal(published.sha256, fresh.manifest.sha256, 'sources changed since the release was built: run npm run hb -- agent package');
   } finally { rmSync(d, { recursive: true, force: true }); }
 });
 
