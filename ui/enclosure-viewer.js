@@ -81,15 +81,15 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
     controls.enablePan = false; controls.minDistance = 270; controls.maxDistance = 800;
     controls.minPolarAngle = .2; controls.maxPolarAngle = Math.PI * .8;
     controls.addEventListener('start', stopDrag); controls.addEventListener('change', render);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x91a29b, 1.8));
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xa2a2a2, 1.8));
     const light = new THREE.DirectionalLight(0xffffff, 2); light.position.set(130, 250, 180); scene.add(light);
-    const rim = new THREE.DirectionalLight(0xe0f7ee, 1); rim.position.set(-200, 100, -100); scene.add(rim);
+    const rim = new THREE.DirectionalLight(0xffffff, 1); rim.position.set(-200, 100, -100); scene.add(rim);
     const loader = new STLLoader();
     const parts = await Promise.all(['/models/enclosure-base.stl', '/models/enclosure-lid.stl'].map(url => loader.loadAsync(url)));
     disposables.push(...parts);
     if (dead) { parts.forEach(p => p.dispose()); return cleanup; }
-    const material = new THREE.MeshStandardMaterial({ color: 0xcbd4cc, roughness: .54, metalness: .12, side: THREE.DoubleSide });
-    const lidMaterial = new THREE.MeshStandardMaterial({ color: 0xe2e8df, roughness: .48, metalness: .1, side: THREE.DoubleSide });
+    const material = new THREE.MeshStandardMaterial({ color: 0xc9cbce, roughness: .54, metalness: .12, side: THREE.DoubleSide });
+    const lidMaterial = new THREE.MeshStandardMaterial({ color: 0xd92724, roughness: .48, metalness: .1, side: THREE.DoubleSide });
     disposables.push(material, lidMaterial);
     const [base, lid] = parts;
     // Native CAD hinge cylinders: base axis Y=134.7,Z=56.5; lid axis Y=4.5,Z=4.5.
@@ -102,7 +102,7 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
     hinge = new THREE.Group(); hinge.position.set(0,56.5,-68.9);
     lidMesh=new THREE.Mesh(lid,lidMaterial);hinge.add(lidMesh); hinge.rotation.x=lidAngle; model.add(hinge);
     addCircuit(model,disposables);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(180, 80), new THREE.MeshBasicMaterial({ color: 0xc8d3cb, transparent: true, opacity: .12 }));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(180, 80), new THREE.MeshBasicMaterial({ color: 0xa4a6aa, transparent: true, opacity: .12 }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -1; scene.add(ground); disposables.push(ground.geometry, ground.material);
     resetView(); resize.observe(host);
     observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (visible) wake(); }); observer.observe(host);
