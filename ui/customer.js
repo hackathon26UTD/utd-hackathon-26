@@ -1,3 +1,4 @@
+import {accessView} from './access.js';
 import {backupRuntime} from './backup-runtime.js';
 import {previewDevice} from './customer-preview.js';
 import {onboardingUI, readClaimFragment, boxStatus} from './customer-onboarding.js';
@@ -59,30 +60,7 @@ async function submit(form, key, fn) {
 const onboarding = onboardingUI({h, api, state, refresh, renderDevices, say, msgEl, field, submit, win: window});
 
 function guestView() {
-  const link = state.tab === 'link';
-  const regForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'reg', async f => {
-    const r = await api('/api/customer/register', 'POST', { email: f.email, password: f.password, contactName: f.contactName, consent: !!f.consent, acceptTerms: !!f.acceptTerms, ...(f.nickname ? { nickname: f.nickname } : {}) });
-    if (!r.ok) return say('reg', r.data.error || 'Something went wrong. Try again.');
-    say('reg', ''); await enter();
-  }); } },
-  field('Your name', 'contactName', { auto: 'name', max: 60 }), field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Choose a password', 'password', { type: 'password', auto: 'new-password', hint: 'At least 10 characters', max: 512 }),
-  h('label', { class: 'check', for: 'f-terms' }, h('input', { type: 'checkbox', id: 'f-terms', name: 'acceptTerms', required: true }), h('span', null, 'I agree to the ', h('a', { href: '/terms', target: '_blank', rel: 'noopener' }, 'prototype terms'), ' and have read the ', h('a', { href: '/privacy', target: '_blank', rel: 'noopener' }, 'privacy policy'), '.')),
-  h('button', { class: 'primary', type: 'submit' }, 'Create account'), msgEl('reg'));
-  const inForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'login', async f => {
-    const r = await api('/api/customer/login', 'POST', { email: f.email, password: f.password });
-    if (!r.ok) return say('login', r.data.error || 'Something went wrong. Try again.');
-    say('login', ''); await enter();
-  }); } }, field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Password', 'password', { type: 'password', auto: 'current-password', max: 512 }), h('button', { class: 'primary', type: 'submit' }, 'Sign in'), msgEl('login'));
-  const tab = (id, text) => h('button', { type: 'button', id: 'customer-tab-' + id, 'aria-pressed': String(state.tab === id), onclick: () => { state.tab = id; render(); document.getElementById('customer-tab-' + id)?.focus(); } }, text);
-  return [
-    h('h1', null, link ? 'Create your Safe Home account' : 'Sign in'),
-    h('p', { class: 'muted' }, 'See your device reports and updates from the response team.'),
-    households.guestNotice(),
-    h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Sign up'), tab('signin', 'Sign in')),
-    link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add my box to connect your Safe Home.'),
-    h('section', { class: 'card' }, link ? regForm : inForm),
-    link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/simulations' }, 'Explore simulations'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
-  ];
+  return [households.guestNotice(),accessView({mode:state.tab==='signin'?'login':'signup',onCustomer:enter})];
 }
 
 function deviceCard(d) {
@@ -212,7 +190,7 @@ function render() {
   onboarding.stopScan();
   modelGeneration++; modelCleanup?.(); modelCleanup = null;
   photoCleanup?.(); photoCleanup = null;
-  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'Safe Home'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
+  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'Safe Home'), !state.user && h('a', { href: '/dashboard' }, 'Dashboard'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'Safe Home shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
     h('p', { class: 'fine' }, 'Contact permission is shown under Manage this box.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));

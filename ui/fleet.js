@@ -62,7 +62,7 @@ export function mountFleet(container, { api, role, onClose = () => {} }) {
   const Kit = window.Kit;
   const demo = role === 'demo';
   const writable = !demo && ['operator', 'admin'].includes(role);
-  let devices = [], loaded = false, loading = false, stopped = false, pending = false;
+  let devices = [], opened = false, loaded = false, loading = false, stopped = false, pending = false;
   let sheet = null, popup = null, generation = 0;
   let search = '', state = 'all', reason = 'all', consent = 'all', firmware = '', sort = 'serial';
   container.classList.add('kit', 'full-view', 'fleet-view');
@@ -94,7 +94,7 @@ export function mountFleet(container, { api, role, onClose = () => {} }) {
   const refreshButton = button('Refresh fleet', () => refresh()); tools.append(refreshButton);
   const status = el('p', 'Open Fleet to load records.', 'fleet-status'); status.setAttribute('role', 'status');
   const result = el('div', '', 'fleet-results');
-  body.append(el('p', 'New boxes are provisioned through the CLI. Reporting is checked when this panel loads or refreshes. Missing data means unknown.', 'fleet-note'), summary, tools, status, result);
+  body.append(el('p', 'New boxes are provisioned through the CLI. This view updates every 10 seconds while open. Missing data means unknown.', 'fleet-note'), summary, tools, status, result);
   container.replaceChildren(head, body);
 
   function render() {
@@ -148,11 +148,13 @@ export function mountFleet(container, { api, role, onClose = () => {} }) {
     table.append(tbody); scroll.append(table); surface.append(scroll); result.append(surface);
   }
 
-  async function refresh() {
+  async function refresh({quiet = false} = {}) {
     if (loading || stopped || pending) return;
+    if (quiet && (document.hidden || container.hidden || !container.getClientRects().length || sheet || popup || result.contains(document.activeElement))) return;
+    opened = true;
     sheet?.close();
     loading = true; refreshButton.disabled = true; container.setAttribute('aria-busy', 'true');
-    status.textContent = 'Loading fleet…';
+    if (!quiet) status.textContent = 'Loading fleet…';
     let response;
     try { response = await api('/api/ops/fleet'); } catch { response = { ok: false }; }
     loading = false; refreshButton.disabled = false; container.removeAttribute('aria-busy');
@@ -160,6 +162,7 @@ export function mountFleet(container, { api, role, onClose = () => {} }) {
     if (!response.ok || !Array.isArray(response.data?.devices)) {
       // Remove stale identities and controls when authorization or consent may have changed.
       devices = []; loaded = false; hide(); render();
+      if ([401,403].includes(response.status)) opened = false;
       status.textContent = response.status === 401 ? 'Sign in again to load the fleet.' : response.status === 403 ? 'Your account cannot view this fleet.' : 'Could not load fleet. Try Refresh fleet.';
       return;
     }
@@ -271,7 +274,9 @@ export function mountFleet(container, { api, role, onClose = () => {} }) {
   const visibility = () => { if (document.hidden) hide(); };
   document.addEventListener('visibilitychange', visibility);
   window.addEventListener('pagehide', hide);
+  const poll = setInterval(() => { if (opened) refresh({quiet:true}); }, 10000);
   return { refresh, hide, destroy() {
+    clearInterval(poll);
     stopped = true; hide(); devices = []; container.replaceChildren();
     document.removeEventListener('visibilitychange', visibility); window.removeEventListener('pagehide', hide);
   } };

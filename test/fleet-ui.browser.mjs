@@ -38,7 +38,7 @@ before(async()=>{
  browser=await chromium.launch({headless:true,...(existsSync(chromium.executablePath())?{}:{executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'})});
 });
 after(async()=>{await browser?.close();if(server){server.closeAllConnections();await new Promise(r=>server.close(r));}if(outdir)await rm(outdir,{recursive:true,force:true});});
-async function setup(role='operator',width=1440){const context=await browser.newContext({viewport:{width,height:900}});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());await page.goto(origin+'/harness?role='+role);await page.waitForFunction(()=>window.ready);return{page,errors};}
+async function setup(role='operator',width=1440,clock=false){const context=await browser.newContext({viewport:{width,height:900}});const page=await context.newPage();if(clock)await page.clock.install();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/*',route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());await page.goto(origin+'/harness?role='+role);await page.waitForFunction(()=>window.ready);return{page,errors};}
 async function action(page, label, serial='HB-CCCC-DDDD'){
  await page.getByRole('button',{name:'Manage '+serial,exact:true}).click();
  await page.getByRole('button',{name:label,exact:true}).click();
@@ -171,4 +171,20 @@ test('fleet reasons over the backend limit never submit',async()=>{
  assert.equal(await page.evaluate(()=>requests.filter(r=>r.method==='POST').length),0);
  await expect(dialog).toContainText('160');
  await page.context().close();
+});
+
+test('visible fleet refreshes automatically without closing a maintenance form',async()=>{
+ const {page}=await setup('operator',1440,true);
+ const before=await page.evaluate(()=>requests.filter(r=>!r.method||r.method==='GET').length);
+ await page.clock.runFor(10050);await expect.poll(()=>page.evaluate(()=>requests.filter(r=>!r.method||r.method==='GET').length)).toBeGreaterThan(before);
+ const dialog=await action(page,'Disable box');await dialog.getByLabel(/^Reason \(/).fill('Keep this draft');
+ const during=await page.evaluate(()=>requests.filter(r=>!r.method||r.method==='GET').length);await page.clock.runFor(20050);
+ await expect(dialog.getByLabel(/^Reason \(/)).toHaveValue('Keep this draft');assert.equal(await page.evaluate(()=>requests.filter(r=>!r.method||r.method==='GET').length),during);await page.context().close();
+});
+
+
+test('fleet resumes automatic refresh after a temporary service failure',async()=>{
+ const {page}=await setup('operator',1440,true);await page.evaluate(()=>window.fail={ok:false,status:503});
+ await page.clock.runFor(10050);await expect(page.getByRole('table')).toHaveCount(0);
+ await page.evaluate(()=>window.fail=null);await page.clock.runFor(10050);await expect(page.getByRole('table')).toBeVisible();await page.context().close();
 });
