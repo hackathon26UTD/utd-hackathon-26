@@ -4,3 +4,5 @@
 .demo-view .kit-main-tabs{overflow-x:auto;flex-wrap:nowrap}.demo-view .kit-main-tabs__tab{white-space:nowrap;flex-shrink:0}.kit .simulation-actions .kit-btn,.kit .simulation-transport .kit-btn{border-radius:999px}.simulation-advanced>p{margin:14px 0 20px}
 
 .hb-product .kit .simulation-actions button.kit-btn,.hb-product .kit .simulation-transport button.kit-btn{border-radius:999px}.simulation-review{padding-bottom:24px}
+
+.demo-view .simulation-transport{position:static;transform:none;width:100%;box-sizing:border-box;margin:28px 0;box-shadow:none}.demo-view .simulation-transport::before{content:"Fictional device playback";flex-basis:100%;font-size:13px;font-weight:600}.demo-view .simulation-transport input{accent-color:var(--kit-accent-ink)}

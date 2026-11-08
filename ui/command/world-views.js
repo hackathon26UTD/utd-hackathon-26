@@ -2,6 +2,7 @@
 export const WORLD_VIEWS = [
   { id: 'street', label: 'Overview', palette: null, layers: [], note: 'Devices and reported conditions.' },
   { id: 'wind', label: 'Wind', palette: 'wind', layers: ['atmosphere'], field: 'wind_kph', unit: 'km/h', stops: [[0,'#a9d6e1'],[15,'#5caabf'],[35,'#247c9b'],[65,'#245487'],[100,'#473c7c']], note: 'Forecast wind speeds. Trails show direction at each sample; gaps are unknown.' },
+  { id:'rain',label:'Rain forecast',palette:'water',layers:['atmosphere'],field:'rain_mm',unit:'mm/hour',stops:[[0,'#a7d8ee'],[1,'#4eadd2'],[5,'#277eb5'],[15,'#525bb5'],[30,'#84378d']],note:'Forecast rain and showers in the hour ending at the selected time. Sample points, not flood boundaries.' },
   { id: 'sunshine', label: 'Sunshine', palette: 'sun', layers: ['atmosphere'], field: 'solar_wm2', unit: 'W/m²', stops: [[0,'#c5ccd5'],[200,'#e8d9a0'],[400,'#e9b84e'],[700,'#d48314'],[1000,'#a5520a']], note: 'Forecast sunlight, averaged over the preceding hour at sample points.' },
   { id: 'uv', label: 'UV index', palette: 'uv', layers: ['atmosphere'], field: 'uv_index', unit: 'UV index', stops: [[0,'#6aa96c'],[3,'#d4b73b'],[6,'#dc8739'],[8,'#d34e60'],[11,'#8651a0']], discrete: true, note: 'Forecast UV at sample points. Shade and indoor exposure differ.' },
   { id: 'temperature', label: 'Temperature', palette: 'heat', layers: ['atmosphere'], field: 'temperature_c', unit: '°C', stops: [[-20,'#596eb4'],[0,'#79b4c8'],[15,'#c6d5b4'],[30,'#e69b50'],[45,'#bd4b45']], note: 'Forecast outdoor temperature. Indoor box readings stay separate.' },

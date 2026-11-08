@@ -5,7 +5,7 @@ import { sha256Hex } from './auth.js';
 import { clean } from './email-templates/layout.js';
 
 export const RESEND_URL = 'https://api.resend.com/emails';
-export const DEFAULT_FROM = 'HomeBeacon <alerts@parity.endyland.com>';
+export const DEFAULT_FROM = 'SafeHome <alerts@safehome.endyland.com>';
 export const SINK_ADDRESSES = ['delivered@resend.dev', 'bounced@resend.dev', 'complained@resend.dev'];
 export const MAX_ATTEMPTS = 3;
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
