@@ -37,3 +37,5 @@ Current entry point for the **hackathon26UTD** organization. Updated November 8,
 - [November 7 handoff](handovers/AYAN-2026-11-07.md), [request history](history/AYAN_REQUESTS_2026-11-07.md), [historical decisions](DECISIONS.md), [household release evidence](verification/HOUSEHOLDS_2026-11-08.md).
 
 Historical plans and screenshots are evidence of their date, not current requirements. Current source, this index, living subsystem docs and latest worklog take precedence over abandoned satellite-map or login-first designs. Private contact records stay in this private repository and must not enter public bundles or external documentation.
+
+- [Public weather and News](PUBLIC_WEATHER_NEWS.md): anonymous hazards, national/local NWS alerts, map bounds and observed radar playback.
