@@ -16,6 +16,8 @@ export async function ensureHouseholdEmail(db) {
     db.collection('household_mail_outbox').createIndex({expiresAt:1},{expireAfterSeconds:0}),
     db.collection('household_mail_outbox').createIndex({providerId:1},{sparse:true}),
     db.collection('household_mail_webhooks').createIndex({expiresAt:1},{expireAfterSeconds:0}),
+    db.collection('household_mail_webhooks').createIndex({providerId:1,processedAt:1}),
+    db.collection('household_mail_webhooks').createIndex({processedAt:1,nextReconcileAt:1}),
     db.collection('household_alert_events').createIndex({expiresAt:1},{expireAfterSeconds:0}),
     db.collection('household_context_cache').createIndex({expiresAt:1},{expireAfterSeconds:0}),
   ]);indexed.add(db);
@@ -80,19 +82,23 @@ export function householdEmailHandler(ctx) {return guarded(()=>run(ctx,async db=
   const token=random(),id=await sha256Hex(token);
   await db.collection('household_email_tokens').insertOne({_id:id,purpose:'verify',memberId:m._id,email,generation:m.accountGeneration,createdAt:now,expiresAt:new Date(+now+HOUR)});
   const payload=plainEmail('Verify your household email',['Open this link while signed in to HomeBeacon. It expires in one hour.','Verifying your address does not turn on alerts. You choose those next.'],[{label:'Verify email',url:CUSTOMER_URL+'#household-email='+token}]);
+  await db.collection('household_mail_outbox').insertOne({_id:'verify-'+id,kind:'verification',memberId:m._id,email:m.email,generation:m.accountGeneration,status:'sending',createdAt:now,expiresAt:new Date(+now+30*24*HOUR)});
   const sent=await sendHouseholdEmail(ctx.env,{to:email,id:'verify-'+id,payload},{fetcher:ctx.fetcher});
   if(sent.status!=='accepted') {
+    await db.collection('household_mail_outbox').updateOne({_id:'verify-'+id},{$set:{status:sent.status==='rejected'?'rejected':'ambiguous'}});
     // No retries for verification mail. A later user request makes a fresh token; this one stays valid if acceptance was ambiguous.
     return reply({accepted:false,message:'Email delivery could not be confirmed. Check your inbox before trying again.'},502);
   }
-  await db.collection('household_mail_outbox').insertOne({_id:'verify-'+id,kind:'verification',memberId:m._id,providerId:sent.providerId,status:'accepted',createdAt:now,expiresAt:new Date(+now+30*24*HOUR)});
+  await db.collection('household_mail_outbox').updateOne({_id:'verify-'+id},{$set:{providerId:sent.providerId,status:'accepted',acceptedAt:now}});
+  await reconcileHouseholdEmail(db,{now,providerId:sent.providerId});
   return reply({accepted:true,message:'Verification email accepted by the mail service. Check your inbox.'});
 }));}
 
 export async function makeAlertPayload(db,env,member,event,now) {
   const token=random();
   await db.collection('household_email_tokens').insertOne({_id:await sha256Hex(token),purpose:'unsubscribe',memberId:member._id,email:member.email,generation:member.accountGeneration,createdAt:now,expiresAt:new Date(+now+365*24*HOUR)});
-  const payload=plainEmail(event.title,[event.summary,'Report time: '+event.observedAt,'This update does not confirm that your home is safe or that help has been sent.'],[{label:'View household',url:CUSTOMER_URL},{label:'Stop household emails',url:CUSTOMER_URL+'#household-stop='+token}]);
+  const timing=event.channel==='device'?['Condition details as of: '+new Date(event.createdAt).toISOString(),...(event.conditions||[]).map(c=>c.label+': '+c.text),'Condition observation time: '+(event.observedAt||'Unknown'),'Last device contact: '+(event.lastDeviceContactAt||'Unknown')]:['Report time: '+event.observedAt];
+  const payload=plainEmail(event.title,[event.summary,...timing,'This update does not confirm that your home is safe or that help has been sent.'],[{label:'View household',url:CUSTOMER_URL},{label:'Stop household emails',url:CUSTOMER_URL+'#household-stop='+token}]);
   return encryptKey(env,'household-outbox:'+member._id,JSON.stringify(payload));
 }
 
@@ -109,20 +115,37 @@ async function verifyWebhook(request,secret,now) {
     return valid?{id,event:JSON.parse(body)}:null;
   }catch{return null;}
 }
+const deliveryRank={delivered:1,failed:2,bounced:3,complained:4};
+// Either side of the receipt/callback race can reconcile. A bounded sweep also
+// recovers a crash after receipt persistence; unmatched events retain correlation.
+export async function reconcileHouseholdEmail(db,{now=new Date(),providerId}={}) {
+  const query={processedAt:{$exists:false},...(providerId?{providerId}: {providerId:{$exists:true},nextReconcileAt:{$lte:now}})};
+  const rows=await db.collection('household_mail_webhooks').find(query).sort({nextReconcileAt:1}).limit(50).toArray();
+  for(const row of rows) {
+    const session=db.client.startSession();
+    try {await session.withTransaction(async()=>{
+      const hooks=db.collection('household_mail_webhooks'),event=await hooks.findOne({_id:row._id,processedAt:{$exists:false}},{session});
+      if(!event)return;
+      const outbox=db.collection('household_mail_outbox'),receipt=await outbox.findOne({providerId:event.providerId},{session});
+      if(!receipt){await hooks.updateOne({_id:event._id},{$set:{nextReconcileAt:new Date(+now+5*60000)}},{session});return;}
+      const status=event.type.slice(6),stop=['bounced','complained'].includes(status);
+      // Do not let an old receipt suppress a replacement account/email identity.
+      if(stop&&receipt.email&&receipt.generation)await db.collection('household_members').updateOne({_id:receipt.memberId,email:receipt.email,accountGeneration:receipt.generation,emailSuppressedAt:null},{$set:{emailSuppressedAt:event.receivedAt,preferences:{device:false,weather:false}},$inc:{preferencesVersion:1}},{session});
+      if((deliveryRank[status]||0)>(deliveryRank[receipt.deliveryStatus]||0))await outbox.updateOne({_id:receipt._id},{$set:{deliveryStatus:status,deliveryEventAt:event.receivedAt}},{session});
+      await hooks.updateOne({_id:event._id},{$set:{processedAt:now,receiptId:receipt._id},$unset:{nextReconcileAt:''}},{session});
+    });}finally{await session.endSession();}
+  }
+}
 export function householdEmailWebhook(ctx){return guarded(()=>run(ctx,async db=>{
   if(ctx.request.method!=='POST')fail(405,'Method not allowed.');
   const now=ctx.now||new Date(),data=await verifyWebhook(ctx.request,ctx.env.RESEND_WEBHOOK_SECRET,now);
   if(!data)fail(401,'Invalid email event.');
   await ensureHouseholdEmail(db);
-  const e=data.event;
-  if(['email.bounced','email.complained','email.failed','email.delivered'].includes(e.type)&&typeof e.data?.email_id==='string') {
-    const receipt=await db.collection('household_mail_outbox').findOne({providerId:e.data.email_id});
-    if(receipt){
-      const stop=['email.bounced','email.complained'].includes(e.type);
-      if(stop)await db.collection('household_members').updateOne({_id:receipt.memberId},{$set:{emailSuppressedAt:now,preferences:{device:false,weather:false}},$inc:{preferencesVersion:1}});
-      await db.collection('household_mail_outbox').updateOne({_id:receipt._id},{$set:{deliveryStatus:e.type.slice(6),deliveryEventAt:now}});
-    }
-  }
-  await db.collection('household_mail_webhooks').updateOne({_id:data.id},{$setOnInsert:{receivedAt:now,type:String(e.type).slice(0,60),expiresAt:new Date(+now+30*24*HOUR)}},{upsert:true});
+  const e=data.event,type=String(e?.type||'').slice(0,60);
+  const supported=Object.hasOwn(deliveryRank,type.slice(6))&&type.startsWith('email.');
+  const providerId=e?.data?.email_id;
+  if(supported&&(typeof providerId!=='string'||!providerId.length||providerId.length>=200))fail(400,'Invalid email identity.');
+  await db.collection('household_mail_webhooks').updateOne({_id:data.id},{$setOnInsert:{receivedAt:now,type,...(supported?{providerId,nextReconcileAt:now}:{processedAt:now}),expiresAt:new Date(+now+30*24*HOUR)}},{upsert:true});
+  if(supported)await reconcileHouseholdEmail(db,{now,providerId});
   return reply({received:true});
 }));}
