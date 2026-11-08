@@ -7,7 +7,7 @@ export function radarFrames(xml){
  const all=[...new Set((dimension?.textContent||'').split(',').map(s=>s.trim()).filter(s=>/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(s)&&Number.isFinite(Date.parse(s))))].sort();
  if(!all.length)throw Error('Radar unavailable');const end=Date.parse(all.at(-1));return all.filter(s=>end-Date.parse(s)<=7200000).slice(-61);
 }
-export function mountRadar(mapView,root){
+export function mountRadar(mapView,root,{onActivate=()=>{}}={}){
  const button=root.querySelector('#radar-toggle'),panel=root.querySelector('#radar-controls');if(!button||!panel)return;
  const slider=panel.querySelector('input'),play=panel.querySelector('[data-radar-play]'),latest=panel.querySelector('[data-radar-latest]'),label=panel.querySelector('output'),status=panel.querySelector('.radar-status');
  let frames=[],index=0,timer,active=false,playing=false,generation=0,drawToken=0,scrubTimer,refreshTimer;
@@ -36,7 +36,7 @@ export function mountRadar(mapView,root){
   }catch{if(active&&request===generation){stop();status.textContent='NOAA radar unavailable. Toggle radar to retry.';}}
  }
  button.addEventListener('click',()=>{active=!active;button.setAttribute('aria-pressed',String(active));panel.hidden=!active;document.querySelector('.map-wrap')?.classList.toggle('radar-open',active);
-  if(active){label.textContent='Loading…';refresh(true);}else{generation++;drawToken++;stop();clearTimeout(scrubTimer);mapView.setRadar(null);}});
+  if(active){onActivate();label.textContent='Loading…';refresh(true);}else{generation++;drawToken++;stop();clearTimeout(scrubTimer);mapView.setRadar(null);}});
  slider.step='1';slider.addEventListener('input',()=>{stop();clearTimeout(scrubTimer);index=Math.round(Number(slider.value));scrubTimer=setTimeout(draw,100);});
  play.onclick=()=>playing?stop():start();latest.onclick=()=>{stop();index=frames.length-1;draw();};
  const visibility=()=>{if(document.hidden)stop();};const motion=()=>{if(!allowsMotion())stop();play.disabled=!allowsMotion()||frames.length<2;};

@@ -168,7 +168,7 @@ test('world feeds use existing TTL/stale cache and status; wide faults refuse fe
   const db = client.db('world_feeds_isolated_test');
   try {
     let calls = 0;
-    const fetcher = async () => { calls++; return reply(ATMOSPHERE_SAMPLES.map(row)); };
+    const fetcher = async () => { calls++; return reply(ATMOSPHERE_SAMPLES.map((sample,index)=>{const r=row(sample,index);r.hourly=Object.fromEntries(Object.entries(r.hourly).map(([k,a])=>[k,Array.from({length:24},(_,i)=>k==='time'?a[0]+i*3600:a[0])]));r.hourly.rain=Array(24).fill(0);r.hourly.showers=Array(24).fill(0);r.hourly_units.rain='mm';r.hourly_units.showers='mm';return r;})); };
     const first = await refreshLayer(db, {}, 'atmosphere', null, { now: NOW, fetcher });
     assert.equal(first.features.length, 60); assert.equal(first.hb.refreshStatus, 'ok');
     assert.equal((await getFeedStatus(db, { now: NOW })).find(s => s.id === 'atmosphere').minZoom, 0);
