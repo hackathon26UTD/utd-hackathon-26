@@ -1,0 +1,1185 @@
+/* apps/portal-frontend/css/ui-library.css
+ * Scaffolding for the staging-only ARGUS UI library. Styles only .uil-* and
+ * never a kit part: what a standard looks like comes from the kit's two
+ * sheets alone (css/kit.css, css/kit-standards.css).
+ * No body background: main.css paints it; kit tokens live on .kit. */
+.uil-frame-body {
+    margin: 0;
+}
+.uil-frame {
+    /* The library's two colours of its own: camera video, which the live wall
+       paints black in both themes (css/argus-wall.css), and a sheet of paper
+       on the document viewer's stage, white in both themes. The kit has
+       neither, and this is scaffolding, not a kit part. */
+    --uil-video: #000;
+    --uil-paper: #fff;
+    padding: 24px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    background: var(--kit-bg);
+}
+.uil-matrix {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px 32px;
+    align-items: flex-start;
+}
+.uil-cell {
+    min-width: 120px;
+}
+.uil-cell__label {
+    margin: 0 0 10px;
+    font: 500 12px/1.2 var(--font-sans, Inter, system-ui, sans-serif);
+    color: var(--kit-ink-3);
+    letter-spacing: 0.02em;
+}
+.uil-cell__stage {
+    display: flex;
+    align-items: flex-start;
+}
+/* A field with the popover it opens, stacked the way the popover sits under
+   it, at the width the product gives a date field in a form. */
+.uil-stack {
+    display: grid;
+    gap: 4px;
+    width: 260px;
+}
+/* A copy of a popover or dialog the real factory opened on <body>, put back
+   in the flow of its cell. Placement only: the kit's own position: fixed and
+   inset: 0 would pin every copy to the viewport. The dialog's scrim is kept
+   and bounded to the copy, so the dialog still reads as over a dimmed page. */
+.uil-cell .uil-cell__stage .uil-inline {
+    position: relative;
+    inset: auto;
+    z-index: auto;
+}
+.uil-cell .uil-cell__stage .uil-inline.kit-modal {
+    width: 860px;
+    padding: 24px;
+}
+.uil-cell .uil-cell__stage .uil-inline .kit-modal__scrim {
+    position: absolute;
+}
+/* The yes/no question at its own width, over a bounded scrim. */
+.uil-cell .uil-cell__stage .uil-inline.kit-modal--sm {
+    width: 460px;
+}
+/* The pop-up window, drawn inside its cell: its scrim bounded to the copy,
+   the window at its own width in it. */
+.uil-cell .uil-cell__stage .uil-inline.kit-pop-up-window {
+    width: 720px;
+    padding: 32px;
+}
+.uil-cell .uil-cell__stage .uil-inline.kit-pop-up-window--xl {
+    width: 840px;
+}
+.uil-cell .uil-cell__stage .uil-inline .kit-pop-up-window__scrim {
+    position: absolute;
+}
+/* A hover tip and the room it opens into, above (or below) its trigger. */
+.uil-tipbox {
+    display: flex;
+    justify-content: center;
+    width: 300px;
+    padding: 76px 0 12px;
+}
+.uil-tipbox--below {
+    padding: 12px 0 76px;
+}
+/* A stand-in page with the side sheet floating over its right edge, where
+   the live sheet sits over the Transactions table: 12px in from the top,
+   the right and the bottom. */
+.uil-scene {
+    position: relative;
+    width: 900px;
+    height: 600px;
+    overflow: hidden;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-bg);
+}
+.uil-scene__page {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    bottom: 24px;
+    left: 24px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    background: var(--kit-surface);
+}
+.uil-cell .uil-cell__stage .uil-scene > .uil-inline.kit-side-sheet {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    bottom: 12px;
+}
+/* The full screen, drawn inside a window-shaped box in its cell rather
+   than over the frame. */
+.uil-screen {
+    position: relative;
+    width: 1100px;
+    height: 600px;
+    overflow: hidden;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+}
+.uil-cell .uil-cell__stage .uil-screen > .uil-inline.kit-full-screen {
+    position: absolute;
+    inset: 0;
+}
+/* A blank sheet standing in for a document, and the panel beside it. */
+.uil-paper {
+    width: 300px;
+    height: 388px;
+    margin: 0 auto;
+    background: var(--uil-paper);
+    box-shadow: var(--kit-pop);
+}
+.uil-doc-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+}
+.uil-doc-side__acts {
+    display: flex;
+    align-self: flex-end;
+    gap: 8px;
+}
+/* A text box's cell, at the width its screen gives it: a kit text box fills
+   its container, and a bare one in a flex cell has no width to fill. */
+.uil-box {
+    width: 236px;
+}
+.uil-box--wide {
+    width: 300px;
+}
+/* Setting rows, at a width where the words take their two fifths and the
+   control and its save words the rest, as on a Settings card. */
+.uil-rows {
+    width: 440px;
+}
+/* The pop-up surface a borderless pop-up search sits on; the search itself
+   draws no edge, so on the bare canvas it would read as floating words. */
+.uil-popup {
+    width: 400px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+}
+/* A trigger with the list or menu it opens under it, the list at its own
+   width; --fill stretches both, for a form's full-width box. */
+.uil-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+.uil-drop--fill {
+    align-items: stretch;
+}
+/* A one-row table, at the width Transactions gives its Category cell. */
+.uil-table {
+    width: 360px;
+}
+/* The copy of its list, where ArgusTable puts the live one: 4px under the
+   Category box, at the box's left edge and at least its width (measured in
+   this cell: the box starts 153px in, is 190px wide, and ends 5px above the
+   table's bottom edge). */
+.uil-drop .uil-table-pop {
+    min-width: 190px;
+    margin: -5px 0 0 153px;
+}
+/* ArgusTable at the widths the picker drew it: the whole Transactions table,
+   and the four columns the sort, pager and loading cells show. Kit.table at
+   a report card's width. */
+.uil-table.uil-table--list {
+    width: 1040px;
+}
+.uil-table.uil-table--mid {
+    width: 780px;
+}
+.uil-table.uil-table--report {
+    width: 560px;
+}
+/* A table with the copy of the pop-up it opened, placed where ArgusTable puts
+   the live one (measured in these cells): the Category list 4px under the
+   first row's box at its left edge, and the sort menu 4px under To/From's
+   button. */
+.uil-pop-host {
+    position: relative;
+}
+.uil-cell .uil-cell__stage .uil-pop-host > .uil-inline {
+    position: absolute;
+}
+.uil-cell .uil-cell__stage .uil-pop-host > .uil-at-cat {
+    top: 90px;
+    left: 823px;
+    min-width: 200px;
+}
+.uil-cell .uil-cell__stage .uil-pop-host > .uil-at-sort {
+    top: 47px;
+    left: 159px;
+}
+/* The card a line table sits in: it draws no frame of its own. */
+.uil-card {
+    width: 520px;
+    padding: 24px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    background: var(--kit-surface);
+}
+/* A tab's words with the count it carries, the way Employees' tabs hold it;
+   .is-on is the selected tab's heavier ink. Context only: the count is the
+   standard, the words are not. */
+.uil-with {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--kit-ink-2);
+    font-size: var(--kit-fs-body);
+}
+.uil-with.is-on {
+    color: var(--kit-ink);
+    font-weight: 600;
+}
+/* A box standing in for camera video, so a label on a picture is seen on
+   what it sits on. */
+.uil-video {
+    position: relative;
+    width: 200px;
+    height: 112px;
+    border-radius: var(--kit-rxs);
+    background: var(--uil-video);
+}
+/* The width a narrow Transactions party cell gives its tag. */
+.uil-narrow {
+    width: 112px;
+}
+/* A balance card at the width Financials Overview's four-across row gives
+   it (the card's compact size). A card with no chart stands over a hidden
+   chart card in one grid cell, so it takes that card's height as the row on
+   its page gives it, and its action sits on the floor. */
+.uil-bal {
+    width: 340px;
+}
+.uil-bal-row {
+    display: grid;
+}
+.uil-bal-row > * {
+    grid-area: 1 / 1;
+}
+.uil-bal-row > .uil-bal-row__twin {
+    visibility: hidden;
+}
+/* The headline figures at the width Financials Spending gives its row; an
+   All stores figure card at its grid's width; a health score at the width
+   the Dashboard's four-across grid gives one. */
+.uil-figures {
+    width: 1280px;
+}
+/* Room above the label for the tip that opens there. */
+.uil-figures--tip {
+    padding-top: 72px;
+}
+.uil-plain {
+    width: 236px;
+}
+.uil-score {
+    width: 300px;
+}
+/* The Argus suggests panel at the width Financials Overview gives it, and in
+   the 312px rail its compact size is for. */
+.uil-guide {
+    width: 640px;
+}
+.uil-guide--rail {
+    width: 312px;
+}
+/* A failed chart's plate at a boxed chart's height (Financials Insights):
+   the plate takes the height of what failed. */
+.uil-plate {
+    display: grid;
+    width: 560px;
+    height: 296px;
+}
+/* A stand-in for a chart that drew its zero, so the empty note is seen over
+   what it lies on: a faint dotted grid and the zero line, at the width a
+   Financials chart takes. Not a chart: charts stay each their own. */
+.uil-chart {
+    position: relative;
+    width: 780px;
+    height: 240px;
+    background-image: radial-gradient(var(--kit-line-2) 1px, transparent 1px);
+    background-size: 16px 16px;
+}
+.uil-chart__zero {
+    position: absolute;
+    top: 60%;
+    right: 0;
+    left: 0;
+    border-top: 1px solid var(--kit-ink-3);
+}
+/* A good-news or notice line at the width its screen gives it. */
+.uil-line {
+    width: 640px;
+}
+/* The place a hidden line keeps in its page: a dashed outline drawn by the
+   library, not the kit, around the live region that is mounted and empty. */
+.uil-slot {
+    min-height: 38px;
+    box-sizing: border-box;
+    border: 1px dashed var(--kit-line-2);
+    border-radius: var(--kit-rs);
+}
+/* A Financials tab's view: its head row, then the help banner the kit's slot
+   put under it, wide enough for the banner's doors. */
+.uil-tabview {
+    width: 1080px;
+}
+/* The loading and feedback family's context. A card's heading and a money-in
+   breakdown's header over rows of loading placeholders; a narrower card for
+   a paragraph still loading. */
+.uil-card__title {
+    margin: 0 0 20px;
+    color: var(--kit-ink);
+    font: 600 22px/1.2 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-card--narrow {
+    width: 360px;
+}
+.uil-ghost-rows {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--kit-ink-2);
+    font-size: 13px;
+}
+.uil-ghost-rows th {
+    padding: 0 0 10px;
+    font-weight: 500;
+    text-align: left;
+    border-bottom: 1px solid var(--kit-line);
+}
+.uil-ghost-rows td {
+    height: 44px;
+    padding: 0 12px 0 0;
+    border-bottom: 1px solid var(--kit-line);
+}
+.uil-ghost-rows td:last-child {
+    padding-right: 0;
+}
+.uil-ghost-rows .uil-ghost-rows__amt {
+    text-align: right;
+}
+/* A figure's place at the Dashboard KPI's size (css/kpi-wall.css:236-251):
+   the label, then the slot the figure (here the missing one) sits in, which
+   gives it its size and weight. The small one is a Financials summary cell. */
+.uil-fig {
+    display: grid;
+    gap: 6px;
+    width: 260px;
+}
+.uil-fig__label {
+    color: var(--kit-ink-2);
+    font: 600 12.5px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-fig__value {
+    color: var(--kit-ink);
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+}
+.uil-fig--small .uil-fig__label {
+    color: var(--kit-ink-2);
+    font-size: 15px;
+    font-weight: 400;
+}
+.uil-fig--small .uil-fig__value {
+    font-size: 20px;
+    font-weight: 400;
+    line-height: 28px;
+    letter-spacing: normal;
+}
+/* An All stores table row with one cell nobody measured. */
+.uil-mini-table {
+    width: 340px;
+    border-collapse: collapse;
+    color: var(--kit-ink);
+    font-size: 14px;
+}
+.uil-mini-table th {
+    padding: 0 12px 8px 0;
+    color: var(--kit-ink-3);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--kit-line);
+}
+.uil-mini-table td {
+    padding: 10px 12px 10px 0;
+}
+/* Where a notification sits in its cell: the stack's own column, at the
+   width the page gives the stack (at most 640px across). */
+.uil-notes {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 520px;
+    padding: 4px 0 28px;
+}
+.uil-notes--wide {
+    width: 640px;
+}
+/* The opening screen over the page ground, in a box the size of a small
+   window. */
+.uil-boot {
+    display: grid;
+    place-items: center;
+    width: 560px;
+    height: 340px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-bg);
+}
+/* A scan window's file row: the file's name and size over the bar. */
+.uil-file {
+    width: 560px;
+    padding: 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+}
+.uil-file__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 13px;
+}
+.uil-file__name {
+    color: var(--kit-ink);
+    font-weight: 600;
+}
+.uil-file__size {
+    color: var(--kit-ink-3);
+}
+/* A clip's stage at the size the clip review gives it, and an Employees
+   certificate's reading box. */
+.uil-video.uil-video--clip {
+    display: grid;
+    place-items: center;
+    width: 480px;
+    height: 270px;
+    border-radius: 0;
+}
+.uil-reading {
+    width: 480px;
+    padding: 42px 20px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    background: var(--kit-surface);
+}
+.uil-missing {
+    color: var(--kit-ink-3);
+    font: 400 13px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+
+/* The navigation family. A menu at the width Settings' rail gives it; a
+   collapsed one keeps room to its right for the name banner it brings up.
+   The back link on its own sits on the menu's ground, at the menu's width. */
+.uil-menu-col {
+    width: 200px;
+}
+.uil-menu-col--collapsed {
+    width: 190px;
+}
+.uil-menu-ground {
+    width: 200px;
+    padding: 8px 4px;
+    box-sizing: border-box;
+    background: var(--kit-section-menu-ground);
+}
+/* The shell's rail, at a window's height so its foot sits at the bottom as
+   it does in the app, with room to the right of a collapsed one for its
+   banner. The banner is the rail's own (.axr-tip), placed in the cell
+   rather than on the window, which is where rail.js puts it. */
+.uil-rail {
+    position: relative;
+    display: flex;
+    height: 640px;
+}
+.uil-rail--collapsed {
+    width: 190px;
+}
+.uil-rail .uil-rail__tip.axr-tip {
+    position: absolute;
+}
+/* ⛔ The rail is a reference, and its hover and focus are plain :hover and
+   :focus-visible (css/rail.css), which the library's forced states cannot
+   reach. So the rail's own declarations are repeated here on the forced
+   state, in the rail's own tokens, for the library's cells only; css/rail.css
+   is untouched. The rail has no press of its own: pressed is its hover. */
+.uil-rail .axr__row:not([aria-current='page'])[data-kit-force~='hover'],
+.uil-rail .axr__row:not([aria-current='page'])[data-kit-force~='pressed'] {
+    background: var(--axr-hover);
+    color: var(--axr-ink);
+}
+.uil-rail .axr__row[data-kit-force~='focus'] {
+    outline: 2px solid var(--axr-hl);
+    outline-offset: 1px;
+}
+/* A title or a heading at a page's width. */
+.uil-heads {
+    width: 760px;
+}
+/* The top left corner of a stand-in page. The skip link is fixed to the
+   window's corner; layout containment makes this corner the window it is
+   fixed to, so each cell holds its own. */
+.uil-corner {
+    position: relative;
+    contain: layout;
+    width: 360px;
+    height: 76px;
+    overflow: hidden;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+}
+.uil-corner__page {
+    display: grid;
+    gap: 8px;
+    padding: 22px 20px;
+}
+.uil-corner__line {
+    display: block;
+    width: 70%;
+    height: 8px;
+    border-radius: var(--kit-r-tag);
+    background: var(--kit-chip-bg);
+}
+.uil-corner__line--short {
+    width: 40%;
+}
+/* Cards and sections, each at the width the picker drew it: two click
+   boxes in the Employees Reports grid (the wide one across both), the
+   drawer's facts on the drawer's ground, a Financials list box, an
+   Insights box, a Settings section. */
+.uil-boxes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 500px;
+}
+.uil-sheet {
+    width: 520px;
+    padding: 20px;
+    box-sizing: border-box;
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+}
+.uil-list-box {
+    width: 520px;
+}
+.uil-number-box {
+    width: 460px;
+}
+.uil-section-box {
+    width: 640px;
+}
+/* Icons: a row of glyphs in the ink, a sheet of every named glyph with its
+   name under it, and the standalone mark on the page ground with room for
+   its halo. */
+.uil-glyphs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    color: var(--kit-ink);
+}
+.uil-glyphs--sheet {
+    display: grid;
+    grid-template-columns: repeat(9, 76px);
+    gap: 18px 8px;
+    width: 740px;
+}
+.uil-glyph {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+}
+.uil-glyph__name {
+    color: var(--kit-ink-3);
+    font: 400 11px/1.2 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-mark {
+    display: grid;
+    place-items: center;
+    width: 140px;
+    height: 120px;
+}
+/* People and media: a camera at a wall's width (and the one camera shown
+   large), a clip's frame beside its row's words, a row of pictures, and the
+   dossier's pictures in the places they sit: a log entry, a clip picker's
+   card, the evidence column and the upload preview. */
+.uil-camera {
+    width: 360px;
+}
+.uil-camera--large {
+    width: 560px;
+}
+.uil-clip-row {
+    display: grid;
+    grid-template-columns: 168px 300px;
+    gap: 16px;
+    align-items: center;
+}
+.uil-clip-row__words,
+.uil-still__words {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+.uil-clip-row__name {
+    color: var(--kit-ink);
+    font: 600 14px/1.3 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-clip-row__why,
+.uil-still__line {
+    color: var(--kit-ink-2);
+    font: 400 13px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-clip-row__meta,
+.uil-still__meta {
+    color: var(--kit-ink-3);
+    font: 400 12px/1.3 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-pictures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    max-width: 480px;
+}
+.uil-still {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    box-sizing: border-box;
+    padding: 11px;
+    border: 1px solid var(--kit-line);
+    border-radius: 10px;
+    background: var(--kit-surface);
+}
+.uil-still--entry {
+    width: 420px;
+}
+.uil-still--clip {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    width: 220px;
+    padding: 10px;
+}
+.uil-still--evidence {
+    width: 420px;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+.uil-still--upload {
+    width: 320px;
+    padding: 14px;
+    border-style: dashed;
+}
+
+/* History, show more, key hints and copy, each where the picker drew it:
+   the copy box in the new key's dialog, the copy icon over a Financials
+   trend note (the note's grey band under the pointer is Financials', here
+   in the line table's wash, the same colour), the chevron at the end of the
+   month strip, Show every step under a Settings section's lead, the history
+   in an alert drawer, and the key hints on the search window's footer. */
+.uil-copy {
+    width: 520px;
+    padding: 20px;
+    box-sizing: border-box;
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+}
+.uil-note-host {
+    padding: 6px 12px;
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+}
+.uil-note {
+    position: relative;
+    display: flex;
+    gap: 12px;
+    width: 340px;
+    margin: 24px 12px 4px;
+    padding: 6px 0;
+    border-radius: var(--kit-r-ctl);
+    color: var(--kit-ink-3);
+}
+.uil-note:is(:hover, :focus-within, [data-kit-force~='hover'], [data-kit-force~='focus'], [data-kit-force~='pressed']) {
+    background: var(--kit-line-table-wash);
+    box-shadow:
+        -8px 0 0 var(--kit-line-table-wash),
+        8px 0 0 var(--kit-line-table-wash);
+}
+.uil-note__glyph {
+    flex: none;
+    margin-top: 5px;
+}
+.uil-note__main {
+    flex: 1;
+    min-width: 0;
+}
+.uil-note__title {
+    margin: 0;
+    color: var(--kit-ink);
+    font: 500 15px/24px var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-note__body {
+    margin: 0;
+    font: 400 15px/24px var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-note > .kit-copy-icon {
+    position: absolute;
+    top: -16px;
+    right: 0;
+}
+.uil-fold {
+    width: 440px;
+    padding: 6px 12px 6px 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+}
+.uil-fold__strip {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    font: 400 14px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-fold__strip > .kit-fold-open {
+    margin-left: auto;
+}
+.uil-fold__panel {
+    min-height: 96px;
+    padding: 8px 0 10px;
+}
+.uil-fold__words {
+    margin: 0;
+    color: var(--kit-ink-2);
+    font: 400 13px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-more {
+    width: 420px;
+    padding: 16px 18px 12px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+}
+.uil-more__title {
+    margin: 0;
+    font: 600 14px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-more__lead {
+    margin: 2px 0 12px;
+    color: var(--kit-ink-3);
+    font: 400 12.5px/1.4 var(--font-sans, Inter, system-ui, sans-serif);
+}
+.uil-more__row {
+    padding: 10px 0 2px;
+    border-top: 1px solid var(--kit-line);
+}
+.uil-more__panel {
+    margin-top: 10px;
+}
+.uil-history {
+    width: 420px;
+    padding: 18px 22px 12px;
+    box-sizing: border-box;
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+}
+.uil-keys {
+    width: 520px;
+    padding: 11px 20px;
+    box-sizing: border-box;
+    border-top: 1px solid var(--kit-key-line);
+    border-radius: 0 0 var(--kit-rs) var(--kit-rs);
+    /* The search window's footer ground, --surface-2 (css/dashboard.css:
+       10704-10711), which the kit has no token for. */
+    background: var(--surface-2, var(--kit-surface-2));
+    color: var(--kit-shell-dim);
+}
+
+/* The drop well at the width the Scan an invoice window gives it. */
+.uil-file-drop {
+    width: 560px;
+}
+/* The Transactions bar across the width of its list (the page's 1720px
+   measure less its rail), so a filter in use sits on the bar's one row. */
+.uil-toolbar {
+    width: 1280px;
+}
+/* The Account page's identity head: the photo, then the name and email. */
+.uil-identity {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 420px;
+}
+.uil-identity__words {
+    display: grid;
+    gap: 6px;
+}
+.uil-identity__name {
+    color: var(--kit-ink);
+    font-size: 22px;
+    font-weight: 650;
+}
+.uil-identity__mail {
+    color: var(--kit-ink-3);
+    font-size: 13px;
+}
+/* The foot of a list's scroll area: the selection bar's dock sits on its
+   bottom edge and the island rises above it, into the stage. */
+.uil-dock {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    width: 560px;
+    height: 84px;
+}
+/* Placement only, as .uil-inline is: the dock is sticky to the foot of the
+   app's scroll area, and a sticky dock on a tall matrix would slide with the
+   window instead of sitting in its cell. */
+.uil-cell .uil-cell__stage .uil-dock > .kit-selection-bar {
+    position: relative;
+    bottom: auto;
+}
+/* A Settings card's footer: the schedule's summary, and the undo beside it. */
+.uil-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    width: 640px;
+    padding: 14px 20px;
+    box-sizing: border-box;
+    border-top: 1px solid var(--kit-line);
+    border-radius: 0 0 var(--kit-rs) var(--kit-rs);
+    background: var(--kit-surface);
+}
+.uil-foot__summary {
+    color: var(--kit-ink-2);
+    font-size: 13px;
+    font-weight: 550;
+}
+/* The View options box (css/argus-view-settings.css), a list of layouts in
+   a box too short for it, so its scrollbar shows. */
+.uil-scroll-box {
+    width: 280px;
+    overflow: hidden;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+}
+.uil-scroll-box__head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--kit-line);
+    color: var(--kit-ink);
+    font-size: 15px;
+    font-weight: 600;
+}
+.uil-scroll-box__list {
+    height: 200px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px 0 10px;
+}
+.uil-scroll-box__row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 16px;
+}
+.uil-scroll-box__name {
+    color: var(--kit-ink);
+    font-size: 14px;
+    font-weight: 500;
+}
+.uil-scroll-box__sub {
+    color: var(--kit-ink-3);
+    font-size: 12.5px;
+}
+/* A row narrower than what it holds, so it has somewhere to scroll. */
+.uil-sideways {
+    width: 320px;
+}
+/* The width of the clip review's transport, which the seek bar fills. */
+.uil-seek {
+    width: 420px;
+}
+/* The dossier's column, which the evidence video fills. */
+.uil-video-player {
+    width: 380px;
+}
+
+/* ── Charts ────────────────────────────────────────────────────────────
+   Scaffolding only. Every chart is drawn and painted by its home module
+   (css/financials-charts.css, the balance card in css/kit.css,
+   css/inventory-analytics.css); nothing here restyles a chart. */
+/* A Financials chart at the width the picker drew it, in its skin. */
+.uil-fin {
+    width: 620px;
+}
+/* The one layer, laid over the whole page, that holds the charts' hover
+   tips. The module fixes each tip to the window; the layer's layout
+   containment makes it what a fixed tip is placed against, so a tip
+   scrolls with its chart instead of staying put in the window. */
+.uil-tips {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    height: 0;
+    contain: layout;
+}
+/* The figure card's chart at its other two sizes (it sizes from its
+   own width: standard from 380px, large from 560px). */
+.uil-bal.uil-bal--standard {
+    width: 460px;
+}
+.uil-bal.uil-bal--large {
+    width: 640px;
+}
+/* A breakdown box's total under its title (Financials' Money out box). */
+.uil-card__total {
+    margin: -14px 0 24px;
+    color: var(--kit-ink);
+    font-size: 15px;
+    line-height: 22px;
+    font-variant-numeric: tabular-nums;
+}
+/* Inventory's stock health at the width of its Reports column. */
+.uil-health {
+    width: 560px;
+}
+/* The chart grammar: what every chart shares, from the kit's chart tokens
+   (--kit-chart-*) alone. A drawing of the tokens, not a chart. */
+.uil-grammar {
+    width: 620px;
+    font-family: var(--kit-chart-font);
+    font-size: var(--kit-chart-label-size);
+    line-height: 20px;
+    color: var(--kit-ink-3);
+}
+.uil-grammar__plot {
+    position: relative;
+    height: 192px;
+    margin: 10px 0 0 60px;
+}
+.uil-grammar__line {
+    position: absolute;
+    right: 0;
+    left: 0;
+    border-top: 1px solid var(--kit-chart-grid);
+}
+.uil-grammar__line--axis {
+    border-top-color: var(--kit-chart-axis);
+}
+.uil-grammar__y {
+    position: absolute;
+    top: 0;
+    right: calc(100% + 12px);
+    transform: translateY(-50%);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.uil-grammar__cross {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 55%;
+    border-left: 1px solid var(--kit-chart-axis);
+}
+.uil-grammar__tip {
+    position: absolute;
+    top: 30px;
+    left: calc(55% + 14px);
+    min-width: 200px;
+    padding: 8px 16px;
+    box-sizing: border-box;
+    border: 1px solid var(--kit-chart-tip-line);
+    border-radius: 8px;
+    background: var(--kit-chart-tip-ground);
+    color: var(--kit-chart-tip-ink);
+    font-size: 15px;
+    line-height: 22px;
+    font-variant-numeric: tabular-nums;
+}
+.uil-grammar__tip-head {
+    font-size: var(--kit-chart-label-size);
+}
+.uil-grammar__tip-row {
+    display: flex;
+    gap: 12px;
+}
+.uil-grammar__tip-v {
+    margin-left: auto;
+    font-weight: 500;
+}
+.uil-grammar__xs {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    margin: 8px 0 0 60px;
+    text-align: center;
+}
+.uil-grammar__key {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 2px 12px;
+    margin: 16px 0 0;
+    color: var(--kit-ink-2);
+    font-size: 12px;
+    line-height: 18px;
+}
+.uil-grammar__key dt {
+    color: var(--kit-ink);
+    font-weight: 500;
+}
+.uil-grammar__key dd {
+    margin: 0;
+}
+
+/* ── Shell (ui-library.html) ─────────────────────────────────────────── */
+.uil-shell-body {
+    margin: 0;
+}
+.uil-shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    min-height: 100vh;
+    background: var(--kit-bg);
+}
+.uil-list {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    max-height: 100vh;
+    overflow: auto;
+    padding: 20px 12px;
+    border-right: 1px solid var(--kit-line);
+}
+.uil-list__family {
+    margin: 16px 8px 6px;
+    font: 600 11px/1 var(--font-sans, Inter, system-ui, sans-serif);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--kit-ink-3);
+}
+.uil-list__item {
+    display: block;
+    width: 100%;
+    min-height: 0;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--kit-r-ctl);
+    background: none;
+    text-align: left;
+    color: var(--kit-ink-2);
+    cursor: pointer;
+}
+.uil-list__item[aria-current='true'] {
+    background: var(--kit-accent-tint);
+    color: var(--kit-accent-ink);
+}
+.uil-list__item.is-unbuilt {
+    opacity: 0.55;
+}
+.uil-main {
+    padding: 24px 32px 64px;
+    min-width: 0;
+}
+/* Each frame starts at 360px and then takes the height of what it holds
+   (the frame reports it, shell.js caps it at 1600px; taller scrolls inside). */
+.uil-canvas {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    height: 360px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    margin-top: 16px;
+    background: var(--kit-bg);
+}
+.uil-spec__list {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 6px 16px;
+}
+.uil-spec__code {
+    overflow-x: auto;
+}
+.uil-head {
+    color: var(--kit-ink);
+}
+.uil-head__family,
+.uil-head__variant,
+.uil-head__note {
+    color: var(--kit-ink-3);
+}
+.uil-spec {
+    margin-top: 16px;
+    color: var(--kit-ink-2);
+}
+/* Long words (a file path, a token name) break rather than push the page
+   wider than the screen. */
+.uil-head,
+.uil-spec {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.uil-spec__file {
+    color: var(--kit-ink);
+}
+/* A phone: the list above, the standard under it at the full width with a
+   16px gutter, and nothing wider than the screen. A frame's own matrix may
+   still scroll sideways inside its frame. */
+@media (max-width: 720px) {
+    .uil-shell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .uil-list {
+        position: static;
+        max-height: 36vh;
+        padding: 12px 16px;
+        border-right: 0;
+        border-bottom: 1px solid var(--kit-line);
+    }
+    .uil-main {
+        padding: 16px 16px 48px;
+    }
+}

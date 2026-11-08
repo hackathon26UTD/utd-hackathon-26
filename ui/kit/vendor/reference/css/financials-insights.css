@@ -1,0 +1,1021 @@
+/* ============================================================================
+ * FINANCIALS INSIGHTS: Overview, Spending and Money in
+ *
+ * Styles for js/financials/view-insights.js (window.FinViews.insights).
+ * Geometry is Mercury's Insights screen (docs/financials/mercury-reference/
+ * overview.md, moneyout.md, moneyin.md sections 2, 3.0, 4, 5 and 6); colour
+ * is ours, read only from --ground-* (css/main.css) and --crm-* (css/argus-
+ * crm.css), both of which carry a literal in BOTH theme blocks.
+ *
+ *   Mercury                          Argus
+ *   #1e1e2a ink, KPI values          --ground-ink
+ *   #363644 table text, amounts      --ground-ink-2
+ *   #535461 labels, note body        --ground-ink-3
+ *   #70707d headers, footnote        --crm-fg-dim
+ *   #7073931a card border, rules     --ground-line
+ *   #7073931a inline chip fill       --ground-chip (hover --ground-chip-2)
+ *   #7073930f row hover              --crm-neutral-bg
+ *   #5266eb share bar fill           --crm-revenue (in) / --crm-spend (out),
+ *                                    painted by css/financials-charts.css
+ *
+ * ⛔ NO RAW COLOUR. `transparent` and `currentColor` are the only keywords.
+ * ⛔ No class here contains card / panel / widget / tile / -page:
+ *   shell-theme.css repaints those substrings inside .portal-main.
+ * ⛔ EVERY BUTTON DECLARES min-height and min-width: css/main.css floors
+ *   every <button> at 44px.
+ * ⛔ The focus ring is the accent, never the global red.
+ * ========================================================================== */
+
+.fi {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: var(--ground-ink-2);
+    font-family: var(--font-sans, Inter, system-ui, sans-serif);
+}
+
+/* Chips, buttons and selects the view shows or hides in place. Their own
+   display rules would otherwise beat the [hidden] attribute. */
+.fi [hidden] {
+    display: none !important;
+}
+
+.fi-ico {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.fi-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+.fi-note__chip:focus-visible,
+.fi-note__copy:focus-visible,
+.fi-bd__link:focus-visible,
+.fi-retry:focus-visible,
+.fi-link:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 1px var(--crm-surface-raised),
+        0 0 0 3px color-mix(in srgb, var(--crm-cta) 50%, transparent);
+}
+
+/* ── Sticky toolbar + timeline (Mercury 1.2 / 1.3) ─────────────────────── */
+
+.fi-sticky {
+    /* Full bleed: Mercury's line under the ruler runs across the whole main
+       area, not to the content edges. The band reaches the sheet's edges and
+       pads its content back onto the column, and the line is the band's
+       (the ruler draws none here), so it is the same line, at the same x,
+       as the Transactions band's. */
+    margin: 0 calc(-1 * var(--sheet-pad, 16px));
+    padding: var(--crm-s-1) var(--sheet-pad, 16px) 0;
+    border-bottom: 1px solid var(--ground-line);
+}
+
+.fi-sticky .fc-tl {
+    border-bottom: 0;
+}
+
+/* Pinned at the scroll container's BORDER edge, not below its top padding,
+   so no strip of rows shows above the toolbar (view-insights.js syncStuck
+   writes the padding as --fi-bleed). ⛔ The same edge and the same 4px as the
+   Transactions band (.ftx-sticky): the chips stay put when the tab changes,
+   at rest and pinned. */
+.fc-sticky.fi-sticky {
+    top: calc(-1 * var(--fi-bleed, 0px));
+}
+
+.fi-sticky .fi-toolbar {
+    /* Mercury: 13px from the chips to the ruler. */
+    margin-bottom: 13px;
+}
+
+/* ── KPI row (Mercury 2) ───────────────────────────────────────────────── */
+
+.fi-head {
+    display: flex;
+    /* The chart controls drop to their own row, right-aligned over the chart,
+       once the figures no longer fit beside them (sankey's two extra selects
+       at 1366px, any mode at 1120px). The figures are never squeezed under
+       their own width: .fi-kpis2 below is as wide as its values at least. */
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0 var(--crm-s-6);
+    /* Mercury: 31px from the ruler's line to the KPI labels. */
+    padding-top: 31px;
+}
+
+/* The hero sits over the trend-notes column: a third of the row. */
+.fi-kpi--hero {
+    flex: 0 0 calc((100% - 2 * var(--crm-s-6)) / 3);
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+/* Mercury indents the hero to the trend headings (its label at x 266, the
+   note icons at 244), and hangs a minus into that margin so the "$" sits
+   under the label's first letter. Here the headings start one icon (13px)
+   and one gap (--crm-s-3) in. Only while the notes column sits under the
+   hero; below 1100px the notes move under the chart. */
+@media (min-width: 1101px) {
+    .fi-kpi--hero {
+        padding-left: calc(13px + var(--crm-s-3));
+    }
+
+    .fi-kpi--hero .fi-kpi__sign {
+        margin-left: -0.6em;
+    }
+}
+
+/* The secondaries sit in two equal halves of the room between the hero and
+   the controls (Mercury at 1440: Money in x 615, Money out x 895, 280 apart;
+   their x moves with the width of the control cluster). A single-direction
+   tab's one secondary ("Monthly average") takes the first half, so it starts
+   where Money in would (Mercury: x 603), not floated to the middle. */
+.fi-kpis2 {
+    display: grid;
+    flex: 1 1 auto;
+    /* Never narrower than the figures: "-$681,669" at 124px in a 86px column
+       ran into "$866,283" and under the selects. max-content as the floor
+       also makes this item's own minimum the two values side by side, which
+       is what wraps .fi-ctl to the next row instead. */
+    grid-template-columns: repeat(2, minmax(max-content, 1fr));
+    column-gap: var(--crm-s-6);
+}
+
+.fi-kpi {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.fi-kpi__label {
+    align-self: flex-start;
+    color: var(--ground-ink-3);
+    font-size: 15px;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+/* A label that explains itself on hover wears Mercury's dotted underline. */
+.fi-kpi__label.is-tip {
+    text-decoration: underline dotted;
+    text-decoration-color: var(--crm-fg-dim);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+    cursor: default;
+}
+
+.fi-kpi__value {
+    margin-top: var(--crm-s-1);
+    color: var(--ground-ink);
+    font-size: 24px;
+    line-height: 28px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* The secondaries share the hero's baseline: (20 + 4 + 42) - (20 + 4 + 28). */
+.fi-kpis2 .fi-kpi {
+    margin-top: 14px;
+}
+
+.fi-kpi--hero .fi-kpi__value {
+    font-size: 38px;
+    line-height: 42px;
+}
+
+.fi-kpi.is-unknown .fi-kpi__value {
+    color: var(--ground-ink-3);
+}
+
+.fi-kpi__sub {
+    margin-top: 2px;
+    color: var(--ground-ink-3);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.fi-kpi__sub:empty {
+    display: none;
+}
+
+/* Interval, chart mode and the per-mode group-by, bottom-aligned with the
+   hero figure: 20 + 4 + 42 - 32. */
+.fi-ctl {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--crm-s-2);
+    margin-top: 34px;
+    margin-left: auto;
+}
+
+/* On its own row (view-insights.js sets is-wrapped): the controls sit just
+   under the figures, not 34px down as they do beside the hero, and the two
+   figures keep together after the hero (Mercury moves them left) rather
+   than spreading to the far edge. ⛔ Only ever WIDER than the unwrapped
+   row (a larger gap, never a smaller one): the wrap is decided on these
+   widths, and a wrapped row that fit again would flip back and forth. */
+.fi-head.is-wrapped .fi-ctl {
+    margin-top: var(--crm-s-3);
+}
+
+.fi-head.is-wrapped .fi-kpis2 {
+    flex-grow: 0;
+    column-gap: var(--crm-s-8);
+}
+
+/* ── Caveats under the KPI row ─────────────────────────────────────────── */
+
+.fi-notices {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-1);
+    margin-top: var(--crm-s-3);
+}
+
+.fi-notices:empty {
+    display: none;
+}
+
+.fi-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--crm-s-2);
+    margin: 0;
+    color: var(--ground-ink-3);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+}
+
+.fi-notice__icon {
+    width: 14px;
+    height: 14px;
+    margin-top: 3px;
+    color: var(--crm-fg-dim);
+}
+
+.fi-notice__text {
+    min-width: 0;
+}
+
+.fi-link {
+    flex: none;
+    min-width: 0;
+    min-height: 0;
+    height: 20px;
+    padding: 0 var(--crm-s-1);
+    border: 0;
+    border-radius: var(--crm-r-xs);
+    background: none;
+    color: var(--ground-ink);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.fi-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* ── Trend notes + chart (Mercury 3.0, 4) ──────────────────────────────── */
+
+.fi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 28px var(--crm-s-6);
+    /* Mercury: 37px from the KPI values to the chart and the notes. */
+    margin-top: 37px;
+}
+
+.fi-notes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-3);
+    min-width: 0;
+    min-height: 464px;
+}
+
+.fi-note {
+    position: relative;
+    display: flex;
+    gap: var(--crm-s-3);
+    padding: 6px 0;
+    border-radius: var(--crm-r-sm);
+}
+
+/* Mercury's hover: the row gets a fill that reaches 8px past the text. */
+.fi-note:hover,
+.fi-note:focus-within {
+    background: var(--crm-neutral-bg);
+    box-shadow:
+        -8px 0 0 var(--crm-neutral-bg),
+        8px 0 0 var(--crm-neutral-bg);
+}
+
+.fi-note__icon {
+    width: 13px;
+    height: 13px;
+    margin-top: 5px;
+    color: var(--ground-ink-3);
+}
+
+.fi-note__main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.fi-note__title {
+    margin: 0;
+    color: var(--ground-ink);
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.fi-note__body {
+    margin: 0;
+    color: var(--ground-ink-3);
+    font-size: 15px;
+    line-height: 24px;
+}
+
+.fi-note__fig {
+    white-space: nowrap;
+}
+
+.fi-note__chip {
+    display: inline;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 var(--crm-s-1);
+    border: 0.75px solid var(--ground-line);
+    border-radius: 6px;
+    background: var(--ground-chip);
+    color: var(--ground-ink-3);
+    font: inherit;
+    /* Mercury's chip is 22px tall with 0 4px padding. A <button> lays out as
+       an inline block, so its own line-height sets its height: 24px (the
+       note's, through `font: inherit`, which is why this comes after it) made
+       a 28px box and pushed every line holding a chip to a 26px pitch. */
+    line-height: 20px;
+    cursor: pointer;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+.fi-note__chip:hover {
+    background: var(--ground-chip-2);
+    color: var(--ground-ink);
+}
+
+/* Copy: the only one of Mercury's three hover actions with a real effect. */
+.fi-note__copy {
+    position: absolute;
+    top: -16px;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 1px solid var(--ground-line);
+    border-radius: var(--crm-r-sm);
+    background: var(--ground-raised);
+    box-shadow: var(--crm-shadow-1);
+    color: var(--ground-ink-3);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--crm-dur-fast) var(--crm-ease);
+}
+
+.fi-note:hover .fi-note__copy,
+.fi-note:focus-within .fi-note__copy {
+    opacity: 1;
+}
+
+/* A touch screen has no hover to reveal it: an invisible button that still
+   takes a tap is a trap, so it simply shows. */
+@media (hover: none) {
+    .fi-note__copy {
+        opacity: 1;
+    }
+}
+
+.fi-note__copy:hover {
+    color: var(--ground-ink);
+}
+
+.fi-note__copy.is-done {
+    color: var(--ground-ink);
+}
+
+.fi-note__copy .fi-ico {
+    width: 15px;
+    height: 15px;
+}
+
+.fi-notes__msg {
+    margin: 0;
+    color: var(--ground-ink-3);
+    font-size: 15px;
+    line-height: 24px;
+}
+
+.fi-notes__foot {
+    margin: auto 0 0;
+    padding-top: var(--crm-s-3);
+    color: var(--crm-fg-dim);
+    font-size: var(--crm-t-caption);
+    line-height: 20px;
+    letter-spacing: 0.2px;
+}
+
+.fi-plot {
+    grid-column: 2 / span 2;
+    min-width: 0;
+}
+
+.fi-plot__host {
+    min-height: 464px;
+}
+
+/* A read that failed: a sentence and a way back, and nothing that could be
+   read as a figure (no axis, no baseline, no "0"). */
+.fi-fail {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--crm-s-3);
+    min-height: 464px;
+    padding: var(--crm-s-6);
+    box-sizing: border-box;
+    border-radius: var(--crm-r-md);
+    background: var(--crm-neutral-bg);
+    text-align: center;
+}
+
+.fi-fail--box {
+    min-height: 296px;
+}
+
+.fi-fail__msg {
+    max-width: 44ch;
+    margin: 0;
+    color: var(--ground-ink-2);
+    font-size: var(--crm-t-body-lg);
+    line-height: 22px;
+}
+
+.fi-retry {
+    /* The page's one Try again (.fc-btn--outline, .fin-chart__retry,
+       .atbl-msg__action): one failure, one look. */
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 32px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 var(--crm-s-4);
+    border: 1px solid var(--crm-border-strong);
+    border-radius: var(--crm-r-sm);
+    background: var(--ground-raised);
+    color: var(--ground-ink-2);
+    font: inherit;
+    font-size: 15px;
+    line-height: 24px;
+    cursor: pointer;
+}
+
+.fi-retry:hover {
+    border-color: var(--ground-line-3);
+    color: var(--ground-ink);
+}
+
+/* ── Below the fold (Mercury 5, 6) ─────────────────────────────────────── */
+
+.fi-rule {
+    height: 0;
+    /* Full bleed, as the band's line above (Mercury runs it across the main
+       area). */
+    margin: 38px calc(-1 * var(--sheet-pad, 16px)) var(--crm-s-6);
+    border-top: 1px solid var(--ground-line);
+}
+
+.fi-below {
+    display: grid;
+    /* Mercury's cards never go under 496px: below that they stack in one
+       column instead of cutting every name to nine characters. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 496px), 1fr));
+    gap: var(--crm-s-4);
+    align-items: stretch;
+    /* No padding of its own: the frame's margin and the sheet's leave the
+       24px Mercury leaves under its cards (80px when this was 24 as well). */
+    padding-bottom: 0;
+}
+
+.fi-below--one {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.fi-box {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 476px;
+    box-sizing: border-box;
+    padding-bottom: var(--crm-s-6);
+    border: 1px solid var(--ground-line);
+    border-radius: var(--crm-r-md);
+    background: var(--ground-raised);
+}
+
+.fi-box__head {
+    padding: var(--crm-s-6) var(--crm-s-6) var(--crm-s-4);
+}
+
+.fi-box__title {
+    margin: 0;
+    color: var(--ground-ink);
+    font-size: 24px;
+    line-height: 26px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+}
+
+.fi-box__total {
+    min-height: 24px;
+    margin: var(--crm-s-1) 0 0;
+    color: var(--ground-ink);
+    font-size: 16px;
+    line-height: 24px;
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-box.is-unknown .fi-box__total {
+    color: var(--ground-ink-3);
+}
+
+.fi-box__seg {
+    margin: var(--crm-s-4) var(--crm-s-6) 0;
+}
+
+.fi-box__body {
+    position: relative;
+    margin: var(--crm-s-6) var(--crm-s-6) 0;
+}
+
+.fi-box__msg {
+    max-width: 48ch;
+    margin: var(--crm-s-4) 0 0;
+    color: var(--ground-ink-3);
+    font-size: var(--crm-t-body-lg);
+    line-height: 22px;
+}
+
+/* An honest empty keeps the table's shape: ghost rows behind a sentence. */
+.fi-box__msg--empty {
+    position: absolute;
+    top: 72px;
+    left: 50%;
+    margin: 0;
+    padding: var(--crm-s-2) var(--crm-s-4);
+    border-radius: var(--crm-r-sm);
+    background: var(--ground-raised);
+    color: var(--ground-ink-2);
+    text-align: center;
+    transform: translateX(-50%);
+}
+
+/* The breakdown table: Mercury's 1fr 2fr 1fr grid, 36px rows + a hairline. */
+.fi-bd {
+    display: block;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+    line-height: 24px;
+}
+
+.fi-bd thead,
+.fi-bd tbody {
+    display: block;
+}
+
+.fi-bd__row {
+    position: relative;
+    display: grid;
+    /* Mercury's minimums (overview.md 6): the name 200px, % of total 136px,
+       Amount 120px. As 1fr 2fr 1fr with no floor the name got 147px at 1440
+       and cut "Marathon Petrol..." while the bar had 200px to spare. Each
+       floor gives way on the narrowest (496px) box, where the three would
+       not fit: min() against a share of the row. */
+    grid-template-columns:
+        minmax(min(200px, 38%), 1fr)
+        minmax(min(136px, 28%), 2fr)
+        minmax(min(120px, 24%), 1fr);
+    column-gap: var(--crm-s-4);
+    align-items: center;
+    min-height: 36px;
+}
+
+.fi-bd__row > th,
+.fi-bd__row > td {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+}
+
+.fi-bd__row--head {
+    min-height: 0;
+    border-bottom: 1px solid var(--ground-line);
+}
+
+.fi-bd__row--head > th {
+    padding: var(--crm-s-2) 0;
+    color: var(--crm-fg-dim);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    font-weight: 400;
+    letter-spacing: 0.1px;
+}
+
+.fi-bd tbody .fi-bd__row + .fi-bd__row {
+    border-top: 1px solid var(--ground-line);
+}
+
+.fi-bd__row > .fi-bd__amt {
+    justify-content: flex-end;
+    color: var(--ground-ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.fi-bd__row > .fi-bd__name {
+    overflow: hidden;
+}
+
+.fi-bd__label,
+.fi-bd__link {
+    overflow: hidden;
+    color: var(--ground-ink-2);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fi-bd__link {
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--crm-r-xs);
+    background: none;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* The whole row is the link: Mercury's hover fill with 8px shoulders. */
+.fi-bd__row.is-link {
+    cursor: pointer;
+}
+
+.fi-bd__row.is-link:hover::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    inset: -1px calc(-1 * var(--crm-s-2)) 0;
+    border-radius: var(--crm-r-sm);
+    background: var(--crm-neutral-bg);
+}
+
+.fi-bd__row.is-link:hover .fi-bd__link,
+.fi-bd__row.is-link:hover .fi-bd__amt {
+    color: var(--ground-ink);
+}
+
+.fi-bd__row > .fi-bd__pctcell {
+    gap: var(--crm-s-2);
+}
+
+.fi-bd__pct {
+    flex: 0 0 48px;
+    color: var(--ground-ink-2);
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-bd__share {
+    flex: 1 1 auto;
+    min-width: 64px;
+}
+
+.fi-bd__row--ghost {
+    pointer-events: none;
+}
+
+/* The Summary box: Mercury's 2 x 2 stat grid. */
+.fi-sum {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--crm-s-4);
+    margin: var(--crm-s-2) var(--crm-s-6) 0;
+}
+
+.fi-sum__cell {
+    min-width: 0;
+    /* Mercury's stat rule starts 8px left of its text. */
+    margin-left: calc(-1 * var(--crm-s-2));
+    padding: var(--crm-s-4) 0 var(--crm-s-4) var(--crm-s-2);
+}
+
+.fi-sum__cell:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--ground-line);
+}
+
+.fi-sum__label {
+    margin: 0;
+    color: var(--ground-ink-3);
+    font-size: 15px;
+    line-height: 20px;
+}
+
+.fi-sum__value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--crm-s-1);
+    min-height: 28px;
+    margin: var(--crm-s-3) 0 0;
+    color: var(--ground-ink-2);
+    font-size: 20px;
+    line-height: 28px;
+    font-variant-numeric: tabular-nums;
+}
+
+.fi-sum__cell.is-unknown .fi-sum__value {
+    color: var(--ground-ink-3);
+}
+
+/* Cents top-aligned to the digits' cap height, as Mercury's ".70" is, not
+   raised above it (the shared -0.36em lift is set for 15px table rows). */
+.fi-sum__value .fin-amt__cents {
+    top: -0.22em;
+}
+
+.fi-sum__muted,
+.fi-sum__sub {
+    color: var(--crm-fg-dim);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+}
+
+/* ── Store picker (Filters > Store, the store chip) ────────────────────── */
+
+.fi-storepick {
+    min-width: 220px;
+}
+
+.fi-storepick__msg {
+    margin: 0 0 var(--crm-s-2);
+    color: var(--ground-ink-3);
+    font-size: var(--crm-t-body-lg);
+    line-height: 22px;
+}
+
+/* ── Pending: a pulse, never a zero ────────────────────────────────────── */
+
+.fi-shim {
+    display: inline-block;
+    vertical-align: middle;
+    border-radius: var(--crm-r-xs);
+    background: var(--ground-chip);
+    animation: fi-pulse 1.2s var(--crm-ease) infinite alternate;
+}
+
+@keyframes fi-pulse {
+    /* 🪤 never 0: a backgrounded tab pauses animations
+       (__tests__/portal-invisible-animation.contract.test.js). */
+    from {
+        opacity: 0.55;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.fi-shim--kpi {
+    width: 140px;
+    height: 28px;
+    margin: 6px 0 8px;
+}
+
+.fi-kpis2 .fi-shim--kpi {
+    width: 96px;
+    height: 22px;
+    margin: 3px 0;
+}
+
+.fi-shim--line {
+    display: block;
+    width: 100%;
+    height: 12px;
+    margin: 6px 0;
+}
+
+.fi-shim--short {
+    width: 60%;
+}
+
+.fi-shim--cell {
+    width: 70%;
+    height: 12px;
+}
+
+.fi-shim--amt {
+    width: 80px;
+    margin-left: auto;
+}
+
+.fi-shim--total {
+    width: 110px;
+    height: 14px;
+}
+
+.fi-shim--sum {
+    width: 56px;
+    height: 18px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-shim {
+        animation: none;
+    }
+
+    .fi-note__copy {
+        transition: none;
+    }
+}
+
+/* ── Narrower screens (Mercury's own breakpoints, overview.md 7) ───────── */
+
+@media (max-width: 1100px) {
+    .fi-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fi-plot {
+        grid-column: auto;
+        order: 1;
+    }
+
+    .fi-notes {
+        order: 2;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--crm-s-3) var(--crm-s-6);
+        min-height: 0;
+    }
+
+    .fi-notes__foot,
+    .fi-notes__msg {
+        grid-column: 1 / -1;
+    }
+
+    .fi-head {
+        flex-wrap: wrap;
+    }
+
+    .fi-kpi--hero {
+        flex-basis: auto;
+    }
+
+    /* The controls wrap to their own line, so the halves would stretch the
+       whole row: sit the secondaries side by side instead. */
+    .fi-kpis2 {
+        grid-template-columns: repeat(2, max-content);
+    }
+
+    .fi-ctl {
+        flex-basis: 100%;
+        justify-content: flex-start;
+        margin: var(--crm-s-2) 0 0;
+    }
+}
+
+@media (max-width: 900px) {
+    .fi-below,
+    .fi-below--one {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fi-box {
+        min-height: 0;
+    }
+}
+
+@media (max-width: 720px) {
+    .fi-notes {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .fi-kpis2 {
+        flex-basis: 100%;
+        min-width: 0;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* "vs. -$930,000 previous period" under each of two KPIs does not fit
+       side by side on a phone: let it wrap rather than scroll the page. */
+    .fi-kpi__sub {
+        white-space: normal;
+    }
+
+    .fi-kpis2 .fi-kpi {
+        margin-top: 0;
+    }
+
+    .fi-kpi--hero .fi-kpi__value {
+        font-size: 30px;
+        line-height: 36px;
+    }
+
+    .fi-box__head {
+        padding: var(--crm-s-4) var(--crm-s-4) var(--crm-s-3);
+    }
+
+    .fi-box__seg,
+    .fi-box__body,
+    .fi-sum {
+        margin-left: var(--crm-s-4);
+        margin-right: var(--crm-s-4);
+    }
+
+    /* Mercury drops the share bars on a phone and keeps the figure. */
+    .fi-bd__row {
+        grid-template-columns: minmax(0, 1fr) 56px minmax(96px, auto);
+        column-gap: var(--crm-s-3);
+    }
+
+    .fi-bd__share {
+        display: none;
+    }
+}
+
+/* ── A range change, in place (view-insights.js: startHold) ──────────────
+   The figures, chart, notes and lists stay where they are, dimmed, until
+   every read has answered; then they are drawn once. Nothing moves. */
+.fi > .fi-head,
+.fi > .fi-notices,
+.fi > .fi-grid,
+.fi > .fi-below {
+    transition: opacity 160ms ease;
+}
+
+.fi.is-updating > .fi-head,
+.fi.is-updating > .fi-notices,
+.fi.is-updating > .fi-grid,
+.fi.is-updating > .fi-below {
+    opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fi > .fi-head,
+    .fi > .fi-notices,
+    .fi > .fi-grid,
+    .fi > .fi-below {
+        transition: none;
+    }
+}

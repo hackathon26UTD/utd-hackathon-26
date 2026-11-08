@@ -1,0 +1,4608 @@
+/* ===========================================================================
+ * The portal kit (--kit-*, .kit-*).
+ *
+ * One stylesheet for every module the page-content refresh converts. Scoped
+ * under `.kit` on the module root. The Employees module (css/employees.css) is
+ * the approved reference: the light values below are byte-identical copies of
+ * its --emp-* tokens and the dark values are copies of its derived dark block,
+ * renamed. __tests__/kit/tokens.contract.test.js compares every shared name in
+ * both themes, so the two cannot drift silently; when every module is on the
+ * kit, one textual --emp- to --kit- replacement retires the duplicate.
+ *
+ * ⛔ EVERY VALUE IS A LITERAL, WRITTEN TWICE (light, dark). A custom property's
+ * var() is substituted WHERE IT IS DECLARED, so `--kit-x: var(--kit-y)` would
+ * freeze against one theme in both. The contract test rejects any var() inside
+ * the token blocks. It also rejects a colour literal written anywhere else in
+ * this file, in ANY notation — hex, rgb(), hsl(), oklch(), color-mix(), or a
+ * named colour like `white`: a component rule that needs a colour gets a token
+ * here first. `transparent` and `currentColor` stay allowed; neither is a
+ * colour value in the sense this rule means.
+ *
+ * File order, which the tests depend on: these two token blocks first (light,
+ * then dark), then root, buttons, head, tabs, kpi, block, toolbar, table, list,
+ * pill, period, pager, states, forms, modal and drawer, chart, the coarse
+ * pointer reinstatement, and the reduced-motion block LAST.
+ *
+ * Theme: `body.light-mode` present means light and is the default; absent means
+ * dark. There is no data-theme and no prefers-color-scheme path in the shell,
+ * so the dark block is keyed on `body:not(.light-mode) .kit`, which also
+ * matches a `.kit` root appended directly to body (modals, drawers, popovers).
+ *
+ * Spec: docs/superpowers/specs/2026-09-02-portal-ui-refresh-design.md, 3.1
+ * and 3.2. Living doc: docs/ARGUS_PORTAL_DESIGN_SYSTEM.md.
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * Tokens, light. Copied from css/employees.css (--emp-* renamed).
+ *
+ * ⛔ THE NEUTRALS ARE THE PORTAL'S --ground-* VALUES, NOT THE EMPLOYEES MOCKUP'S
+ * (2026-09-16). Owner: "i dont like the offwhiter color we have there, remove
+ * it, we need the standard for all tabs to exist." The cream ground (#f7f5f1)
+ * and the warm chip/line/ink family that came with it are gone from BOTH themes;
+ * the hued semantics — accent, ok, warn, bad, amber, the draft wash and the
+ * overnight family — are untouched. Employees moved in the same commit and
+ * __tests__/kit/tokens.contract.test.js still asserts every shared name is
+ * byte-identical between the two files.
+ * ------------------------------------------------------------------------- */
+.kit {
+    --kit-bg: #f3f4f6;
+    --kit-surface: #ffffff;
+    --kit-surface-2: #fbfbfc;
+
+    --kit-line: #e4e7ec;
+    --kit-line-2: #d4d9e0;
+
+    --kit-ink: #141619;
+    --kit-ink-2: #41474f;
+    --kit-ink-3: #5f6672;
+
+    --kit-accent: #8a2233;
+    --kit-accent-ink: #6e1a28;
+    --kit-accent-tint: #f8ecee;
+    --kit-accent-line: #e7c4ca;
+    --kit-accent-tint-hover: #f2dfe2;
+
+    --kit-ok: #177a4c;
+    --kit-ok-tint: #e7f3ec;
+    --kit-ok-line: #cbe4d4;
+
+    --kit-warn: #96610f;
+    --kit-warn-tint: #fbf1de;
+
+    --kit-bad: #b03a30;
+    --kit-bad-tint: #faecea;
+    --kit-bad-line: #e4b7b2;
+
+    /* A non-text status FILL, never text on a tint. Employees paints the "on
+       break" dot and the hot meter fill with it (.emp-state--break
+       .emp-state__dot, .emp-meter--hot, .emp-mini-dot--brk); --kit-warn is the
+       INK for warning text on --kit-warn-tint. Amber, warn and need-warn all
+       collapse to #d9a441 in dark, so picking the wrong one of the three is
+       invisible on a dark screen and only shows up in light. */
+    --kit-amber: #c98a2b;
+    /* The amber dot on a list row that needs attention. */
+    --kit-need-warn: #d99a38;
+    --kit-prio-low-bg: #eef0f3;
+
+    /* A DRAFT row. Its own family on purpose: a draft that merely looked like a
+       published row with a lighter border is the one thing that must never be
+       mistaken, because staff cannot see it. */
+    --kit-draft-bg: #fffdf6;
+    --kit-draft-line: #d9c08a;
+    --kit-draft-ink: #7a5f1e;
+    /* An overnight shift, which crosses a day boundary. */
+    --kit-night-bg: #ecedf2;
+    --kit-night-line: #d2d5e0;
+    --kit-night-ink: #474c63;
+
+    /* Control surfaces. Employees promoted these out of component rules. The
+       KPI delta's neutral fill is its OWN token, not a reuse of
+       --kit-count-bg-active: the two agree in light at #eeebe4 and part in
+       dark, where Employees ships #3b3830 for the count chip and #33302a for
+       the flat delta (css/employees.css:186 and :189). */
+    --kit-nav-bg: #eef0f3;
+    --kit-count-bg: #e4e7ec;
+    --kit-count-bg-active: #eef0f3;
+    --kit-btn-hover-line: #c3c9d2;
+    --kit-btn-active-bg: #eef0f3;
+    --kit-trend-flat-bg: #eef0f3;
+    --kit-meter-bg: #eef0f3;
+    --kit-progress-bg: #e4e7ec;
+
+    /* Radius. r blocks, rs inner blocks, rxs fields and small blocks, rl
+       overlays, r-pill buttons, tabs, pills, segmented controls and the search
+       box. Employees writes the pill as the literal 999px; the kit names it. */
+    --kit-r: 16px;
+    --kit-rs: 12px;
+    --kit-rxs: 8px;
+    --kit-rl: 22px;
+    --kit-r-pill: 999px;
+    /* Controls and tags. Owner, 2026-09-24: "hate this bubble shit, wipe it
+       from everywhere". Buttons, tabs, filters, segmented controls, counts
+       and the search box are rounded rectangles, never pills. --kit-r-pill
+       is left for the switch track and skeleton lines, which are not
+       controls a person reads as a button. */
+    --kit-r-ctl: 8px;
+    --kit-r-tag: 6px;
+    /* The one filled action on a screen (Kit action `hero: true`), the same
+       wine css/main.css declares as --argus-wine in each theme. */
+    --kit-hero: #7b1e30;
+    --kit-hero-hover: #8f2439;
+    --kit-hero-fg: #ffffff;
+
+    --kit-pop: 0 1px 2px rgba(17, 20, 24, 0.04), 0 6px 16px -8px rgba(17, 20, 24, 0.1);
+    --kit-pop-2: 0 2px 4px rgba(17, 20, 24, 0.05), 0 14px 30px -14px rgba(17, 20, 24, 0.16);
+
+    /* Motion. dur + ease is Employees' --emp-t split in two so the motion guard
+       can find the duration alone. These three are the only --kit-dur* names;
+       the reduced-motion block at the end of the file collapses all three. */
+    --kit-dur: 150ms;
+    --kit-ease: cubic-bezier(0.3, 0.6, 0.3, 1);
+    --kit-dur-panel: 240ms;
+    --kit-dur-exit: 180ms;
+
+    /* Type sizes, as Employees ships them, not round numbers. Families come
+       from css/main.css (--font-sans, --font-mono) with literal fallbacks; the
+       serif is written literally on its two allowed selectors. */
+    --kit-fs-eyebrow: 10.5px;
+    --kit-fs-caption: 12px;
+    --kit-fs-body: 13px;
+    --kit-fs-title: 15px;
+    --kit-fs-h: 26px;
+    --kit-fs-metric: 23px;
+
+    /* The help banner's plate and doors (Kit.helpBanner): a white plate
+       with white doors, as the Documents banner they copy. Dark mode
+       redefines all six in the dark block below. */
+    --kit-plate: #ffffff;
+    --kit-door: #ffffff;
+    --kit-door-ink: #17191c;
+    --kit-door-label: rgba(23, 25, 28, 0.55);
+    --kit-door-lift: 0 1px 2px rgba(16, 18, 20, 0.08), 0 6px 16px rgba(16, 18, 20, 0.08);
+    --kit-door-lift-2: 0 2px 4px rgba(16, 18, 20, 0.1), 0 12px 24px rgba(16, 18, 20, 0.12);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tokens, dark. Copied from css/employees.css:157-214 (--emp-* renamed).
+ *
+ * The HUED values are DERIVED, not approved: the Employees header says so at
+ * length. Ink and surface swap ends of the ramp, the accent is lightened
+ * because #2456a8 on the dark ground is about 2.4:1, and the tints go from the
+ * palest wash of their hue to the deepest. ❌ This paragraph used to add that
+ * "the warm neutral ramp is inverted rather than replaced with a blue-black";
+ * as of 2026-09-16 the neutrals are not warm in either theme — dark is the
+ * shell's own --argus-bg ladder, via --ground-* in main.css. The kit PR's browser pass measures every
+ * pair on staging and records the numbers in the kit doc.
+ *
+ * Radius, motion and type do not change with the theme; they are repeated
+ * here because every token is written twice, and the contract test pins the
+ * two copies to the same literal.
+ * ------------------------------------------------------------------------- */
+body:not(.light-mode) .kit {
+    --kit-bg: #1d1d1d;
+    --kit-surface: #232323;
+    --kit-surface-2: #202020;
+
+    --kit-line: #2e2e2e;
+    --kit-line-2: #414141;
+
+    --kit-ink: #f4f4f5;
+    --kit-ink-2: #c9cacd;
+    --kit-ink-3: #a9abb0;
+
+    --kit-accent: #d86a78;
+    --kit-accent-ink: #eea0aa;
+    --kit-accent-tint: #2a1519;
+    --kit-accent-line: #5b2631;
+    --kit-accent-tint-hover: #33191e;
+
+    --kit-ok: #5fbf8c;
+    --kit-ok-tint: #12251b;
+    --kit-ok-line: #24422f;
+
+    --kit-warn: #d9a441;
+    --kit-warn-tint: #2a2113;
+
+    --kit-bad: #e2776b;
+    --kit-bad-tint: #2c1a18;
+    --kit-bad-line: #6b332d;
+
+    --kit-amber: #d9a441;
+    --kit-need-warn: #d9a441;
+    --kit-prio-low-bg: #262626;
+
+    /* The draft family inverts to the same relationship it has on light: a
+       warm amber wash that is unmistakably NOT the accent a published row
+       wears. */
+    --kit-draft-bg: #262015;
+    --kit-draft-line: #6d5a2c;
+    --kit-draft-ink: #d9bd76;
+    --kit-night-bg: #21232b;
+    --kit-night-line: #363a48;
+    --kit-night-ink: #aab0c4;
+
+    --kit-nav-bg: #171717;
+    --kit-count-bg: #303030;
+    --kit-count-bg-active: #383838;
+    --kit-btn-hover-line: #4d4d4d;
+    --kit-btn-active-bg: #262626;
+    /* The one pair that parts in dark: #3b3830 is the count chip, #33302a the
+       flat delta (css/employees.css:186 and :189). */
+    --kit-trend-flat-bg: #303030;
+    --kit-meter-bg: #2a2a2a;
+    --kit-progress-bg: #2a2a2a;
+
+    --kit-r: 16px;
+    --kit-rs: 12px;
+    --kit-rxs: 8px;
+    --kit-rl: 22px;
+    --kit-r-pill: 999px;
+    --kit-r-ctl: 8px;
+    --kit-r-tag: 6px;
+    /* The one filled action on a screen (Kit action `hero: true`), the same
+       wine css/main.css declares as --argus-wine in each theme. */
+    --kit-hero: #a3283f;
+    --kit-hero-hover: #b5324a;
+    --kit-hero-fg: #ffffff;
+
+    /* Shadows go to rgba(0, 0, 0, ...) and deepen: the light shadow is a
+       near-black at low alpha and is invisible on a dark surface, so the
+       elevation would simply vanish. */
+    --kit-pop: 0 1px 2px rgba(0, 0, 0, 0.28), 0 6px 16px -8px rgba(0, 0, 0, 0.5);
+    --kit-pop-2: 0 2px 4px rgba(0, 0, 0, 0.32), 0 14px 30px -14px rgba(0, 0, 0, 0.6);
+
+    --kit-dur: 150ms;
+    --kit-ease: cubic-bezier(0.3, 0.6, 0.3, 1);
+    --kit-dur-panel: 240ms;
+    --kit-dur-exit: 180ms;
+
+    --kit-fs-eyebrow: 10.5px;
+    --kit-fs-caption: 12px;
+    --kit-fs-body: 13px;
+    --kit-fs-title: 15px;
+    --kit-fs-h: 26px;
+    --kit-fs-metric: 23px;
+
+    /* The help banner's plate and doors (Kit.helpBanner). Dark in dark mode
+       (owner, 2026-09-24: "make the white panel dark in dark mode"; until then
+       the plate stayed white in both themes, copying Documents): a well a
+       shade below the banner, raised doors a shade above it, each door ruled
+       by a hairline so it still reads as a button. */
+    --kit-plate: #1a1a1a;
+    --kit-door: #2b2b2b;
+    --kit-door-ink: #f4f4f5;
+    --kit-door-label: rgba(244, 244, 245, 0.62);
+    --kit-door-lift: 0 0 0 1px #383838, 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 16px rgba(0, 0, 0, 0.32);
+    --kit-door-lift-2: 0 0 0 1px #4a4a4a, 0 2px 4px rgba(0, 0, 0, 0.45), 0 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------------------------------------------------------------------------
+ * Root.
+ *
+ * The `.kit` element is the module root, and the same selector carries the
+ * light token block above. This is where the kit stops inheriting the shell:
+ * css/shell-theme.css:64-67 sets body's colour to --shell-text-1 and
+ * css/main.css:380-384 sets the body face, so kit text whose ancestor never
+ * sets `color` renders in the shell's ink on the kit's ground.
+ *
+ * A `.kit` root is also appended straight to <body> for modals, drawers and
+ * select popovers, which is why the box model, the face and the ink are all
+ * pinned here rather than assumed from an ancestor.
+ * ------------------------------------------------------------------------- */
+.kit {
+    /* No ground of its own — the sheet (.portal-main) is the page. See the
+       note on .inventory-shell in css/inventory.css. --kit-bg stays declared:
+       __tests__/kit/tokens.contract.test.js pins it to --emp-bg byte for byte. */
+    background: transparent;
+    color: var(--kit-ink);
+    font: var(--kit-fs-body)/1.45 var(--font-sans, Inter, system-ui, sans-serif);
+    letter-spacing: -0.005em;
+    box-sizing: border-box;
+}
+
+/* css/main.css:368-374 already resets every element to border-box. This says it
+   again inside the kit, so a box measurement here means the same thing whether
+   that reset is loaded, edited or dropped. It is not the whole of that reset,
+   which also zeroes margin and padding on every element: a kit root mounted on
+   <body> in a harness with only kit.css still inherits the UA's margins on
+   headings, lists and paragraphs, so a harness that wants the portal's spacing
+   has to say so itself. Box model only is deliberate — the kit sets its own
+   spacing on the elements it owns, and inheriting a zero elsewhere would hide
+   the difference rather than remove it. */
+.kit *,
+.kit *::before,
+.kit *::after {
+    box-sizing: inherit;
+}
+
+/* A bare <button>, <input> or <textarea> takes the UA control face, not the
+   page's: nothing in the portal resets it at element level (components.css and
+   nexus-components.css only do it inside their own classes), which is why an
+   Employees button renders in the UA button font today.
+
+   ⛔ ZERO SPECIFICITY, AND THAT IS THE WHOLE POINT OF THE :where(). Written as
+   `.kit button` it was (0,1,1): it beat every plain class rule, so a settings
+   control's `.sc-seg__opt { font-size: 13px }` or a module's own button colour
+   inside a kit wrapper was silently put back to "inherit". A reset is the
+   floor, not a ruling: it only fills in what no rule says. It still beats the
+   UA's control face, because any author rule outranks the browser's own. */
+:where(.kit button, .kit input, .kit textarea) {
+    font: inherit;
+    color: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+ * Buttons.
+ *
+ * Lifted from css/employees.css:292-325 and :1117-1137 with every literal
+ * replaced by a token, plus the three things Employees does not do.
+ *
+ * 🪤 THE 44px FLOOR. css/main.css:3114-3121 pins `min-height: 44px;
+ * min-width: 44px` on every <button>, [role='button'] and a[tabindex='0'].
+ * Employees pins no min-height anywhere, so every .emp-btn on screen is 44px
+ * tall rather than the 32px its padding describes. The kit resets BOTH halves:
+ * height alone leaves a 44px-wide "OK", and width alone leaves the height.
+ * The coarse-pointer block at the end of this file puts the floor back.
+ *
+ * 🪤 THE RED FOCUS RING. css/main.css:3108-3111 draws
+ * `outline: 2px solid var(--nx-red)` on every :focus-visible at (0,1,0).
+ * Every kit control writes its own ring at (0,3,0) so the keyboard outline is
+ * the kit's accent and not the shell's alert colour.
+ *
+ * ⛔ NEVER `transition: all`. It animates properties nobody chose, including
+ * ones a later edit adds, and it is how a hover ends up tweening a radius.
+ * Every transition here lists its properties and reads --kit-dur + --kit-ease.
+ * ------------------------------------------------------------------------- */
+.kit .kit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    /* 32px is the kit's control height. line-height 1.15 on 13px plus 7px of
+       vertical padding and the hairline is 30.95px, so this floor is what the
+       button actually measures rather than a number the padding happens to
+       clear. */
+    min-height: 32px;
+    /* `auto`, not 0: this reset exists to make the control behave as if
+       css/main.css:3114-3121 were not there, and `auto` is that rule's own
+       initial value. `min-width: 0` goes further than undoing it — on a flex
+       item it also switches off the automatic minimum size, so in a narrow
+       toolbar the label shrinks past its own pill and spills out of the border.
+       The coarse-pointer block at the end of this file does NOT put width back
+       for this control: `padding: 7px 15px` plus the two 1px hairlines is 32px
+       of box around the label, so a button with a word in it already clears
+       44px across. That reasoning is about THIS control and does not carry to a
+       control with a one-character label. */
+    min-width: auto;
+    padding: 7px 15px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+    color: inherit;
+    font-size: var(--kit-fs-body);
+    font-weight: 500;
+    line-height: 1.15;
+    white-space: nowrap;
+    box-shadow: var(--kit-pop);
+    cursor: pointer;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        border-color var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease),
+        transform var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-btn:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-surface-2);
+    border-color: var(--kit-btn-hover-line);
+}
+
+.kit .kit-btn:is(:active, [data-kit-force~='pressed']) {
+    background: var(--kit-btn-active-bg);
+    transform: translateY(0.5px);
+}
+
+.kit .kit-btn:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 2px;
+}
+
+/* ⛔ THE PRIMARY BUTTON IS A TINT, NEVER A FILL. Standing owner rule: the
+   dashboard's buttons are surface-toned and the accent lives in the border and
+   the ink, so a screen with four actions on it does not read as four alarms.
+   The contract test bans --kit-accent, --kit-accent-ink, --kit-bad and the red
+   literals as a background on anything matching .kit-btn.
+   SUPERSEDED 2026-09-28, AS A RULE FOR NEW WORK: the owner's picks
+   (docs/ui-library/standards.md) overrule the written rule above, "a tint,
+   never a fill". The main action is the white box (.kit-main-action) and
+   delete is solid red (.kit-danger-warning), both in css/kit-standards.css.
+   The CSS below is NOT superseded: .kit-btn--primary is live and unchanged
+   on every screen that uses it, until a rollout moves that screen. */
+.kit .kit-btn--primary {
+    color: var(--kit-accent-ink);
+    border-color: var(--kit-accent-line);
+    background: var(--kit-accent-tint);
+    box-shadow: none;
+}
+
+/* The border-color is repeated because .kit .kit-btn:hover is the same
+   specificity and would otherwise drag the primary's hairline to the neutral
+   hover line. Employees ships that exact slip at css/employees.css:1122-1124. */
+.kit .kit-btn--primary:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-accent-tint-hover);
+    border-color: var(--kit-accent-line);
+}
+
+/* 🪤 A VARIANT NEEDS ITS OWN :active FOR THE SAME REASON IT NEEDS ITS OWN
+   :hover. `.kit .kit-btn:active` is (0,3,0) and sits ABOVE this, so without
+   this rule a mouse press — which matches :hover and :active at once — ends on
+   the later .kit-btn--primary:hover and changes no background at all, while the
+   same button pressed with Space matches :active alone and flashes the neutral
+   grey with the accent tint gone. Both were measured in Chrome. Declaring
+   the press here makes the two input devices agree.
+
+   --kit-accent-line is the deepest accent wash the palette declares, and
+   --kit-accent-ink on it measures 6.39:1 light and 5.75:1 dark. It is a tint,
+   not a fill: the fill ban names --kit-accent, --kit-accent-ink and --kit-bad,
+   and the guard matches `var(--kit-accent)` and `var(--kit-accent,` but not
+   this. */
+.kit .kit-btn--primary:is(:active, [data-kit-force~='pressed']) {
+    background: var(--kit-accent-line);
+    border-color: var(--kit-accent-line);
+}
+
+/* The hero: a primary filled with the wine. (0,3,0) so it outranks
+   .kit .kit-btn--primary and its :hover without an !important. */
+.kit .kit-btn--primary.kit-btn--hero {
+    color: var(--kit-hero-fg);
+    border-color: var(--kit-hero);
+    background: var(--kit-hero);
+    font-weight: 600;
+}
+
+.kit .kit-btn--primary.kit-btn--hero:is(:hover, [data-kit-force~='hover']),
+.kit .kit-btn--primary.kit-btn--hero:is(:active, [data-kit-force~='pressed']) {
+    border-color: var(--kit-hero-hover);
+    background: var(--kit-hero-hover);
+}
+
+/* Danger says its meaning in the ink and the hairline. The fill stays surface
+   for the same reason the primary's does: a solid red button is the loudest
+   thing on a page, and which single action deserves that is the calling
+   module's decision, not a colour the kit hands out with a class name.
+   SUPERSEDED 2026-09-28, AS A RULE FOR NEW WORK: the owner's pick of a solid
+   red delete (.kit-danger-warning, css/kit-standards.css, the one red-filled
+   button the guards allow) overrules the written rule above, "the fill stays
+   surface". The CSS below is NOT superseded: .kit-btn--danger is live and
+   unchanged on every screen that uses it, until a rollout moves that screen. */
+.kit .kit-btn--danger {
+    color: var(--kit-bad);
+    border-color: var(--kit-bad-line);
+    background: var(--kit-surface);
+}
+
+.kit .kit-btn--danger:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-bad-tint);
+    border-color: var(--kit-bad);
+}
+
+/* Danger's press repeats its hover ground rather than deepening it, and that is
+   a measurement rather than an oversight: --kit-bad-line is the only red the
+   palette declares between the tint and --kit-bad itself, and --kit-bad on it
+   measures 3.35:1 light and 3.32:1 dark, under the 4.5:1 the kit holds its ink
+   to, in both themes. So the press is carried by
+   the 0.5px nudge that .kit .kit-btn:active applies to every button. The rule
+   still has to exist: without it the neutral press ground wins on a keyboard
+   press and danger goes grey mid-press, exactly as the primary did. */
+.kit .kit-btn--danger:is(:active, [data-kit-force~='pressed']) {
+    background: var(--kit-bad-tint);
+    border-color: var(--kit-bad);
+}
+
+/* 🪤 THREE SPELLINGS OF DISABLED, BECAUSE THE FLOOR THIS BUTTON RESETS HAS
+   THREE. css/main.css:3114-3121 pins the 44px floor on `button`,
+   `[role='button']` and `a[tabindex='0']`, and only the first of those can
+   carry a `disabled` attribute — the other two say `aria-disabled`. `:disabled`
+   is not a synonym for `[disabled]` either: it also matches a control inside a
+   disabled <fieldset>, which is how a form turns its buttons off in bulk once
+   Kit.form lands. nexus-components.css:53-58 pairs two of the three the same
+   way, and pointer-events is the declaration it leans on.
+
+   🪤 AND HOVER AND ACTIVE ARE LISTED WITH THEM. Until they were, a disabled
+   .kit-btn lit up under the cursor exactly like a live one — its background
+   moved to --kit-surface-2 and its hairline to --kit-btn-hover-line, measured
+   in Chrome — because `.kit .kit-btn:hover` is (0,3,0) and this rule declared
+   nothing to answer it with. pointer-events stops the mouse reaching it at all;
+   pointer-events also means the :hover halves of this group cannot fire while
+   it stands; they are insurance for the day someone drops that declaration. The
+   load-bearing half is :active, which a keyboard press produces on an
+   aria-disabled control without the pointer ever touching it.
+
+   The ground goes inert rather than keeping the variant's tint, which is the
+   same call --busy makes below: a button that cannot be pressed should not
+   still be wearing the colour that says press me. */
+.kit .kit-btn[disabled],
+.kit .kit-btn[disabled]:is(:hover, [data-kit-force~='hover']),
+.kit .kit-btn[disabled]:is(:active, [data-kit-force~='pressed']),
+.kit .kit-btn:disabled,
+.kit .kit-btn:disabled:is(:hover, [data-kit-force~='hover']),
+.kit .kit-btn:disabled:is(:active, [data-kit-force~='pressed']),
+.kit .kit-btn[aria-disabled='true'],
+.kit .kit-btn[aria-disabled='true']:is(:hover, [data-kit-force~='hover']),
+.kit .kit-btn[aria-disabled='true']:is(:active, [data-kit-force~='pressed']) {
+    opacity: 0.45;
+    cursor: default;
+    box-shadow: none;
+    background: var(--kit-surface);
+    border-color: var(--kit-line-2);
+    transform: none;
+    pointer-events: none;
+}
+
+/* ⛔ THE HERO'S INK HAS TO GO INERT WITH ITS GROUND. The rule above swaps the
+   wine fill for the surface but leaves `color`, so a disabled hero kept
+   --kit-hero-fg (white) on the light surface: an empty white box where "Save
+   changes" should be. Seen on the Employees profile, light mode, 2026-09-25. */
+.kit .kit-btn--primary.kit-btn--hero[disabled],
+.kit .kit-btn--primary.kit-btn--hero:disabled,
+.kit .kit-btn--primary.kit-btn--hero[aria-disabled='true'] {
+    color: var(--kit-ink-2);
+}
+
+/* --busy is what Kit.form sets on the submit button while the request is out.
+   It reads as disabled AND refuses the pointer, so hover and active cannot keep
+   saying the button is live and invite a second click on a request that has
+   already gone. Listed with its own :hover and :active because those are the
+   same specificity as .kit .kit-btn:hover and only lose on source order. */
+.kit .kit-btn--busy,
+.kit .kit-btn--busy:is(:hover, [data-kit-force~='hover']),
+.kit .kit-btn--busy:is(:active, [data-kit-force~='pressed']) {
+    opacity: 0.45;
+    cursor: default;
+    box-shadow: none;
+    background: var(--kit-surface-2);
+    border-color: var(--kit-line-2);
+    transform: none;
+    pointer-events: none;
+}
+
+/* ===========================================================================
+ * COMPONENTS
+ *
+ * Every family below is a rule-for-rule lift of the approved Employees sheet
+ * (css/employees.css), renamed .emp- to .kit-, with every colour swapped for a
+ * --kit-* token and every duration for a --kit-dur* token. The source range is
+ * named above each family; when Employees is retuned, that is where to look.
+ *
+ * Two departures apply throughout and are not repeated at every rule:
+ *
+ *  · SELECTORS ARE `.kit .kit-x`, NEVER `.kit-x`. css/shell-theme.css:3658-3666
+ *    sets the `transition` SHORTHAND on `body.light-mode *` at (0,1,1). One
+ *    class loses to it whatever the source order; two classes win whatever the
+ *    source order. Employees is written this way for the same reason.
+ *
+ *  · SIZES A TOKEN NAMES ARE WRITTEN AS THE TOKEN. Employees' half-steps
+ *    (13.5, 12.5, 11.5, 11 and 9.5px) have no name in spec 3.2 and stay
+ *    literal: six more one-use tokens would make a type vocabulary of twelve
+ *    names, and identity with the approved sheet is worth more than the
+ *    tidiness. Colours get no such exemption; the tokens contract test rejects
+ *    every one written outside the two blocks.
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * Page head. From css/employees.css:257-287 (.emp-pagehead).
+ *
+ * ⛔ NOT `.kit-pagehead`. `body.light-mode [class*='-page'] h1|h2|h3` forces
+ * `color: #1a1a1a !important` and `[class*='-page'] p` forces
+ * `rgba(26, 26, 26, 0.65) !important` (css/shell-theme.css:5292-5301), a
+ * substring match no kit rule beats without !important of its own. Employees
+ * is living inside it right now: its h1 renders #1a1a1a rather than --emp-ink,
+ * its story line renders rgba(26,26,26,.65) rather than --emp-ink-2, and the
+ * rule that should win, `.emp .emp-pagehead .emp-sub` (:272-276), simply
+ * loses. `.kit-head` does not match, so the kit keeps its own ink.
+ *
+ * A GRID, not the flex row Employees uses. Kit.head returns eyebrow, title,
+ * summary and actions as FLAT children; Employees can use flex because its
+ * head has exactly two. The actions span every row and sit bottom right, which
+ * is what `align-items: flex-end` bought there.
+ * ------------------------------------------------------------------------- */
+.kit .kit-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 0 24px;
+    padding: 0 0 4px;
+}
+
+.kit .kit-head__eyebrow {
+    grid-column: 1;
+    margin-bottom: 6px;
+    font-size: var(--kit-fs-eyebrow);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: var(--kit-ink-3);
+}
+
+/* One of exactly two selectors in this file allowed to name the serif, and the
+   stack is spelled out rather than tokenised: a --kit-serif token would put the
+   family on the token block's selector, where the allowlist in
+   __tests__/kit/type-motion.contract.test.js reads `.kit` as the offender and
+   never sees the rules that use it. Weight 520 matches .crm-pagehead__title
+   (css/argus-crm.css:1298-1305); css/fonts.css declares Fraunces at 300 to 600
+   only, and 650 synthesises into a slab. */
+.kit .kit-head__title {
+    grid-column: 1;
+    margin: 0;
+    font-family: 'Fraunces', 'Tiempos', Georgia, serif;
+    font-size: var(--kit-fs-h);
+    font-weight: 520;
+    letter-spacing: -0.022em;
+    line-height: 1.12;
+    color: var(--kit-ink);
+}
+
+/* Employees' story line is 14px on a 14px body: the same size as the copy
+   around it, quieter only in colour. The kit's body is --kit-fs-body, so the
+   summary reads that and the relationship survives the smaller scale. */
+.kit .kit-head__summary {
+    grid-column: 1;
+    margin: 6px 0 0;
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-head__actions {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: end;
+    display: flex;
+    gap: 8px;
+    padding-bottom: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tabs. From css/employees.css:337-411 (.emp-nav, .emp-tab, .emp-count), with
+ * .emp-tier-split renamed .kit-tabs__split.
+ *
+ * Two tiers in one bar: the primary tabs, a hairline, then the secondary ones a
+ * half-step smaller. The selected state is `aria-selected='true'` rather than a
+ * class, so the accessible name and the paint cannot disagree.
+ *
+ * The hover wash is the one lift that changes material. Employees writes
+ * `rgba(255, 255, 255, 0.66)` for light (:372) and a whole second rule with
+ * `rgba(255, 255, 255, 0.06)` for dark (:218-220): two literals and a
+ * theme-specific rule, which is exactly what the token block exists to stop.
+ * --kit-btn-active-bg is the same gesture and flips on its own.
+ * ------------------------------------------------------------------------- */
+.kit .kit-tabs {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 20px;
+    padding: 5px;
+    background: var(--kit-nav-bg);
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    width: fit-content;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.kit .kit-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border: 0;
+    background: none;
+    border-radius: var(--kit-r-ctl);
+    color: var(--kit-ink-3);
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    /* Both halves reset the floor at css/main.css:3114-3121. `button` is
+       (0,0,1), so a class already beats it on height; but NOTHING in the app
+       declares a min-width, so the 44px lands on every tab unless it is named
+       here. The coarse-pointer block at the end of the file puts the height
+       back for touch. */
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        color var(--kit-dur) var(--kit-ease),
+        background var(--kit-dur) var(--kit-ease),
+        box-shadow var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-tab:hover {
+    color: var(--kit-ink-2);
+    background: var(--kit-btn-active-bg);
+}
+
+.kit .kit-tab[aria-selected='true'] {
+    color: var(--kit-ink);
+    background: var(--kit-surface);
+    font-weight: 600;
+    box-shadow: var(--kit-pop);
+}
+
+.kit .kit-tab--tier2 {
+    padding: 7px 12px;
+    font-size: var(--kit-fs-body);
+}
+
+.kit .kit-tabs__split {
+    width: 1px;
+    height: 16px;
+    margin: 0 7px;
+    background: var(--kit-line-2);
+    flex: none;
+}
+
+/* The count rides a tab and is also Kit.count(n) standing on its own, so the
+   base is standalone and the tab only changes the fill when it is selected. */
+.kit .kit-count {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: var(--kit-r-tag);
+    background: var(--kit-count-bg);
+    color: var(--kit-ink-2);
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.kit .kit-tab[aria-selected='true'] .kit-count {
+    background: var(--kit-count-bg-active);
+}
+
+.kit .kit-count--warn {
+    background: var(--kit-warn-tint);
+    color: var(--kit-warn);
+}
+
+/* ---------------------------------------------------------------------------
+ * KPI. From css/employees.css:568-709 (.emp-strip, .emp-cell, .emp-spark,
+ * .emp-trend). `.emp-strip` is not lifted: a five-column grid is the consumer's
+ * layout, not the kit's, and Kit.kpi returns one card.
+ *
+ * The value is the second and last selector allowed the serif. `__none` is
+ * new: a KPI whose region failed or is not set up prints words at body size
+ * rather than a `0` or a `--` that reads as a measured zero.
+ * ------------------------------------------------------------------------- */
+.kit .kit-kpi {
+    padding: 13px 15px 11px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    box-shadow: var(--kit-pop);
+    min-width: 0;
+    text-align: left;
+    color: inherit;
+    transition:
+        border-color var(--kit-dur) var(--kit-ease),
+        box-shadow var(--kit-dur) var(--kit-ease),
+        transform var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-kpi__k {
+    font-size: var(--kit-fs-eyebrow);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 650;
+    color: var(--kit-ink-3);
+}
+
+/* The --range variant puts the period bar in the eyebrow row rather than adding
+   a header element, so Kit.kpi keeps returning the same flat children. */
+.kit .kit-kpi--range .kit-kpi__k {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.kit .kit-kpi__vrow {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 7px;
+}
+
+.kit .kit-kpi__vwrap {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* Weight 800 matches .crm-stat__value (css/argus-crm.css) — heavy sans, not
+   the serif, since 2026-09-18; the reasoning lives in that file. Tabular
+   figures because a number that ticks must not reflow the row beside it. */
+.kit .kit-kpi__value {
+    display: flex;
+    align-items: baseline;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: var(--kit-fs-metric);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The unit is a `<small>` and carries the class as well, so the rule does not
+   depend on the element the factory happens to pick. */
+.kit .kit-kpi__unit {
+    margin-left: 2px;
+    font-size: var(--kit-fs-caption);
+    font-weight: 500;
+    color: var(--kit-ink-3);
+}
+
+/* No serif and no metric size: this is a sentence about why there is no number,
+   and setting it like a number would be a lie in 23px. */
+.kit .kit-kpi__none {
+    padding: 4px 0 3px;
+    font-size: var(--kit-fs-body);
+    font-weight: 500;
+    line-height: 1.05;
+    color: var(--kit-ink-3);
+}
+
+/* Employees measured this clipping at 1100 ("3 working, 1 on brea…") when it
+   sat beside the delta, so it owns the full width on its own line. */
+.kit .kit-kpi__sub {
+    margin-top: 8px;
+    font-size: 11.5px;
+    color: var(--kit-ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.kit .kit-kpi__sub--warn {
+    color: var(--kit-warn);
+}
+
+.kit .kit-kpi--link {
+    cursor: pointer;
+    /* A KPI is far taller than 44px, but main.css:3114-3121 still pins a 44px
+       min-width on every <button>, so a card that becomes a button picks up a
+       floor a plain card does not have. `auto` is min-width's own initial
+       value and is the reset every enumerated control in this sheet writes,
+       for the reason spelled out on .kit-btn.
+       ⛭ THIS RULE OVERRIDES `.kit .kit-kpi { min-width: 0 }` ABOVE. Same
+       specificity, later in the file, so a KPI that is a button floors at its
+       own min-content rather than at zero, and a plain KPI still floors at
+       zero. In a five-up minmax(0, 1fr) grid that is the difference between a
+       link card overflowing its track and clipping to nothing at a viewport
+       narrower than the cards' longest word; a consumer that needs the harder
+       floor sets `min-width: 0` on its own grid items, where the grid is. */
+    min-height: 36px;
+    min-width: auto;
+}
+
+.kit .kit-kpi--link:hover {
+    border-color: var(--kit-accent-line);
+    box-shadow: var(--kit-pop-2);
+    transform: translateY(-1px);
+}
+
+.kit .kit-kpi--link:hover .kit-kpi__value {
+    color: var(--kit-accent-ink);
+}
+
+/* Drawn in REAL PIXEL SPACE (the viewBox is the CSS box), so a slope on screen
+   is the slope in the numbers. A mismatched pair renders every gradient steeper
+   than the data: the anisotropy the dashboard sparkline had to be fixed for
+   (600x56 into 426x50 = every slope 27% too steep). */
+.kit .kit-spark {
+    width: 74px;
+    height: 30px;
+    flex: none;
+    display: block;
+    overflow: visible;
+}
+
+.kit .kit-spark path.kit-spark__ln {
+    fill: none;
+    stroke-width: 1.6;
+    vector-effect: non-scaling-stroke;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* The halo is the surface the spark sits on, so the tip reads as a dot on the
+   line rather than a bead beside it. The RADIUS is not here: it is geometry,
+   Kit.sparkline writes it as an `r` attribute, and a CSS `r` property beside an
+   attribute of a different value is two numbers for one circle. */
+.kit .kit-spark circle.kit-spark__tip {
+    stroke: var(--kit-surface);
+    stroke-width: 1.5;
+}
+
+/* ⛔ TONE IS A CLASS, NEVER AN ATTRIBUTE. Kit.sparkline sets
+   `kit-spark--<tone>` and stops; stroke and fill are decided here, for both
+   themes at once. A factory writing stroke="#177a4c" would be a third palette
+   with one theme, and the inline-colour guard in
+   __tests__/system/chrome-v7.contract.test.js exists because that has already
+   happened in this codebase.
+
+   Five tones, and exactly the five Kit.sparkline will accept: accent, ok, warn,
+   bad and mut, with mut as its fallback for anything it does not recognise. A
+   sixth rule here would be a tone no factory can ask for; a missing one is an
+   uncoloured line, which reads as a bug rather than as a neutral. */
+.kit .kit-spark--accent path.kit-spark__ln {
+    stroke: var(--kit-accent);
+}
+
+.kit .kit-spark--accent circle.kit-spark__tip {
+    fill: var(--kit-accent);
+}
+
+.kit .kit-spark--ok path.kit-spark__ln {
+    stroke: var(--kit-ok);
+}
+
+.kit .kit-spark--ok circle.kit-spark__tip {
+    fill: var(--kit-ok);
+}
+
+.kit .kit-spark--warn path.kit-spark__ln {
+    stroke: var(--kit-warn);
+}
+
+.kit .kit-spark--warn circle.kit-spark__tip {
+    fill: var(--kit-warn);
+}
+
+.kit .kit-spark--bad path.kit-spark__ln {
+    stroke: var(--kit-bad);
+}
+
+.kit .kit-spark--bad circle.kit-spark__tip {
+    fill: var(--kit-bad);
+}
+
+.kit .kit-spark--mut path.kit-spark__ln {
+    stroke: var(--kit-ink-3);
+}
+
+.kit .kit-spark--mut circle.kit-spark__tip {
+    fill: var(--kit-ink-3);
+}
+
+/* ⛔ DIRECTION AND SENTIMENT ARE DIFFERENT CLASSES. Employees paints up green
+   and down red (:696-704), which is backwards for overtime, cost, churn and
+   shrink. `--up`, `--down` and `--flat` carry the glyph; `.is-good` and
+   `.is-bad` carry the colour at (0,3,0) so they win; a delta with neither
+   reads neutral, which is the honest default for a number whose direction
+   carries no meaning on its own. */
+.kit .kit-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px 2px 6px;
+    border-radius: var(--kit-r-ctl);
+    /* Its own token, not --kit-count-bg-active: the two are the same #eeebe4 in
+       light and part in dark, where Employees paints the flat delta #33302a and
+       the count chip #3b3830 (css/employees.css:186 and :189). */
+    background: var(--kit-trend-flat-bg);
+    color: var(--kit-ink-2);
+    font-size: 11px;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    flex: none;
+}
+
+.kit .kit-trend__arw {
+    font-size: 9px;
+    line-height: 1;
+}
+
+/* The factory writes ONE glyph and the direction class turns it, so the three
+   directions cannot disagree about their arrow. */
+.kit .kit-trend--up .kit-trend__arw {
+    transform: none;
+}
+
+.kit .kit-trend--down .kit-trend__arw {
+    transform: rotate(180deg);
+}
+
+.kit .kit-trend--flat .kit-trend__arw {
+    transform: rotate(90deg);
+    opacity: 0.7;
+}
+
+.kit .kit-trend.is-good {
+    background: var(--kit-ok-tint);
+    color: var(--kit-ok);
+}
+
+.kit .kit-trend.is-bad {
+    background: var(--kit-bad-tint);
+    color: var(--kit-bad);
+}
+
+/* ---------------------------------------------------------------------------
+ * Block. From css/employees.css:416-449 (.emp-block).
+ *
+ * The head is a GRID for the same reason the page head is: Kit.block returns
+ * title, sub and actions as flat children, and the actions span both rows.
+ * ⛔ NOT .kit-panel and NOT .kit-card: css/shell-theme.css:6854-6859 repaints
+ * every class containing either substring inside .portal-main at (0,3,1).
+ * ------------------------------------------------------------------------- */
+.kit .kit-block {
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    box-shadow: var(--kit-pop);
+    overflow: hidden;
+}
+
+.kit .kit-block__head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 14px;
+    padding: 15px 20px 0;
+}
+
+.kit .kit-block__title {
+    grid-column: 1;
+    font-size: var(--kit-fs-title);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.kit .kit-block__sub {
+    grid-column: 1;
+    font-size: 12.5px;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-block__actions {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.kit .kit-block__body {
+    padding: 14px 20px 18px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Toolbar, search and segmented control. From css/employees.css:1031-1115.
+ *
+ * The segmented control's active state is `aria-pressed='true'`, not the
+ * `.is-on` class Employees uses (:1104): a toggle whose state lives only in a
+ * class is invisible to a screen reader, and two sources of truth is one too
+ * many.
+ * ------------------------------------------------------------------------- */
+.kit .kit-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+}
+
+.kit .kit-toolbar__note {
+    font-size: 13.5px;
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-toolbar__spacer {
+    flex: 1;
+}
+
+.kit .kit-search {
+    position: relative;
+    flex: 0 1 300px;
+}
+
+.kit .kit-search svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--kit-ink-3);
+    pointer-events: none;
+}
+
+/* ⛔ THE !important IS NOT DECORATION, AND NEITHER IS THE ATTRIBUTE IN THE
+   SELECTOR. `body.light-mode input[type='search']`
+   (css/shell-theme.css:4331-4337) sets background, colour and border-color with
+   !important at (0,2,2) for the shell's own field, and it is a BARE element
+   selector, so it reaches any type="search" input anywhere in the app. Among
+   !important declarations specificity still decides: three classes here is
+   (0,3,1), which beats (0,2,2) on the class column whatever the source order.
+   Exactly three properties are forced; if Kit.searchBox ever stops using
+   type="search", this rule goes with it.
+
+   The height, the floor reset and the focus ring are NOT here: the field also
+   carries `.kit-input` like every other kit field, and that rule owns them, so
+   there is one control height in this sheet rather than two that can drift. */
+.kit .kit-search input[type='search'] {
+    width: 100%;
+    padding: 8px 14px 8px 32px;
+    border: 1px solid var(--kit-line-2) !important;
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface) !important;
+    color: var(--kit-ink) !important;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+/* ⛔ NO `outline: none` HERE. This selector is (0,4,1) — `:focus` is a
+   pseudo-class, so it counts in the CLASS column and not the element one — and
+   the shared :focus-visible ring below is (0,3,0), so an outline reset written
+   here would beat the ring and the search field would be the one kit control a
+   keyboard cannot see. The border colour is all this rule is for.
+
+   ⛭ (0,4,1) IS ALSO WHY js/kit/forms.js REFUSES A SEARCH BOX INSIDE A FIELD,
+   so do not answer that refusal by adding !important further down.
+   `.kit .kit-field.is-error .kit-input` is (0,4,0): it loses to THIS rule even
+   with an !important of its own, so the error edge would paint while the field
+   sat idle and vanish the moment the reader focused it to fix the error.
+   Kit.field says so once, in a warning, and drops the control instead. */
+.kit .kit-search input[type='search']:focus {
+    border-color: var(--kit-accent) !important;
+}
+
+.kit .kit-segs {
+    display: flex;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-r-ctl);
+    overflow: hidden;
+    background: var(--kit-surface);
+}
+
+.kit .kit-seg {
+    padding: 7px 12px;
+    border: 0;
+    border-left: 1px solid var(--kit-line);
+    background: none;
+    color: var(--kit-ink-3);
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-seg:first-child {
+    border-left: 0;
+}
+
+.kit .kit-seg:hover {
+    color: var(--kit-ink-2);
+    background: var(--kit-surface-2);
+}
+
+.kit .kit-seg[aria-pressed='true'] {
+    background: var(--kit-btn-active-bg);
+    color: var(--kit-ink);
+}
+
+/* ---------------------------------------------------------------------------
+ * Table. From css/employees.css:1146-1228 (.emp-tablecard, .emp-twrap,
+ * table.emp-t).
+ *
+ * ⛔ NOT .kit-tablecard. That is Employees' name and it is one of the four
+ * classes the shell wildcard repaints: in dark the roster paints #242424 over
+ * --emp-surface #211f1b with an rgba(255,255,255,0.09) border over --emp-line,
+ * and nobody noticed because both values are #ffffff in light.
+ *
+ * Employees' `min-width: 900px` (:1163) is dropped: that number is its
+ * nine-column roster, and a three-column kit table would get a scrollbar it
+ * does not need. .kit-table__wrap is still the only horizontal scroller, so a
+ * wide table scrolls inside its own surface instead of moving the page.
+ * ------------------------------------------------------------------------- */
+.kit .kit-table {
+    margin-top: 14px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    /* ⛭ ONE TABLE LOOK (owner 2026-09-26: tables "consistent and high value,
+       they don't look like trash"). Kit.table drew a 16px card with a drop
+       shadow and an 11px UPPERCASE header, beside the framed table
+       (css/kit-table.css, `.atbl`) on Stock and Transactions: two looks for the
+       same thing on neighbouring tabs. It now takes the framed table's shape:
+       12px frame, no shadow, a 40px header band in 13px sentence case. */
+    border-radius: 12px;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+.kit .kit-table__wrap {
+    overflow-x: auto;
+}
+
+.kit .kit-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+/* Kit.table writes `.kit-th` on every header cell, so the alignment modifiers
+   below have a class to hang off. The element selector stays, because a caller
+   that builds its own <table> inside a .kit-table still gets the header face. */
+.kit .kit-table th {
+    height: 40px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--kit-line);
+    background: var(--kit-surface-2);
+    color: var(--kit-ink-2);
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 16px;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+}
+
+.kit .kit-td {
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--kit-line);
+    font-size: var(--kit-fs-body);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.kit .kit-table tr:last-child .kit-td {
+    border-bottom: 0;
+}
+
+/* ⛭ `.kit-row` ITSELF CARRIES NO RULE, AND THAT IS THE ANSWER RATHER THAN A
+   GAP. Kit.table writes it on every <tr> and the browser class diff in
+   kit-harness.html reports it as rendered-but-unstyled, so it is worth saying
+   once why the sheet leaves it alone instead of leaving the next reader to
+   rediscover it:
+
+     - A <tr> box honours almost nothing. The note below is the measured proof
+       for min-height and min-width; background is about all it does take, and
+       a plain data row wants none.
+     - A row's paint is its cells'. `.kit-td` owns the border, padding and
+       type, and `.kit-row--empty .kit-td` and the coarse-pointer
+       `.kit-row--link .kit-td` height both reach through the row to the cells
+       for exactly that reason.
+     - Nothing upstream needs resetting. Measured 2026-09-03: neither
+       css/main.css nor css/shell-theme.css declares a rule matching a bare
+       <tr> -- their table rules are scoped to `.inv-table` and
+       `.argus-os-detail__data-table` -- so there is no inherited paint for a
+       base rule to undo.
+
+   So it is a naming base for the two modifiers below and a hook a module
+   author can target, in the same category as `.kit-pop--up`. Inventing paint
+   for it would be noise, and dropping it would leave `--link` and `--empty` as
+   modifiers of nothing. (The plan's Task 6 note claiming Task 4 draws
+   `.kit-row` was wrong; it is corrected there.) */
+
+/* ⛔ NO min-height AND NO min-width HERE, AND THAT IS THE FIX RATHER THAN THE
+   OVERSIGHT. A row takes focus (tabindex=0) and Enter or Space activates it, so
+   it is an interactive control and it gets the ring below — but it is a <tr>,
+   and neither minimum applies to a table-row box. Both were written here and
+   both were ignored: measured in Chromium, computed min-height 44px under
+   coarse pointer against a used height of 41px. The page floor at
+   css/main.css:3114-3121 never reached it either, so the reset undid nothing.
+   A row's height comes from its cells, so that is where the touch target is
+   given to it — see `.kit-td` in the coarse-pointer layout block at the end of
+   this file — and __tests__/kit/buttons.contract.test.js enumerates this row
+   apart from the controls for exactly that reason. */
+.kit .kit-row--link {
+    cursor: pointer;
+    transition: background var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-row--link:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-surface-2);
+}
+
+.kit .kit-td.is-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* A number column is right aligned in the header too, or the label floats away
+   from the figures it names. */
+.kit .kit-th.is-num {
+    text-align: right;
+}
+
+.kit .kit-th.is-mid,
+.kit .kit-td.is-mid {
+    text-align: center;
+}
+
+.kit .kit-td.is-mono {
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-size: 12.5px;
+    letter-spacing: -0.01em;
+}
+
+/* The one-line row a table with no records shows under its header. Same
+   restraint as .kit-empty--inline, and the same reason: an empty table keeps
+   its header so the reader can still see what the columns were. */
+.kit .kit-row--empty .kit-td {
+    padding: 18px 16px 22px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--kit-ink-3);
+}
+
+/* ⛔ THE ABSENT VALUE HAS A COLOUR, NOT AN INLINE STYLE. Kit.unknownCell writes
+   the word and this class; a factory setting style="color:#726f65" would be
+   right in light and unreadable in dark. Not italic: italic in a data column
+   reads as an error rather than as a gap. */
+.kit .kit-td--unknown {
+    color: var(--kit-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * List. From css/employees.css:1304-1355 (.emp-listcard, .emp-lrow) and the
+ * "needs you" rail at :839-910, which is where the leading dot, the two-line
+ * body and the trailing chevron come from.
+ *
+ * A row is a <button> when it does something and a <div> when it does not, so
+ * the pointer, the hover wash and the chevron nudge are all scoped to the
+ * button form. A div that lights up under the cursor and then does nothing is
+ * worse than a div that stays still.
+ * ------------------------------------------------------------------------- */
+.kit .kit-list {
+    margin-top: 14px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    box-shadow: var(--kit-pop);
+    overflow: hidden;
+}
+
+.kit .kit-lrow {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    width: 100%;
+    padding: 13px 18px;
+    border: 0;
+    border-top: 1px solid var(--kit-line);
+    background: none;
+    color: inherit;
+    text-align: left;
+    min-height: 36px;
+    min-width: auto;
+    transition: background var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-lrow:first-child {
+    border-top: 0;
+}
+
+.kit button.kit-lrow {
+    cursor: pointer;
+}
+
+.kit button.kit-lrow:hover {
+    background: var(--kit-surface-2);
+}
+
+.kit .kit-lrow__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+}
+
+.kit .kit-lrow__dot--accent {
+    background: var(--kit-accent);
+}
+
+.kit .kit-lrow__dot--warn {
+    background: var(--kit-need-warn);
+}
+
+.kit .kit-lrow__dot--danger {
+    background: var(--kit-bad);
+}
+
+.kit .kit-lrow__main {
+    flex: 1;
+    min-width: 0;
+}
+
+.kit .kit-lrow__title {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 550;
+}
+
+.kit .kit-lrow__sub {
+    display: block;
+    margin-top: 2px;
+    font-size: 12.5px;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-lrow__trail {
+    flex: none;
+    font-size: 12.5px;
+    color: var(--kit-ink-2);
+    white-space: nowrap;
+}
+
+.kit .kit-lrow__go {
+    margin-left: auto;
+    align-self: center;
+    flex: none;
+    color: var(--kit-ink-3);
+    transition:
+        transform var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit button.kit-lrow:hover .kit-lrow__go {
+    transform: translateX(2px);
+    color: var(--kit-ink-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * Status vocabulary. From css/employees.css:1233-1299 (.emp-pill,
+ * .emp-rolechip, .emp-prio), plus two tones Employees keeps for schedule chips
+ * (:1004-1009 draft, :998-1002 night) that the kit promotes to the pill family.
+ *
+ * --draft and --night are their own families on purpose. A draft that merely
+ * looked like a published row with a lighter border is the one thing here that
+ * must never be mistaken, because staff cannot see it; an overnight span
+ * crosses a day boundary and so cannot be read off its column alone.
+ * ------------------------------------------------------------------------- */
+.kit .kit-pill {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: var(--kit-r-tag);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    /* A status that changes in place (Pending to Paid) eases between its
+       colours instead of snapping. */
+    transition:
+        background-color var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-pill--ok {
+    background: var(--kit-ok-tint);
+    color: var(--kit-ok);
+}
+
+.kit .kit-pill--warn {
+    background: var(--kit-warn-tint);
+    color: var(--kit-warn);
+}
+
+.kit .kit-pill--bad {
+    background: var(--kit-bad-tint);
+    color: var(--kit-bad);
+}
+
+.kit .kit-pill--mut {
+    background: var(--kit-count-bg-active);
+    color: var(--kit-ink-2);
+}
+
+/* Dashed, and the only pill that is: a draft is not a state the row is in, it
+   is a state the row has not reached. */
+.kit .kit-pill--draft {
+    padding: 2px 8px;
+    background: var(--kit-draft-bg);
+    border: 1px dashed var(--kit-draft-line);
+    color: var(--kit-draft-ink);
+}
+
+.kit .kit-pill--night {
+    padding: 2px 8px;
+    background: var(--kit-night-bg);
+    border: 1px solid var(--kit-night-line);
+    color: var(--kit-night-ink);
+}
+
+.kit .kit-rolechip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--kit-r-tag);
+    background: var(--kit-btn-active-bg);
+    color: var(--kit-ink-2);
+    font-size: var(--kit-fs-caption);
+    font-weight: 500;
+}
+
+/* Employees writes `4px` here (:1278) and `var(--emp-r-xs, 4px)` at :1575, a
+   token that does not exist, the declared name being --emp-rxs (:111), so the
+   fallback is what renders and this element quietly missed the radius pass
+   that moved the whole vocabulary up a step. The kit has one vocabulary and
+   the small-control radius is --kit-rxs. */
+.kit .kit-prio {
+    flex: none;
+    padding: 3px 7px;
+    border-radius: var(--kit-rxs);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+}
+
+.kit .kit-prio--urgent {
+    background: var(--kit-bad-tint);
+    color: var(--kit-bad);
+}
+
+.kit .kit-prio--high {
+    background: var(--kit-warn-tint);
+    color: var(--kit-warn);
+}
+
+.kit .kit-prio--normal {
+    background: var(--kit-count-bg-active);
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-prio--low {
+    background: var(--kit-prio-low-bg);
+    color: var(--kit-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * Period bar. New; the shape is .emp-segs (:1084-1115) at eyebrow scale,
+ * because it rides inside a KPI header as often as it sits above a chart.
+ * ------------------------------------------------------------------------- */
+.kit .kit-period {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+    overflow: hidden;
+    flex: none;
+}
+
+.kit .kit-period__seg {
+    padding: 4px 9px;
+    border: 0;
+    border-left: 1px solid var(--kit-line);
+    background: none;
+    color: var(--kit-ink-3);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-period__seg:first-child {
+    border-left: 0;
+}
+
+.kit .kit-period__seg:hover {
+    color: var(--kit-ink-2);
+    background: var(--kit-surface-2);
+}
+
+.kit .kit-period__seg[aria-pressed='true'] {
+    background: var(--kit-btn-active-bg);
+    color: var(--kit-ink);
+}
+
+/* Custom is the one seg that opens something instead of selecting a window, and
+   it carries a whole word rather than a three-character key, so it gets the
+   room. Nothing else about it differs: a seg that looked like a different
+   control would read as leaving the bar. */
+.kit .kit-period__seg--custom {
+    padding-right: 12px;
+    padding-left: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Pager. New; the count line borrows .emp-tfoot (:1219-1228).
+ *
+ * ⛔ `kit-paging`, NOT `kit-pager`. The shorter name contains the substring
+ * `-page`, and `body.light-mode [class*='-page'] h1|h2|h3|p`
+ * (css/shell-theme.css:5292-5301) reaches inside anything that matches it with
+ * !important. `kit-paging` does not match, so there is no exception to
+ * maintain: __tests__/kit/type-motion.contract.test.js bans `-page` in a kit
+ * class outright. Only the CSS changed; the factory is still Kit.pager, because
+ * a JS identifier is not matched by a CSS attribute selector. The count is a
+ * <span> anyway, which Task 6's components.render test asserts.
+ * ------------------------------------------------------------------------- */
+.kit .kit-paging {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px;
+    border-top: 1px solid var(--kit-line);
+}
+
+.kit .kit-paging__count {
+    flex: 1;
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-size: 12.5px;
+    color: var(--kit-ink-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.kit .kit-paging__btn {
+    padding: 5px 12px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+    color: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        border-color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-paging__btn:hover {
+    background: var(--kit-surface-2);
+    border-color: var(--kit-btn-hover-line);
+}
+
+/* ⛔ THE HOVER IS NEUTRALISED, NOT JUST DIMMED. `:hover` above is (0,3,0) and
+   so is this; dimming alone leaves the hover ground and hairline painting under
+   the cursor, so a dead "Previous" on page 1 still lights up. This is the same
+   bug the button family spends three paragraphs on, and the pager reads as a
+   standalone control rather than composing .kit-btn, so it needs its own. */
+.kit .kit-paging__btn[disabled],
+.kit .kit-paging__btn[disabled]:hover {
+    opacity: 0.45;
+    background: var(--kit-surface);
+    border-color: var(--kit-line-2);
+    cursor: default;
+}
+
+/* Load more is the other way to walk a long list, and it is a row of its own
+   rather than a footer, because it appears under a list as often as under a
+   table. Kit.loadMore returns null when nothing is left, so there is no
+   disabled state to draw. */
+.kit .kit-more {
+    display: flex;
+    justify-content: center;
+    padding: 12px 16px 14px;
+}
+
+.kit .kit-more__btn {
+    font-size: 12.5px;
+}
+
+/* ---------------------------------------------------------------------------
+ * The four states. From css/employees.css:473-517 (.emp-empty) for the shape.
+ *
+ * Employees renders empty, failed and not-built through one .emp-empty with
+ * different copy (js/employees/shell.js:230-238, :265-272, :296-301), so
+ * nothing in the DOM says which one a screen is in. The kit gives each its own
+ * root, because they are three different sentences and only one of them ever
+ * gets a create button:
+ *
+ *   .kit-empty     the region loaded and there is genuinely nothing yet
+ *   .kit-unread    the request failed; the only action is Try again
+ *   .kit-notsetup  the feature is not turned on; the action is Set up
+ *
+ * ⛔ AN UNREAD REGION NEVER OFFERS "CREATE". Offering it after a failed read is
+ * how a duplicate gets made: the row is probably already there and nobody can
+ * see it.
+ * ------------------------------------------------------------------------- */
+.kit .kit-empty,
+.kit .kit-unread,
+.kit .kit-notsetup {
+    padding: 54px 30px 58px;
+    text-align: center;
+}
+
+.kit .kit-empty__title,
+.kit .kit-unread__title,
+.kit .kit-notsetup__title {
+    font-size: var(--kit-fs-title);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.kit .kit-empty__body,
+.kit .kit-unread__body,
+.kit .kit-notsetup__body {
+    margin: 5px auto 0;
+    max-width: 44ch;
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-3);
+    line-height: 1.55;
+}
+
+.kit .kit-empty__action,
+.kit .kit-unread__action,
+.kit .kit-notsetup__action {
+    margin-top: 16px;
+}
+
+/* Only the genuine-empty state gets a mark, and it is a tick rather than a
+   warning: nothing is wrong, there is simply nothing yet. */
+.kit .kit-empty__mark {
+    width: 46px;
+    height: 46px;
+    margin: 0 auto 14px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--kit-ok-tint);
+    color: var(--kit-ok);
+    border: 1px solid var(--kit-ok-line);
+}
+
+/* A quieter variant for an empty region inside an already-small block, where
+   the 54px above would push it taller than its populated state. An empty TABLE
+   does not use it: Kit.table keeps its header and writes one `.kit-row--empty`
+   row instead, styled with the same restraint above. */
+.kit .kit-empty--inline {
+    padding: 18px 0 22px;
+    font-size: 12.5px;
+    color: var(--kit-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * Skeleton.
+ *
+ * ⛔ NO SHIMMER, AND NOT NAMED `spin`. css/argus-crm.css:1119-1136 ships a
+ * translating gradient on ::after, infinite, which repaints for as long as the
+ * request is in flight; the stores run Intel NUC boxes and it is not free
+ * there. css/main.css:3167-3170 also RE-ENABLES infinite animation on any class
+ * containing `spin` under reduced motion, so a `.kit-spinner` would be the one
+ * thing in this sheet the preference cannot stop. A skeleton is a shape, not a
+ * performance.
+ *
+ * Two primitives and five layouts: Kit.skeleton composes every shape from
+ * `__box` (a bordered surface) and `__line` (a bar), so a new shape is JS
+ * rather than a new rule here.
+ * ------------------------------------------------------------------------- */
+.kit .kit-skel {
+    display: grid;
+    gap: 10px;
+}
+
+.kit .kit-skel--kpi-row {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+
+.kit .kit-skel--table,
+.kit .kit-skel--list,
+.kit .kit-skel--block,
+.kit .kit-skel--form {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.kit .kit-skel__box {
+    display: grid;
+    align-content: start;
+    gap: 9px;
+    min-height: 76px;
+    padding: 13px 15px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    box-shadow: var(--kit-pop);
+}
+
+.kit .kit-skel--table .kit-skel__box,
+.kit .kit-skel--list .kit-skel__box,
+.kit .kit-skel--block .kit-skel__box {
+    min-height: 180px;
+}
+
+.kit .kit-skel__line {
+    height: 10px;
+    border-radius: var(--kit-r-pill);
+    background: var(--kit-meter-bg);
+}
+
+.kit .kit-skel__line--sm {
+    width: 60%;
+}
+
+.kit .kit-skel__line--xs {
+    width: 32%;
+}
+
+/* ---------------------------------------------------------------------------
+ * Region enter. Kit.region wraps rendered content in this when it replaces a
+ * skeleton, so the swap reads as an arrival rather than a flash.
+ * ------------------------------------------------------------------------- */
+.kit .kit-enter {
+    animation: kit-enter var(--kit-dur-panel) var(--kit-ease);
+}
+
+/* ⛔ THE FIRST STEP IS 0.01, NOT 0, AND THERE IS NO FILL MODE. Browsers PAUSE
+   CSS animations while the tab is hidden. A keyframe that starts at
+   `opacity: 0` and is declared with fill-mode both or backwards pins its
+   element there BEFORE the animation starts, so an animation that never runs
+   leaves the region permanently invisible: no error, nothing in the DOM to
+   suggest anything is wrong, and a screenshot that comes back blank. Measured
+   on the live portal 2026-08-19 with the tab backgrounded: seventeen elements
+   stuck at once, the whole onboarding wizard among them.
+   __tests__/portal-invisible-animation.contract.test.js ratchets that count
+   down across every sheet and never up; this file is banned from the pattern
+   outright. 0.01 is invisible to the eye and visible to the guard. */
+@keyframes kit-enter {
+    from {
+        opacity: 0.01;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ===========================================================================
+ * FORMS AND OVERLAYS
+ *
+ * Everything js/kit/forms.js (Task 7) renders: the field, the inputs, the
+ * switch, the chooser button that the select and both pickers share, the
+ * popover they open, the calendar, the range picker, the form's error line,
+ * and the modal and drawer.
+ *
+ * ⛔ THREE OF THESE ROOTS ARE APPENDED TO <body>, so the `.kit` class is on the
+ * element ITSELF and the selector is `.kit.kit-pop`, not `.kit .kit-pop`. That
+ * is what keeps the token blocks and the dark scope reaching them once they
+ * leave the module's subtree.
+ *
+ * ⛔ THEY GO ABOVE THE COARSE-POINTER BLOCK AND THE REDUCED-MOTION BLOCK, like
+ * every other rule in this file. Both of those are overrides at the same
+ * specificity, and an override only works from below.
+ * =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+ * The field. A label, a control, optional help, and an error that is always in
+ * the document and hidden until it has something to say, because a live region
+ * created at the moment it speaks is announced unreliably. The hiding is the
+ * `hidden` property, and the `.kit [hidden]` rule further down is what makes
+ * `hidden` win against a rule that sets a display.
+ * ------------------------------------------------------------------------- */
+.kit .kit-field {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 14px;
+}
+
+.kit .kit-field__label {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: var(--kit-fs-caption);
+    font-weight: 600;
+    color: var(--kit-ink-2);
+}
+
+/* The word, not an asterisk. An asterisk is a convention the reader has to
+   already know and it is four pixels wide. */
+.kit .kit-field__req {
+    font-size: var(--kit-fs-eyebrow);
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-field__help {
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-field__error {
+    margin: 0;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--kit-bad);
+}
+
+/* The control says it too, not only the sentence under it: a reader who scrolls
+   past the message still sees which field the server refused. */
+.kit .kit-field.is-error .kit-input,
+.kit .kit-field.is-error .kit-select__btn {
+    border-color: var(--kit-bad-line);
+}
+
+/* ---------------------------------------------------------------------------
+ * Inputs. One rule owns the kit's control height, both halves of the 44px
+ * floor reset and the focus ring, and the search field carries this class too,
+ * so there is one control height in this sheet rather than two that can drift.
+ * ------------------------------------------------------------------------- */
+.kit .kit-input {
+    width: 100%;
+    padding: 7px 11px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-rxs);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+    font-size: var(--kit-fs-body);
+    line-height: 1.15;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        border-color var(--kit-dur) var(--kit-ease),
+        background var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-input::placeholder {
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-input:hover {
+    border-color: var(--kit-btn-hover-line);
+}
+
+/* The hairline is named here and the hover is neutralised for the same reason
+   the pager's is: `:hover` above sets border-color at (0,3,0), and a rule that
+   only repaints the ground leaves a dead field's edge moving under the cursor. */
+.kit .kit-input[disabled],
+.kit .kit-input[disabled]:hover {
+    background: var(--kit-surface-2);
+    border-color: var(--kit-line);
+    color: var(--kit-ink-3);
+    cursor: default;
+}
+
+.kit .kit-input--area {
+    min-height: 72px;
+    line-height: 1.45;
+    resize: vertical;
+}
+
+/* A rate is read as a figure even when it is one field on its own. */
+.kit .kit-input--money {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+/* ---------------------------------------------------------------------------
+ * The switch. `role="switch"`, so it takes effect at once and says so; a
+ * checkbox would promise a Save button that is not there.
+ * ------------------------------------------------------------------------- */
+.kit .kit-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 4px 2px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: var(--kit-fs-body);
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+}
+
+.kit .kit-toggle__track {
+    position: relative;
+    width: 34px;
+    height: 20px;
+    flex: none;
+    border-radius: var(--kit-r-pill);
+    background: var(--kit-line-2);
+    transition: background var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-toggle__knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--kit-surface);
+    box-shadow: var(--kit-pop);
+    transition: transform var(--kit-dur) var(--kit-ease);
+}
+
+/* ⛔ THE STATE IS THE ARIA ATTRIBUTE, NOT A CLASS, for the same reason the
+   segmented control's is: a state that lives only in a class is invisible to a
+   screen reader, and a control that carries both has two sources of truth and
+   one of them will drift. A switch says `aria-checked`. `.kit-pop__opt` keeps
+   `.is-active` and is not an exception to this — that class is the keyboard
+   cursor, a different fact from "chosen", which the option carries in its own
+   attribute. */
+.kit .kit-toggle[aria-checked='true'] .kit-toggle__track {
+    background: var(--kit-accent);
+}
+
+.kit .kit-toggle[aria-checked='true'] .kit-toggle__knob {
+    transform: translateX(14px);
+}
+
+.kit .kit-toggle__lbl {
+    color: var(--kit-ink-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * The chooser button. One control for the select and both pickers, because
+ * none of them is a native element: a native <select> opens the operating
+ * system's own list, which no stylesheet in this repo can reach.
+ * ------------------------------------------------------------------------- */
+.kit .kit-select {
+    position: relative;
+    display: block;
+}
+
+.kit .kit-select__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px 7px 11px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-rxs);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+    font-size: var(--kit-fs-body);
+    line-height: 1.15;
+    text-align: left;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        border-color var(--kit-dur) var(--kit-ease),
+        background var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-select__btn:is(:hover, [data-kit-force~='hover']) {
+    border-color: var(--kit-btn-hover-line);
+}
+
+.kit .kit-select__btn[aria-expanded='true'] {
+    border-color: var(--kit-accent);
+}
+
+.kit .kit-select__lbl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ⛔ THE UNSELECTED STATE LOOKS UNSELECTED. Kit.select shows the placeholder
+   rather than falling back to the first option, and this is the half of that
+   decision a reader can see: placeholder ink, not value ink. */
+.kit .kit-select__lbl.is-placeholder {
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-select__chev {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    color: var(--kit-ink-3);
+    transition: transform var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-select__btn[aria-expanded='true'] .kit-select__chev {
+    transform: rotate(180deg);
+}
+
+/* A date and a time are figures. Tabular so a value that changes does not
+   re-flow the field. The `__btn--date` modifier is named as well as the two
+   wrappers, so a chooser built outside a `.kit-select` wrapper still reads as
+   a figure rather than as prose. */
+.kit .kit-select--date .kit-select__lbl,
+.kit .kit-select--time .kit-select__lbl,
+.kit .kit-select__btn--date .kit-select__lbl {
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-variant-numeric: tabular-nums;
+}
+/* The prompt before a date is picked ("Pick a date") is words, not a figure:
+   in the mono face it read like a typewriter (Store details, staging
+   2026-09-25). */
+.kit .kit-select--date .kit-select__lbl.is-placeholder,
+.kit .kit-select--time .kit-select__lbl.is-placeholder,
+.kit .kit-select__btn--date .kit-select__lbl.is-placeholder {
+    font-family: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+ * Popovers. Appended to <body>, so the root IS the `.kit` element: the
+ * selectors below are `.kit.kit-pop`, not `.kit .kit-pop`. In flow they would
+ * be clipped by the first ancestor with overflow: hidden, which .kit-block and
+ * .kit-table both are.
+ *
+ * ⛭ `.kit-pop--up` carries no paint of its own on purpose. It is the flag
+ * js/kit/forms.js sets when it MEASURES no room below the anchor and flips the
+ * list above it; the geometry that follows from that measurement is written
+ * inline, because a stylesheet cannot know it. The class is here so a module
+ * can style around a flipped list, not because this sheet needs it.
+ *
+ * ⛔ ABOVE THE DRAWER AND THE MODAL (99999). A popover belongs above whatever
+ * opened it, and a date or time picker is opened from inside drawers: at 9999
+ * it drew BEHIND the drawer that asked for it. Below the toast (999999).
+ * ------------------------------------------------------------------------- */
+.kit.kit-pop {
+    position: fixed;
+    z-index: 100001;
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-rs);
+    background: var(--kit-surface);
+    box-shadow: var(--kit-pop-2);
+}
+
+.kit.kit-pop--list {
+    min-width: 180px;
+}
+
+.kit .kit-pop__opt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: var(--kit-rxs);
+    color: var(--kit-ink);
+    font-size: var(--kit-fs-body);
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition: background var(--kit-dur) var(--kit-ease);
+}
+
+/* ⛔ TWO FACTS, TWO MECHANISMS, AND THEY ARE NOT THE SAME ROW. The wash says
+   where the keyboard CURSOR is; the weight says what has actually been CHOSEN.
+   Selection does NOT follow focus here: moving the cursor fires no onChange and
+   does not change the value, so painting the attribute from the cursor had a
+   screen reader announce "Charlie, selected" while the value was still Alpha
+   and the real selection carried no marker at all. Measured against the markup
+   js/kit/forms.js writes. */
+.kit .kit-pop__opt.is-active {
+    background: var(--kit-btn-active-bg);
+}
+
+.kit .kit-pop__opt[aria-selected='true'] .kit-pop__opt-lbl {
+    font-weight: 600;
+}
+
+.kit .kit-pop__opt-lbl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kit .kit-pop__none {
+    padding: 12px 10px 14px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--kit-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * The calendar. Rendered twice: one month inside a `.kit-pop.kit-cal` for the
+ * date picker, two months side by side inside `.kit-range__months` for the
+ * range picker. Every rule below names the PART rather than sitting under
+ * `.kit-cal`, so both hosts get the same grid.
+ * ------------------------------------------------------------------------- */
+/* ⛔ BOTH FORMS, AND THE COMPOUND ONE IS THE DATE PICKER. The popover root
+   carries `.kit` itself (see the section header above), so the date picker's
+   calendar is `.kit.kit-pop.kit-cal` and a DESCENDANT `.kit .kit-cal` has no
+   ancestor to match — measured: the rule never applied and the panel kept the
+   popover's own 5px. The range picker's calendar is nested and needs the
+   descendant form, so both are written. */
+.kit.kit-cal,
+.kit .kit-cal {
+    padding: 4px;
+}
+
+.kit .kit-cal__month {
+    width: 238px;
+    padding: 4px 6px 8px;
+}
+
+.kit .kit-cal__head {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.kit .kit-cal__title {
+    text-align: center;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.kit .kit-cal__nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rxs);
+    background: var(--kit-surface);
+    color: var(--kit-ink-2);
+    line-height: 1;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        border-color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-cal__nav:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-surface-2);
+    border-color: var(--kit-btn-hover-line);
+}
+
+/* The second month has no previous button and the first has no next one. The
+   spacer keeps the column, or the title slides off centre between the panes. */
+.kit .kit-cal__nav--gap {
+    visibility: hidden;
+}
+
+.kit .kit-cal__dow {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    margin-bottom: 2px;
+}
+
+.kit .kit-cal__dow-cell {
+    text-align: center;
+    font-size: var(--kit-fs-eyebrow);
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-cal__grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 2px;
+}
+
+.kit .kit-cal__cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--kit-rxs);
+    background: none;
+    color: var(--kit-ink);
+    font-size: 12.5px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease),
+        border-color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-cal__cell:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-btn-active-bg);
+}
+
+/* The run-up to the first of the month. It holds a grid cell and nothing else,
+   so it takes no hover and no pointer. */
+.kit .kit-cal__cell--blank {
+    cursor: default;
+    pointer-events: none;
+}
+
+.kit .kit-cal__num {
+    line-height: 1;
+}
+
+/* Today is a ring, not a fill: a fill would compete with the selection, and on
+   the day a range starts they would be the same cell. */
+.kit .kit-cal__cell.is-today {
+    border-color: var(--kit-accent-line);
+    font-weight: 600;
+}
+
+/* Outside min or max. The factory disables it as well, so the pointer says the
+   same thing the colour does. */
+.kit .kit-cal__cell.is-off {
+    color: var(--kit-ink-3);
+    opacity: 0.5;
+    cursor: default;
+}
+
+/* ⛔ THE KEYBOARD CURSOR, IN BOTH PICKERS. The roving cursor position:
+   initialised from the current value or from today, moved by the arrow and page
+   keys, and focused as it moves. There is no pointer path and no tap path —
+   nothing hovers this class into existence. It said DATE PICKER ONLY until the
+   range picker's calendar got a keyboard at all; before that its sixty-one day
+   cells were every one of them tabindex="-1" with no handler, so there was no
+   cursor to draw.
+   ⛭ It is a class rather than an attribute on purpose, and `.kit-pop__opt`
+   is the same pairing: the class says where the cursor IS, and `.is-on`,
+   `.is-start` and `.is-end` below say what was actually chosen. Two different
+   facts, so two different mechanisms. */
+.kit .kit-cal__cell.is-cue {
+    background: var(--kit-accent-tint-hover);
+    color: var(--kit-accent-ink);
+}
+
+/* Between the two ends: a wash, not the accent. The ends are the selection and
+   the middle is what it spans; square, so the run reads as one bar. */
+.kit .kit-cal__cell.is-in-range {
+    border-radius: 0;
+    background: var(--kit-accent-tint);
+    color: var(--kit-accent-ink);
+}
+
+/* LAST of the day states, because these are the same specificity as the three
+   above and a start date is also `is-today` and also `is-in-range`'s neighbour.
+   The ink is --kit-surface rather than a literal: it is the ground the accent
+   is measured against in both themes, so it clears the accent in both. */
+.kit .kit-cal__cell.is-on,
+.kit .kit-cal__cell.is-start,
+.kit .kit-cal__cell.is-end {
+    border-color: var(--kit-accent);
+    background: var(--kit-accent);
+    color: var(--kit-surface);
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * The range picker: a `Kit.modal` at the --lg size holding a preset rail and
+ * two months. The rail is the shared window vocabulary, read from
+ * window.ArgusRangePicker at call time.
+ * ------------------------------------------------------------------------- */
+.kit .kit-range {
+    display: flex;
+    align-items: stretch;
+    gap: 18px;
+}
+
+.kit .kit-range__rail {
+    display: grid;
+    align-content: start;
+    gap: 4px;
+    width: 150px;
+    flex: none;
+    padding-right: 16px;
+    border-right: 1px solid var(--kit-line);
+}
+
+.kit .kit-range__preset {
+    padding: 6px 11px;
+    border: 1px solid transparent;
+    border-radius: var(--kit-rxs);
+    background: none;
+    color: var(--kit-ink-2);
+    font-size: 12.5px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-range__preset:is(:hover, [data-kit-force~='hover']) {
+    background: var(--kit-btn-active-bg);
+    color: var(--kit-ink);
+}
+
+/* ⛔ SELECTED, NOT PRESSED, AND THE RESEMBLANCE TO THE SEGMENTED CONTROL IS THE
+   TRAP. The rail is a listbox and each preset is an option, so the state it
+   carries is `aria-selected`; `aria-pressed` is a BUTTON state and is invalid on
+   role="option", which means a rule keyed off it paints nothing at all against
+   the markup js/kit/forms.js writes. The right precedent is `.kit-pop__opt`
+   two hundred lines above — also an option in a listbox, also selected — and
+   NOT `.kit-seg` or `.kit-period__seg`, which are role-less toggle buttons and
+   genuinely take pressed. What the three do share is that the state is an
+   attribute rather than a class, which is the rule this file actually keeps. */
+.kit .kit-range__preset[aria-selected='true'] {
+    border-color: var(--kit-accent-line);
+    background: var(--kit-accent-tint);
+    color: var(--kit-accent-ink);
+}
+
+/* ⛔ A PRESET THAT CANNOT ANSWER SAYS SO. With a ceiling in the past, every
+   window counted back from today begins after it, so js/kit/forms.js refuses
+   the pair -- correctly, because no query can satisfy from > to. Measured in
+   Chromium 2026-09-03 with maxDate a past date: SIX of the seven presets did
+   nothing and only "All time" answered, and all seven were painted identically,
+   took focus and kept a pointer cursor. A control that looks live, accepts
+   focus and does nothing is worse than one that is visibly unavailable.
+
+   ⛭ DIMMED WITH INK-3, NOT WITH `opacity`, and that is a deliberate trade. The
+   conventional half-opacity disabled look composites this label to 2.00:1 in
+   light and 2.17:1 in dark against the dialog surface. WCAG exempts an inactive
+   control from the contrast minimum, so that would have been permissible -- but
+   the reader still has to READ "Last 30 days" to know what is unavailable, and
+   shipping a 2:1 label in the same change that lifted ink-3 to 4.5 would be
+   undoing that decision one rule later. ink-3 on the dialog surface is 5.03:1
+   light and 4.65:1 dark, still a visible step down from the enabled ink-2 at
+   7.11 and 7.61.
+
+   ⛭ AND THE STATE IS NOT CARRIED BY COLOUR ALONE, which is the other half of
+   the same rule: the cursor stops being a pointer and the hover response goes
+   away, so the option is identifiable as unavailable without resolving the
+   difference between two greys.
+
+   ⛭ WRITTEN AFTER :hover AND AFTER [aria-selected] ON PURPOSE. All three are
+   (0,3,0), so source order is the only thing that separates them; placed above
+   :hover this rule would lose and a dead preset would still light up under the
+   cursor. Every CSS guard in this repo compares selectors rather than order, so
+   __tests__/kit/forms.render.test.js asserts the ordering directly. */
+.kit .kit-range__preset[aria-disabled='true'] {
+    background: none;
+    color: var(--kit-ink-3);
+    cursor: default;
+}
+
+.kit .kit-range__body {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.kit .kit-range__months {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* The readout says which half of the click-click is next. A second click before
+   the first is a range read backwards, not an error, so this never scolds. */
+.kit .kit-range__hint {
+    margin: 0;
+    min-height: 18px;
+    font-size: 12.5px;
+    color: var(--kit-ink-2);
+}
+
+/* The pick from a long list (pick selects__search-pick) is ArgusTable's own
+   combobox (js/kit/table.js, css/kit-table.css), unchanged, and it keeps its
+   own grey focus ring: it is an existing kit part and is not retuned. That
+   ring is drawn on :focus-within (css/kit-table.css, `.atbl
+   .atbl-combo:focus-within`), which the state hook cannot force, so this
+   draws the same ring, --ground-ink-3's literal in each theme, for the
+   library's forced focus ALONE. Nothing but the library sets data-kit-force,
+   so no screen changes. ⛔ Never name the combo in the shared focus block
+   below (__tests__/kit/buttons.contract.test.js). */
+.kit .atbl .atbl-combo[data-kit-force~='focus'] {
+    border-color: var(--kit-ink-3);
+    box-shadow: 0 0 0 1px var(--kit-ink-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * The form. One error line per form, always in the document and hidden until
+ * the server says something, for the same reason the field's error is.
+ * ------------------------------------------------------------------------- */
+.kit .kit-form__error {
+    margin: 0 0 12px;
+    padding: 9px 12px;
+    border: 1px solid var(--kit-bad-line);
+    border-radius: var(--kit-rxs);
+    background: var(--kit-bad-tint);
+    color: var(--kit-bad);
+    font-size: 12.5px;
+}
+
+.kit .kit-form__foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Modal and drawer. One builder in js/kit/forms.js, two skins here: the modal
+ * is centred, the drawer is anchored right and full height. Both are appended
+ * to <body>, so their root carries `kit` itself and the selectors below are
+ * `.kit.kit-modal`, not `.kit .kit-modal`.
+ * ------------------------------------------------------------------------- */
+.kit.kit-modal,
+.kit.kit-drawer {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+}
+
+.kit.kit-modal {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.kit.kit-drawer {
+    justify-content: flex-end;
+}
+
+/* ⛔ THE SCRIM IS A TOKEN AT AN OPACITY, NOT AN rgba() LITERAL. The tokens
+   contract test allows no colour written outside the two blocks and there is no
+   scrim token, so the dimming is a declared colour with an alpha on the element.
+   Light dims with the ink. Dark cannot use the same token: the ink inverts, and
+   a near-white wash over a dark page reads as a flash rather than a curtain, so
+   dark dims with --kit-nav-bg, the darkest neutral in the palette. */
+.kit .kit-modal__scrim,
+.kit .kit-drawer__scrim {
+    position: fixed;
+    inset: 0;
+    background: var(--kit-ink);
+    opacity: 0.34;
+}
+
+body:not(.light-mode) .kit .kit-modal__scrim,
+body:not(.light-mode) .kit .kit-drawer__scrim {
+    background: var(--kit-nav-bg);
+    opacity: 0.62;
+}
+
+/* The rise is `kit-enter`, the same keyframe the region uses, rather than a
+   second one: every keyframe in this file has to be kept off a zero first step,
+   and one is easier to keep true than two. */
+.kit .kit-modal__box,
+.kit .kit-drawer__box {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    min-width: 0;
+    border: 1px solid var(--kit-line);
+    background: var(--kit-surface);
+    box-shadow: var(--kit-pop-2);
+    animation: kit-enter var(--kit-dur-panel) var(--kit-ease);
+}
+
+.kit .kit-modal__box {
+    width: 100%;
+    border-radius: var(--kit-rl);
+}
+
+.kit.kit-modal--sm .kit-modal__box {
+    max-width: 380px;
+}
+
+.kit.kit-modal--md .kit-modal__box {
+    max-width: 520px;
+}
+
+.kit.kit-modal--lg .kit-modal__box {
+    max-width: 760px;
+}
+
+/* 480px, and full width below 720, where a 480px panel with a sliver of page
+   behind it stops reading as a drawer and starts reading as a broken modal. */
+.kit .kit-drawer__box {
+    width: 480px;
+    max-width: 100%;
+    height: 100%;
+    border-right: 0;
+    border-radius: 0;
+}
+
+/* ⛔ THE DRAWER HAS THREE SIZES TOO. `panel()` in js/kit/forms.js writes
+   `kit-<kind> kit-<kind>--<size>` onto the root for BOTH kinds, defaulting to
+   `md`, so every drawer already ships with one of these three classes on it.
+   Without these rules the class is inert and `size: 'sm'` and `size: 'lg'`
+   silently render the same 480px panel: not a failure any test would catch, and
+   not a failure anyone would report, just a drawer that ignores its argument.
+   Written the same way as the modal's three above, at (0,3,0) so each beats the
+   480px base at (0,2,0). The modal sets `max-width` because its box is
+   `width: 100%`; the drawer sets `width`, because its box is a fixed panel and
+   `max-width: 100%` is already on the base. */
+.kit.kit-drawer--sm .kit-drawer__box {
+    width: 360px;
+}
+
+.kit.kit-drawer--md .kit-drawer__box {
+    width: 480px;
+}
+
+.kit.kit-drawer--lg .kit-drawer__box {
+    width: 720px;
+}
+
+/* Below 720 all three collapse to the full width, which is why this block sits
+   after them: it is the same (0,2,0) as the base rule and wins on source order
+   only against that one, so the three above are re-stated here rather than left
+   to lose the media query. */
+@media (max-width: 720px) {
+    .kit .kit-drawer__box,
+    .kit.kit-drawer--sm .kit-drawer__box,
+    .kit.kit-drawer--md .kit-drawer__box,
+    .kit.kit-drawer--lg .kit-drawer__box {
+        width: 100%;
+    }
+}
+
+/* js/kit/forms.js sets .is-closing, waits --kit-dur-exit, then removes the node.
+   The two numbers are ONE number: that file reads the token off the root rather
+   than carrying a literal of its own. */
+.kit.kit-modal.is-closing,
+.kit.kit-drawer.is-closing {
+    opacity: 0;
+    transition: opacity var(--kit-dur-exit) var(--kit-ease);
+}
+
+/* While a dialog's action is out, the scrim stops taking the pointer. The
+   factory disables the buttons; this is what stops a click landing on the scrim
+   and closing a dialog in the middle of a write. */
+.kit.kit-modal.is-busy .kit-modal__scrim,
+.kit.kit-drawer.is-busy .kit-drawer__scrim {
+    pointer-events: none;
+}
+
+.kit .kit-modal__head,
+.kit .kit-drawer__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--kit-line);
+}
+
+/* An h2, and no serif: the display face is the page head's and the KPI's, and a
+   dialog title in Fraunces would be the third place it appears on one screen. */
+.kit .kit-modal__title,
+.kit .kit-drawer__title {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+    font-size: var(--kit-fs-title);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* ⛔ WRITTEN APART, NOT GROUPED, and so is the drawer's below it.
+   __tests__/kit/buttons.contract.test.js locates a floor reset by searching the
+   raw file for `.kit <sel> { … min-width: auto }`, and a selector list hides the
+   reset from that search. Every enumerated control in this sheet therefore has
+   a rule of its own. */
+.kit .kit-modal__x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    flex: none;
+    border: 0;
+    border-radius: var(--kit-r-ctl);
+    background: none;
+    color: var(--kit-ink-3);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-drawer__x {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    flex: none;
+    border: 0;
+    border-radius: var(--kit-r-ctl);
+    background: none;
+    color: var(--kit-ink-3);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    min-height: 32px;
+    min-width: auto;
+    transition:
+        background var(--kit-dur) var(--kit-ease),
+        color var(--kit-dur) var(--kit-ease);
+}
+
+.kit .kit-modal__x:is(:hover, [data-kit-force~='hover']),
+.kit .kit-drawer__x:hover {
+    background: var(--kit-btn-active-bg);
+    color: var(--kit-ink);
+}
+
+.kit .kit-modal__body,
+.kit .kit-drawer__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+}
+
+.kit .kit-modal__msg,
+.kit .kit-drawer__msg {
+    margin: 0;
+    max-width: 62ch;
+    font-size: var(--kit-fs-body);
+    line-height: 1.55;
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-modal__foot,
+.kit .kit-drawer__foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--kit-line);
+}
+
+/* A destructive action listed FIRST (Delete in an edit form) stands apart on
+   the left, away from Save. A confirm dialog lists its danger button last, so
+   it stays beside Cancel where a yes-or-no question expects it. */
+.kit .kit-modal__foot > .kit-btn--danger:first-child,
+.kit .kit-drawer__foot > .kit-btn--danger:first-child {
+    margin-right: auto;
+}
+
+/* ---------------------------------------------------------------------------
+ * ⛔ THE RANGE PICKER ON A SMALL SCREEN. Measured at 375px with coarse pointer
+ * before this block existed: the rail held 150px of a 325px dialog body, the
+ * range body was left 117px, the month is 332px once the day cell's touch floor
+ * widens it, and the dialog scrolled 195px sideways — a calendar clipped to
+ * about three columns, with the reader scrolling horizontally inside a dialog
+ * to see a single week. `.kit-range__months` wrapping is not the fix and never
+ * was: it does stack the two months, confirmed, but wrapping cannot shrink a
+ * 332px month into a 117px line.
+ *
+ * ⛔ THE BREAKPOINT IS 600px BECAUSE IT HAS TO CLEAR THE COARSE MONTH, NOT THE
+ * FINE ONE. It was 560, which is right for the 238px fine-pointer month and
+ * wrong for the 332px coarse one, and it left a band where the block was off
+ * and the calendar still did not fit. The dialog spends a fixed 258px before
+ * the months: 24px of scrim padding a side, the box hairline, 20px of body
+ * padding a side, the 150px rail and the 18px gap. So the months get W - 258
+ * and need 332, which is W >= 590. Measured at 561 with coarse: rail still
+ * 150px, months area 303px, month 332px, 9px of sideways scroll — the exact
+ * gap this note used to claim was zero. 600 clears 590 with room and is where
+ * the block now starts.
+ *
+ * So the rail stops being a rail and goes above the calendar as a wrapping row,
+ * which returns its 150px plus the 18px gap and the hairline. The dialog's own
+ * gutters tighten with it, because 24px of scrim padding and 20px of body
+ * padding on each side is 88px of chrome on a 375px screen — a quarter of the
+ * viewport spent on nothing — and the calendar is the one thing in this kit
+ * with a hard minimum width. The month drops its 6px side padding here too, so
+ * the panel is exactly the 320px grid the touch floor produces.
+ *
+ * ⛔ IT SITS BELOW THE MODAL AND DRAWER FAMILY, NOT BESIDE THE RANGE PICKER.
+ * `.kit.kit-modal { padding }` and `.kit .kit-modal__body { padding }` are
+ * (0,2,0), exactly what the overrides here are, so an override written above
+ * them simply loses — measured: with this block up beside the range family
+ * the dialog kept its 24px scrim padding and 20px body padding and the
+ * calendar still scrolled 15px sideways.
+ *
+ * ⛔ AND ABOVE `.kit [hidden]`, because it sets a display, like every other
+ * rule in this file that does. The type-motion contract test asserts that.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+    .kit.kit-modal {
+        padding: 8px;
+    }
+
+    .kit .kit-modal__body,
+    .kit .kit-drawer__body {
+        padding: 12px;
+    }
+
+    .kit .kit-range {
+        display: block;
+    }
+
+    .kit .kit-range__rail {
+        display: flex;
+        flex-wrap: wrap;
+        width: auto;
+        padding: 0 0 12px;
+        margin-bottom: 12px;
+        border-right: 0;
+        border-bottom: 1px solid var(--kit-line);
+    }
+
+    .kit .kit-range__months {
+        justify-content: center;
+    }
+
+    .kit .kit-cal__month {
+        padding-right: 0;
+        padding-left: 0;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * Chart and tooltip.
+ *
+ * ⛔ Every colour a chart shows is in this section. js/kit/chart.js writes one
+ * paint attribute in its whole length, `fill="url(#kit-chart-fill-N)"` on the
+ * area wash, because a gradient can only be addressed by id, and the gradient's
+ * two stops take their colour from .kit-chart__stop-a and -b right here.
+ *
+ * 🪤 The svg is `preserveAspectRatio="none"` over a fixed 720-unit viewBox, so
+ * the horizontal scale is containerWidth / 720. Two consequences live in this
+ * file: every stroke carries `vector-effect: non-scaling-stroke` (or a hairline
+ * would thicken with the container), and the axis labels are HTML spans in the
+ * layers below rather than <text> (or every glyph would stretch). The svg's
+ * height ATTRIBUTE equals its viewBox height, so vertical units are CSS pixels
+ * exactly and `top: <n>px` on a label lines up with the mark at any width.
+ * ------------------------------------------------------------------------- */
+.kit .kit-chart__key {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 0 0 10px 46px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-chart__root--hbars .kit-chart__key {
+    margin-left: 118px;
+}
+
+.kit .kit-chart__key-i {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.kit .kit-chart__key-ln {
+    width: 14px;
+    height: 0;
+    flex: none;
+}
+
+.kit .kit-chart__key-ln--now {
+    border-top: 2px solid var(--crm-mod-ink, var(--kit-accent));
+}
+
+.kit .kit-chart__key-ln--prev {
+    border-top: 2px dashed var(--kit-ink-3);
+}
+
+/* The gutters are the label layers' room: left for the value ticks (or the
+   category names), bottom for the category axis (or the value ticks). */
+.kit .kit-chart__wrap {
+    position: relative;
+    padding: 0 16px 20px 46px;
+}
+
+.kit .kit-chart__wrap--hbars {
+    padding: 0 54px 20px 118px;
+}
+
+.kit .kit-chart {
+    display: block;
+    width: 100%;
+    overflow: visible;
+}
+
+.kit .kit-chart:focus-visible {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 3px;
+    border-radius: var(--kit-rxs);
+}
+
+.kit .kit-chart__grid {
+    stroke: var(--kit-line);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    shape-rendering: crispEdges;
+}
+
+/* Zero is the line every other value is read against, so it is one step up. */
+.kit .kit-chart__grid--zero {
+    stroke: var(--kit-line-2);
+}
+
+/* ⛔ COLOUR IS FOR DATA, AND THE COLOUR IS THE MODULE'S. Every data mark reads
+   the module accent (`--crm-mod` for washes, `--crm-mod-ink` for anything thin
+   enough to need 3:1 on a white card), with the kit accent as the fallback on a
+   page that has no module. Never a literal, never the brand red:
+   __tests__/kit/colour-is-for-data.contract.test.js. */
+.kit .kit-chart__ln {
+    fill: none;
+    stroke: var(--crm-mod-ink, var(--kit-accent));
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.kit .kit-chart__fill {
+    stroke: none;
+    animation: kit-chart-fade var(--kit-dur-panel) var(--kit-ease);
+}
+
+/* A wash, not a block: the two stops average out around a tenth of the accent. */
+.kit .kit-chart__stop-a {
+    stop-color: var(--crm-mod, var(--kit-accent));
+    stop-opacity: 0.18;
+}
+
+.kit .kit-chart__stop-b {
+    stop-color: var(--crm-mod, var(--kit-accent));
+    stop-opacity: 0.02;
+}
+
+/* The endpoint is today: a round-capped zero-length line, so the horizontal
+   stretch cannot turn it into an ellipse. Ringed in the surface colour so it
+   sits ON the line rather than fattening it. */
+.kit .kit-chart__dot {
+    stroke: var(--crm-mod-ink, var(--kit-accent));
+    stroke-width: 8;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+    paint-order: stroke;
+}
+
+/* Bars: one lit, the rest quiet. The lit bar is the largest and it carries the
+   module accent; the others are ink at a third, so the comparison reads before
+   the numbers do. Hover deepens whichever bar is under the pointer. */
+.kit .kit-chart__bar {
+    fill: var(--kit-ink-3);
+    fill-opacity: 0.35;
+}
+
+.kit .kit-chart__bar.is-lit {
+    fill: var(--crm-mod-ink, var(--kit-accent));
+    fill-opacity: 1;
+}
+
+.kit .kit-chart__bar.is-active {
+    fill: var(--crm-mod-ink, var(--kit-accent-ink));
+    fill-opacity: 0.7;
+}
+
+.kit .kit-chart__bar.is-lit.is-active {
+    fill-opacity: 1;
+}
+
+/* Dashed on purpose, and only here. The grid is always solid; a dash on a DATA
+   mark is the secondary encoding that keeps the two series apart without
+   colour, which is why the legend and this pattern ship together. */
+.kit .kit-chart__cmp {
+    fill: none;
+    stroke: var(--kit-ink-3);
+    stroke-width: 1.5;
+    stroke-dasharray: 3 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.kit .kit-chart__cross {
+    stroke: var(--kit-line-2);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
+}
+
+.kit .kit-chart__cross--off {
+    visibility: hidden;
+}
+
+/* A whole column, so the reader aims at a date and not at a 2px line. */
+.kit .kit-chart__hit {
+    fill: none;
+    pointer-events: all;
+}
+
+.kit .kit-chart__gut,
+.kit .kit-chart__axis,
+.kit .kit-chart__vals {
+    position: absolute;
+    pointer-events: none;
+}
+
+.kit .kit-chart__gut {
+    top: 0;
+    left: 0;
+    width: 38px;
+}
+
+.kit .kit-chart__axis {
+    left: 46px;
+    right: 16px;
+    bottom: 2px;
+}
+
+.kit .kit-chart__wrap--hbars .kit-chart__gut {
+    width: 108px;
+}
+
+.kit .kit-chart__wrap--hbars .kit-chart__axis {
+    left: 118px;
+    right: 54px;
+}
+
+.kit .kit-chart__vals {
+    top: 0;
+    left: 118px;
+    right: 54px;
+}
+
+.kit .kit-chart__lbl {
+    position: absolute;
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-size: var(--kit-fs-eyebrow);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    color: var(--kit-ink-3);
+    white-space: nowrap;
+}
+
+.kit .kit-chart__lbl--y {
+    right: 0;
+    text-align: right;
+    transform: translateY(-50%);
+}
+
+.kit .kit-chart__lbl--x {
+    top: 0;
+    transform: translateX(-50%);
+}
+
+/* An area's points sit ON the plot's edges, so the first and last labels are
+   centred on a boundary and hang half of themselves past it. Measured in
+   Chromium: the last label lost 19.9px of 71.9px into a 16px gutter. Pulled
+   inside instead — the point each names is still directly above its own end.
+   ⛭ Same specificity as the rule above, so SOURCE ORDER is what wins here.
+   Written before it, neither would ever apply. */
+.kit .kit-chart__lbl--x-first {
+    transform: none;
+}
+
+.kit .kit-chart__lbl--x-last {
+    transform: translateX(-100%);
+}
+
+/* The static description the svg's aria-describedby points at. Off-screen for
+   sight, present for a screen reader; the readout itself is the live region and
+   cannot also be this, or focusing announces the first value twice.
+   ⛭ Clipped rather than `display: none` or `visibility: hidden`, both of which
+   take an element out of the accessibility tree entirely and would leave the
+   description referring to nothing. */
+.kit .kit-chart__hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* A long name truncates here rather than pushing the plot; the whole string is
+   in the tooltip, so nothing is gated behind the ellipsis. */
+.kit .kit-chart__lbl--cat {
+    left: 0;
+    right: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-sans, Inter, system-ui, sans-serif);
+    font-size: var(--kit-fs-caption);
+    font-variant-numeric: normal;
+    color: var(--kit-ink-2);
+    transform: translateY(-50%);
+}
+
+.kit .kit-chart__lbl--val {
+    color: var(--kit-ink-2);
+    transform: translate(8px, -50%);
+}
+
+.kit .kit-chart__lbl--val-l {
+    transform: translate(calc(-100% - 8px), -50%);
+}
+
+@keyframes kit-chart-fade {
+    /* 🪤 0.01, never 0: a backgrounded tab PAUSES animations, and an element
+       pinned at a zero first keyframe never comes back. See
+       __tests__/portal-invisible-animation.contract.test.js. */
+    from {
+        opacity: 0.01;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* The tooltip is appended to document.body, so its root is the .kit element
+   itself: `.kit.kit-tip`, not `.kit .kit-tip`. Its INNER rules carry that root
+   too, and the leading `.kit` on each is not redundant: `.kit-tip .kit-tip__v`
+   needs no .kit anywhere and would match outside the kit. That is how the five
+   below shipped unscoped; __tests__/kit/scoping.contract.test.js now says so.
+   Under the dialog (99999), the dropdown and date picker (100001) and the
+   toast (999999), because a readout must never cover a control the reader is
+   operating. */
+.kit.kit-tip {
+    position: fixed;
+    z-index: 9998;
+    max-width: 220px;
+    padding: 7px 10px 8px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-rxs);
+    background: var(--kit-surface);
+    box-shadow: var(--kit-pop-2);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, calc(-100% - 10px));
+}
+
+.kit.kit-tip--on {
+    opacity: 1;
+}
+
+/* The value leads and the label follows: the legend's hierarchy inverted,
+   because here the reader already has the series and wants the number. */
+.kit.kit-tip .kit-tip__v {
+    font-size: var(--kit-fs-title);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--kit-ink);
+}
+
+.kit.kit-tip .kit-tip__k {
+    margin-top: 1px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-2);
+}
+
+.kit.kit-tip .kit-tip__row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--kit-line);
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-2);
+}
+
+/* A line key, not a box: at this density a filled swatch is data-weight ink
+   doing a label's job. It mirrors the mark, dash and all. */
+.kit.kit-tip .kit-tip__ln {
+    width: 12px;
+    height: 0;
+    flex: none;
+    border-top: 2px dashed var(--kit-ink-3);
+}
+
+/* The label between the swatch and the number. It takes NO colour and NO size
+   of its own -- both come from .kit-tip__row, and repeating them here would be
+   a second source of truth for one line of text. What it does own is the row's
+   slack. The figure beside it is pushed right by `margin-left: auto`, and a
+   flex item defaults to `min-width: auto`, so without this a label wider than
+   the tip's 220px would refuse to shrink and shove the number past the border.
+   "Previous period" is the only string that reaches it today; this is what
+   keeps a longer one -- a translation, or a caller's series name -- degrading
+   to an ellipsis instead of breaking the row. Measured 2026-09-03: at 56
+   characters the tip caps at 220px, the label ellipses and the number stays
+   inside; the label had been resolving 12px Inter in --kit-ink-2 through
+   inheritance alone, which is the right rendering arrived at by accident. */
+.kit.kit-tip .kit-tip__t {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.kit.kit-tip .kit-tip__n {
+    margin-left: auto;
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-variant-numeric: tabular-nums;
+    color: var(--kit-ink);
+}
+
+/* ===========================================================================
+   The balance card — Kit.balance (js/kit/balance.js)
+
+   Mercury's balance card with the Argus surface (owner, 2026-09-22): a raised
+   card, the figure large with its cents small, the date and the change under
+   it, and the series as a soft area running edge to edge. Colour is the
+   module's (the same rule as .kit-chart__ln): the line in --crm-mod-ink, the
+   wash in --crm-mod, the kit accent outside a module. Good and bad change read
+   the kit's own ok/bad tokens, never the brand red.
+
+   ⛔⛔ ONE SIZE SCALE, NOT A STRETCHED CHART. Owner, 2026-09-22, on the first
+   cut laid two to a row: "way too large ... you were lazy and just scaled
+   them, headers dont expand, they stay the same, the graph becomes larger,
+   things just look magnified instead of intentional". The chart grew into
+   whatever room the row gave it while the words stayed put.
+
+   So the card is a size CONTAINER and picks one of three designed sizes from
+   its own width: compact under 380px (four to a row on a laptop), standard to
+   560px, large above. Every dimension moves together through the --bal-*
+   variables below (padding, label, badge, figure, cents, date line, switch,
+   chart and axis), and the chart has a fixed height per size instead of
+   filling the slot. A container query styles only DESCENDANTS of the
+   container, so the variables are set on the card's children and the card's
+   own box keeps no inline padding: each child carries it, and the chart and
+   table run edge to edge by having none.
+   =========================================================================== */
+.kit .kit-bal {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0;
+    background: var(--ground-raised, var(--kit-surface));
+    border: 1px solid var(--ui-hairline, var(--kit-line));
+    border-radius: 16px;
+    box-shadow: var(--lift-1, none);
+    overflow: hidden;
+    min-width: 0;
+}
+
+/* The scale. Compact is the default; the queries below step it up. */
+.kit .kit-bal > * {
+    --bal-px: 18px;
+    --bal-pt: 16px;
+    --bal-label: 14px;
+    --bal-badge: 24px;
+    --bal-glyph: 13px;
+    --bal-main: 32px;
+    --bal-frac: 18px;
+    --bal-meta: 13px;
+    --bal-meta-top: 10px;
+    --bal-note: 12px;
+    --bal-sw-w: 30px;
+    --bal-sw-h: 26px;
+    --bal-sw-glyph: 15px;
+    --bal-chart-top: 12px;
+    --bal-plot: 96px;
+    --bal-axis: 32px;
+    --bal-tick: 11.5px;
+    --bal-cell: 13px;
+}
+
+@container (min-width: 380px) {
+    .kit .kit-bal > * {
+        --bal-px: 22px;
+        --bal-pt: 18px;
+        --bal-label: 15px;
+        --bal-badge: 26px;
+        --bal-glyph: 14px;
+        --bal-main: 38px;
+        --bal-frac: 21px;
+        --bal-meta: 14px;
+        --bal-meta-top: 12px;
+        --bal-note: 12.5px;
+        --bal-sw-w: 34px;
+        --bal-sw-h: 30px;
+        --bal-sw-glyph: 16px;
+        --bal-chart-top: 14px;
+        --bal-plot: 120px;
+        --bal-axis: 36px;
+        --bal-tick: 12px;
+        --bal-cell: 13.5px;
+    }
+}
+
+@container (min-width: 560px) {
+    .kit .kit-bal > * {
+        --bal-px: 28px;
+        --bal-pt: 22px;
+        --bal-label: 17px;
+        --bal-badge: 30px;
+        --bal-glyph: 16px;
+        --bal-main: 48px;
+        --bal-frac: 26px;
+        --bal-meta: 15px;
+        --bal-meta-top: 14px;
+        --bal-note: 13px;
+        --bal-sw-w: 38px;
+        --bal-sw-h: 34px;
+        --bal-sw-glyph: 18px;
+        --bal-chart-top: 18px;
+        --bal-plot: 150px;
+        --bal-axis: 40px;
+        --bal-tick: 13px;
+        --bal-cell: 14px;
+    }
+}
+
+/* Each text row carries the card's side padding; the chart and table carry
+   none, which is what makes them run edge to edge. The action is a button
+   with padding of its own, so it takes the inset as a margin instead. */
+.kit .kit-bal > :not(.kit-bal__chart):not(.kit-bal__table):not(.kit-bal__act) {
+    padding-inline: var(--bal-px, 18px);
+}
+.kit .kit-bal > .kit-bal__head {
+    padding-top: var(--bal-pt, 16px);
+}
+.kit .kit-bal > .kit-bal__act {
+    margin-inline: var(--bal-px, 18px);
+}
+
+/* No chart (absent, one reading, value only): the card closes on its own
+   inset, and a spring (.kit-bal__gap) puts its action on the floor so a row
+   of cards lines their buttons up. */
+.kit .kit-bal.is-bare > :last-child {
+    margin-bottom: var(--bal-pt, 16px);
+}
+.kit .kit-bal__gap {
+    flex: 1 0 12px;
+}
+.kit .kit-bal__act {
+    align-self: flex-start;
+}
+
+.kit .kit-bal__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.kit .kit-bal__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: var(--bal-sw-h, 26px);
+}
+
+/* One line, always: a label that wraps under a narrow card pushes the figure
+   down and the row stops lining up. The full text is in the badge's title. */
+.kit .kit-bal__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--bal-label, 14px);
+    font-weight: 500;
+    color: var(--kit-ink-2);
+    letter-spacing: -0.005em;
+}
+
+.kit .kit-bal__badge {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: var(--bal-badge, 24px);
+    height: var(--bal-badge, 24px);
+    border-radius: 50%;
+    color: var(--crm-mod-ink, var(--kit-accent));
+    flex: none;
+}
+
+/* The tint is the module colour at 12%, laid under the glyph: a layer, not a
+   literal, so it follows the module and the theme. */
+.kit .kit-bal__badge::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--crm-mod, var(--kit-accent));
+    opacity: 0.12;
+}
+
+.kit .kit-bal__badge svg {
+    position: relative;
+}
+
+/* The source tip: the kit's own, never the browser's `title` tooltip. */
+.kit .kit-bal__badge[data-tip]:is(:hover, [data-kit-force~='hover'])::after,
+.kit .kit-bal__badge[data-tip]:is(:focus-visible, [data-kit-force~='focus'])::after {
+    content: attr(data-tip);
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    z-index: 5;
+    width: max-content;
+    max-width: 240px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: var(--kit-ink);
+    color: var(--kit-surface);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.35;
+    white-space: normal;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+.kit .kit-bal__badge[data-tip]:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 2px;
+}
+/* Dark mode: the tip is a raised dark card, not the ink flipped to white
+   (owner, 2026-09-27: "one of the cards is still white"). Light mode keeps
+   the dark chip, which reads on a white card. */
+body:not(.light-mode) .kit .kit-bal__badge[data-tip]:is(:hover, [data-kit-force~='hover'])::after,
+body:not(.light-mode) .kit .kit-bal__badge[data-tip]:is(:focus-visible, [data-kit-force~='focus'])::after {
+    border: 1px solid var(--kit-line-2);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+    box-shadow: var(--kit-pop-2);
+}
+
+.kit .kit-bal__badge svg,
+.kit .kit-bal__sw svg,
+.kit .kit-bal__arw {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.9;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.kit .kit-bal__badge svg {
+    width: var(--bal-glyph, 13px);
+    height: var(--bal-glyph, 13px);
+}
+
+.kit .kit-bal__switch {
+    display: inline-flex;
+    padding: 2px;
+    gap: 2px;
+    border: 1px solid var(--ui-hairline, var(--kit-line));
+    border-radius: 10px;
+    background: var(--kit-surface-2);
+    flex: none;
+}
+
+.kit .kit-bal__sw {
+    display: grid;
+    place-items: center;
+    width: var(--bal-sw-w, 30px);
+    height: var(--bal-sw-h, 26px);
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--kit-ink-3);
+    cursor: pointer;
+}
+
+.kit .kit-bal__sw svg {
+    width: var(--bal-sw-glyph, 15px);
+    height: var(--bal-sw-glyph, 15px);
+}
+
+.kit .kit-bal__sw[aria-pressed='true'] {
+    background: var(--ground-raised, var(--kit-surface));
+    color: var(--crm-mod-ink, var(--kit-accent));
+    box-shadow: var(--lift-1, none);
+}
+
+.kit .kit-bal__sw:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-bal__plot:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--crm-mod-ink, var(--kit-accent));
+    outline-offset: 2px;
+}
+
+.kit .kit-bal__fig {
+    display: flex;
+    align-items: flex-start;
+    margin-top: 2px;
+    color: var(--kit-ink);
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+
+.kit .kit-bal__main {
+    font-size: var(--bal-main, 32px);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+}
+
+/* The cents sit high and small, the way a statement prints them. */
+.kit .kit-bal__frac {
+    font-size: var(--bal-frac, 18px);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-top: 0.15em;
+}
+
+/* "Not set up" / "Not loaded" is a sentence, not a figure: half the size. */
+.kit .kit-bal.is-absent .kit-bal__main {
+    font-size: calc(var(--bal-main, 32px) * 0.55);
+    color: var(--kit-ink-3);
+    letter-spacing: 0;
+}
+
+.kit .kit-bal__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: var(--bal-meta-top, 10px);
+    font-size: var(--bal-meta, 13px);
+    line-height: 1.4;
+    color: var(--kit-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.kit .kit-bal__note {
+    font-size: var(--bal-note, 12px);
+    line-height: 1.45;
+    color: var(--kit-ink-3);
+}
+.kit .kit-bal__when {
+    min-width: 0;
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-bal__delta {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    gap: 5px;
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-bal__delta.is-good .kit-bal__arw {
+    color: var(--kit-ok);
+}
+
+.kit .kit-bal__delta.is-bad .kit-bal__arw {
+    color: var(--kit-bad);
+}
+
+.kit .kit-bal__arw {
+    width: 1.05em;
+    height: 1.05em;
+}
+
+/* Edge to edge: the chart carries no side inset, as Mercury's does. A fixed
+   height per size, never "whatever room is left": a chart that fills the slot
+   is the magnified look this card was redesigned to lose. */
+.kit .kit-bal__chart {
+    margin-top: var(--bal-chart-top, 12px);
+}
+
+.kit .kit-bal__plot {
+    position: relative;
+    height: var(--bal-plot, 96px);
+    cursor: crosshair;
+    touch-action: pan-y;
+}
+
+.kit .kit-bal__svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.kit .kit-bal__ln {
+    fill: none;
+    stroke: var(--crm-mod-ink, var(--kit-accent));
+    stroke-width: 1.75;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.kit .kit-bal__fill {
+    stroke: none;
+}
+
+.kit .kit-bal__stop-a {
+    stop-color: var(--crm-mod, var(--kit-accent));
+    stop-opacity: 0.16;
+}
+
+.kit .kit-bal__stop-b {
+    stop-color: var(--crm-mod, var(--kit-accent));
+    stop-opacity: 0.02;
+}
+
+.kit .kit-bal__rule {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    margin-left: -0.5px;
+    background: var(--crm-mod-ink, var(--kit-accent));
+    pointer-events: none;
+}
+
+.kit .kit-bal__dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    border: 1.75px solid var(--crm-mod-ink, var(--kit-accent));
+    background: var(--ground-raised, var(--kit-surface));
+    pointer-events: none;
+}
+
+.kit .kit-bal__axis {
+    position: relative;
+    height: var(--bal-axis, 32px);
+    border-top: 1px solid var(--ui-hairline, var(--kit-line));
+}
+
+.kit .kit-bal__tick {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: var(--bal-tick, 11.5px);
+    color: var(--kit-ink-3);
+    white-space: nowrap;
+}
+
+.kit .kit-bal__tick.is-start {
+    transform: translateY(-50%);
+    padding-left: var(--bal-px, 18px);
+}
+
+.kit .kit-bal__tick.is-end {
+    transform: translate(-100%, -50%);
+    padding-right: var(--bal-px, 18px);
+}
+
+.kit .kit-bal__table {
+    margin-top: var(--bal-chart-top, 12px);
+    max-height: calc(var(--bal-plot, 96px) + var(--bal-axis, 32px));
+    overflow-y: auto;
+    border-top: 1px solid var(--ui-hairline, var(--kit-line));
+}
+
+.kit .kit-bal__tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--bal-cell, 13px);
+    font-variant-numeric: tabular-nums;
+}
+
+.kit .kit-bal__tbl th {
+    position: sticky;
+    top: 0;
+    padding: 8px var(--bal-px, 18px);
+    background: var(--ground-raised, var(--kit-surface));
+    font-size: calc(var(--bal-cell, 13px) - 1.5px);
+    font-weight: 600;
+    text-align: left;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-bal__tbl td {
+    padding: 7px var(--bal-px, 18px);
+    border-top: 1px solid var(--ui-hairline, var(--kit-line));
+    color: var(--kit-ink);
+}
+
+.kit .kit-bal__tbl .is-num {
+    text-align: right;
+}
+
+/* Motion: the first look at a card on a visit to its page (Kit.motion,
+   js/kit/motion.js). The card waits at 1% while it is off screen, rises into
+   place in a cascade with its neighbours, and its line draws in left to right
+   while the figure counts up. JS sets each delay inline, since the step is the
+   card's place in its row; every duration here is a kit token, so the
+   reduced-motion block at the end of the file stops all of it. */
+.kit .kit-bal.is-waiting {
+    opacity: 0.01;
+}
+
+.kit .kit-bal.is-arriving {
+    animation: kit-bal-arrive var(--kit-dur-panel) var(--kit-ease) both;
+}
+
+/* A clip, not a dash offset: the line keeps a non-scaling stroke on a
+   stretched viewBox, so a dash reveal would run at the wrong speed along it. */
+.kit .kit-bal__plot.is-waiting .kit-bal__svg {
+    clip-path: inset(0 100% 0 0);
+}
+
+.kit .kit-bal__plot.is-drawing .kit-bal__svg {
+    animation: kit-bal-draw calc(var(--kit-dur-panel) * 4) var(--kit-ease) both;
+}
+
+@keyframes kit-bal-arrive {
+    from {
+        opacity: 0.01;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes kit-bal-draw {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+
+/* ===========================================================================
+   The help banner — Kit.helpBanner (js/kit/help.js)
+
+   The Documents explainer as a kit part (owner, 2026-09-22: "love the type of
+   help section documents has and the items it has on the right"). Words on
+   the left, a light plate of up to four doors on the right. Geometry follows
+   css/documents.css `.doc-banner` so the two read as one family.
+   =========================================================================== */
+.kit .kit-help {
+    /* A container, so the plate answers to the banner's own width: the
+       Employees panel and a phone are both narrow on a wide viewport. */
+    container: kit-help / inline-size;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: stretch;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rl);
+    background: var(--kit-surface);
+    overflow: hidden;
+}
+
+.kit .kit-help__body {
+    padding: 24px;
+    min-width: 0;
+}
+
+.kit .kit-help__title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: var(--kit-fs-title);
+    font-weight: 600;
+    color: var(--kit-ink);
+}
+
+.kit .kit-help__title svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+
+/* The sparkle is the one filled glyph; every other icon here is stroked. */
+.kit .kit-help__title svg .is-solid {
+    fill: currentColor;
+    stroke: none;
+}
+
+.kit .kit-help__chip {
+    padding: 2px 8px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rxs);
+    background: var(--kit-surface-2);
+    font-size: var(--kit-fs-eyebrow);
+    font-weight: 600;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-help__lead {
+    margin: 10px 0 0;
+    max-width: 64ch;
+    font-size: var(--kit-fs-body);
+    line-height: 1.55;
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-help__acts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.kit .kit-help__act svg,
+.kit .kit-help__door svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.kit .kit-help__act svg {
+    width: 14px;
+    height: 14px;
+}
+
+.kit .kit-help__plate {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px 28px;
+    /* ⛭ NO POCKET (owner 2026-09-26, dark mode: "why is right pocket white
+       space there"). The doors sit on the banner itself; a plate in a second
+       shade made the right third read as an empty box. The raised doors carry
+       their own fill and hairline, so they still read as buttons. */
+    background: transparent;
+}
+
+.kit .kit-help__door {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 88px;
+    height: 88px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    background: var(--kit-door);
+    box-shadow: var(--kit-door-lift);
+    color: var(--kit-door-ink);
+    font: inherit;
+}
+
+.kit .kit-help__door svg {
+    width: 26px;
+    height: 26px;
+}
+
+/* The sparkle door ("Ideas") is filled, like the title's sparkle. */
+.kit .kit-help__door svg .is-solid {
+    fill: currentColor;
+    stroke: none;
+}
+
+.kit .kit-help__door-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--kit-door-label);
+}
+
+.kit .kit-help__door.is-go {
+    cursor: pointer;
+    transition:
+        box-shadow var(--kit-dur) var(--kit-ease),
+        transform var(--kit-dur) var(--kit-ease);
+}
+
+/* Both state rules also answer the UI library's forced state (pick
+   banners__page-explainer): the selector changed, nothing a page sees did. */
+.kit .kit-help__door.is-go:is(:hover, [data-kit-force~='hover']) {
+    box-shadow: var(--kit-door-lift-2);
+    transform: translateY(-1px);
+}
+
+.kit .kit-help__door.is-go:is(:focus-visible, [data-kit-force~='focus']) {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 2px;
+}
+
+/* Motion: the first look on a visit (Kit.motion.reveal, from help.js). The
+   banner rises in just after the KPI row above it and its doors pop in one
+   after another; help.js sets each delay inline. `backwards` on the doors, so
+   a finished pop never pins the transform the door's hover lift uses. */
+.kit .kit-help.is-motion-waiting {
+    opacity: 0.01;
+}
+
+.kit .kit-help.is-motion-playing {
+    animation: kit-help-arrive var(--kit-dur-panel) var(--kit-ease) both;
+}
+
+.kit .kit-help.is-motion-playing .kit-help__door {
+    animation: kit-help-door var(--kit-dur-panel) var(--kit-ease) backwards;
+}
+
+@keyframes kit-help-arrive {
+    from {
+        opacity: 0.01;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes kit-help-door {
+    from {
+        opacity: 0.01;
+        transform: translateY(6px) scale(0.94);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Narrow: the words carry the banner and the plate goes, as on Documents.
+   Four doors take 444px, and beside less than ~320px of words the sentences
+   stack five lines deep. With the plate gone its `auto` column is empty, so
+   the words take the full width. */
+@container kit-help (max-width: 759px) {
+    .kit .kit-help__plate {
+        display: none;
+    }
+}
+
+/* ===========================================================================
+   The guide — Kit.guide (js/kit/guide.js), "Argus suggests"
+
+   The next things to do, in order, each with the one button that does it
+   (owner, 2026-09-24: "we guide them, pretty much idiot proof it"). The number
+   badge carries the urgency: amber for today, accent for this week, neutral
+   for a good idea. Every button is the quiet pill; a page's one filled action
+   stays in its header.
+   =========================================================================== */
+.kit .kit-guide {
+    padding: 20px 24px 22px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-rl);
+    background: var(--kit-surface);
+}
+
+.kit .kit-guide__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.kit .kit-guide__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--kit-fs-title);
+    font-weight: 600;
+    color: var(--kit-ink);
+}
+
+.kit .kit-guide__title svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+
+.kit .kit-guide svg path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.kit .kit-guide svg .is-solid {
+    fill: currentColor;
+    stroke: none;
+}
+
+.kit .kit-guide__count {
+    padding: 3px 10px;
+    border-radius: var(--kit-r-tag);
+    background: var(--kit-accent-tint);
+    color: var(--kit-accent-ink);
+    font-size: var(--kit-fs-eyebrow);
+    font-weight: 700;
+}
+
+.kit .kit-guide__lead {
+    margin: 6px 0 0;
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-guide__list {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.kit .kit-guide__step {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r);
+    background: var(--kit-surface-2);
+}
+
+.kit .kit-guide__num {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--kit-accent-tint);
+    color: var(--kit-accent-ink);
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.kit .kit-guide__step.is-now .kit-guide__num {
+    background: var(--kit-warn-tint);
+    color: var(--kit-warn);
+}
+
+.kit .kit-guide__step.is-tip .kit-guide__num {
+    background: var(--kit-surface);
+    color: var(--kit-ink-3);
+    box-shadow: inset 0 0 0 1px var(--kit-line);
+}
+
+.kit .kit-guide__words {
+    min-width: 0;
+}
+
+.kit .kit-guide__step-title {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--kit-ink);
+}
+
+.kit .kit-guide__tone {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-guide__step.is-now .kit-guide__tone {
+    color: var(--kit-warn);
+}
+
+.kit .kit-guide__why {
+    margin-top: 3px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--kit-ink-2);
+}
+
+.kit .kit-guide__rest {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: var(--kit-r);
+    background: var(--kit-surface-2);
+}
+
+.kit .kit-guide__mark {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--kit-ok-tint);
+    color: var(--kit-ok);
+}
+
+.kit .kit-guide__mark svg {
+    width: 20px;
+    height: 20px;
+}
+
+.kit .kit-guide__rest.is-failed svg {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    color: var(--kit-warn);
+}
+
+.kit .kit-guide__rest-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--kit-ink);
+}
+
+.kit .kit-guide__rest-body {
+    margin-top: 2px;
+    font-size: 13px;
+    color: var(--kit-ink-2);
+}
+
+/* Motion: the steps slide in one after another, and the check pops, the
+   first time the list is seen on a visit (Kit.motion.reveal, from guide.js).
+   guide.js sets each step's delay inline; `backwards` so nothing is pinned. */
+.kit .kit-guide.is-motion-waiting .kit-guide__step,
+.kit .kit-guide.is-motion-waiting .kit-guide__mark {
+    opacity: 0.01;
+}
+
+.kit .kit-guide.is-motion-playing .kit-guide__step {
+    animation: kit-guide-step var(--kit-dur-panel) var(--kit-ease) backwards;
+}
+
+.kit .kit-guide.is-motion-playing .kit-guide__mark {
+    animation: kit-guide-mark calc(var(--kit-dur-panel) * 2) var(--kit-ease) backwards;
+}
+
+@keyframes kit-guide-step {
+    from {
+        opacity: 0.01;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes kit-guide-mark {
+    0% {
+        opacity: 0.01;
+        transform: scale(0.4);
+    }
+    60% {
+        opacity: 1;
+        transform: scale(1.15);
+    }
+    100% {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* Kit.table `hideSm` columns: gone on a phone, cells, header and <col>. */
+@media (max-width: 640px) {
+    .kit .kit-table .is-hide-sm {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .kit .kit-guide__step {
+        grid-template-columns: 30px minmax(0, 1fr);
+    }
+    .kit .kit-guide__go {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
+
+/* Loading (Kit.guide({ loading: true })): the reads are still out. A quiet
+   clock where the check would be, in neutral ink: nothing has been checked,
+   so nothing is green. It does not move. */
+.kit .kit-guide__wait {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--kit-surface);
+    box-shadow: inset 0 0 0 1px var(--kit-line);
+    color: var(--kit-ink-3);
+}
+
+.kit .kit-guide__wait svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* Compact (Kit.guide({ compact: true })): sized for a 312px rail beside a
+   page's main column. The button drops under the words instead of fighting
+   them for the row, and the padding tightens so four steps still fit above
+   the fold. */
+.kit .kit-guide.is-compact {
+    padding: 16px 16px 18px;
+}
+
+.kit .kit-guide.is-compact .kit-guide__list {
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.kit .kit-guide.is-compact .kit-guide__step {
+    grid-template-columns: 26px minmax(0, 1fr);
+    align-items: start;
+    gap: 6px 10px;
+    padding: 12px;
+}
+
+.kit .kit-guide.is-compact .kit-guide__num {
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+}
+
+.kit .kit-guide.is-compact .kit-guide__step-title {
+    font-size: 13.5px;
+    line-height: 1.35;
+}
+
+.kit .kit-guide.is-compact .kit-guide__why {
+    font-size: 12.5px;
+}
+
+.kit .kit-guide.is-compact .kit-guide__go {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 4px;
+}
+
+.kit .kit-guide.is-compact .kit-guide__rest {
+    align-items: flex-start;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 12px;
+}
+
+/* ---------------------------------------------------------------------------
+ * ⛔⛔ `hidden` IS THE WEAKEST RULE IN THE DOCUMENT, AND THIS IS WHERE IT WINS.
+ *
+ * The attribute works through the user-agent sheet's `[hidden] { display: none
+ * }`, which is the lowest-priority rule there is, so it loses to ANY author
+ * rule that sets a display. This repo has already shipped that bug: two sign-in
+ * forms rendered at once (#2449) because a `display: flex` outranked the
+ * `hidden` on one of them. Kit.field, Kit.form and Kit.tabs all hide an empty
+ * error, an empty help line and a count with no number this way.
+ *
+ * ⛔ IT SITS HERE, NEAR THE END, AND NOT UP WITH THE ROOT. `.kit [hidden]` is
+ * (0,2,0), exactly the same as every `.kit .kit-x { display: … }` above it, so
+ * source order is the whole of its advantage. Written earlier it would lose to
+ * the very rules it exists to beat, and no `!important` is needed to fix
+ * something that ordering already settles. Nothing that sets a display may be
+ * written below it: Task 8 inserts the chart section ABOVE this rule for that
+ * reason, and only the coarse-pointer and reduced-motion blocks follow it.
+ * ------------------------------------------------------------------------- */
+/* ⛔ BOTH FORMS, AND THE COMPOUND ONE IS NOT OPTIONAL. The popover, the modal
+   and the drawer are appended to <body> with `.kit` on the element ITSELF, so a
+   descendant `.kit [hidden]` has no ancestor to match and never reaches them —
+   and `.kit.kit-modal, .kit.kit-drawer { display: flex }` is (0,2,0), so a
+   dialog carrying the `hidden` attribute rendered anyway. That is the same
+   two-forms trap the calendar's padding fell into, and the detached-root guard
+   in __tests__/kit/type-motion.contract.test.js now holds this rule to it. */
+.kit[hidden],
+.kit [hidden] {
+    display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Focus. One ring for every control this file adds.
+ *
+ * css/main.css:3108-3111 puts a red #ff3131 outline on `:focus-visible` at
+ * (0,1,0) for the whole app; these are (0,2,0) and take the kit's accent
+ * instead, which is the same gesture in the module's own palette. Grouped the
+ * way Employees groups its four (css/employees.css:1131-1137), so a guard that
+ * looks these up must match `:focus-visible` inside a selector LIST and not
+ * only `sel:focus-visible {`. Task 3's already does: it splits a rule's
+ * selector on commas and asks whether the list CONTAINS the one it wants.
+ *
+ * `.kit-btn` is not here because Task 3 wrote its ring standalone; every other
+ * control the sheet enumerates is.
+ * ------------------------------------------------------------------------- */
+.kit .kit-tab:focus-visible,
+.kit .kit-seg:focus-visible,
+.kit .kit-kpi--link:focus-visible,
+.kit .kit-row--link:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-lrow:focus-visible,
+.kit .kit-period__seg:focus-visible,
+.kit .kit-paging__btn:focus-visible,
+.kit .kit-input:focus-visible,
+.kit .kit-select__btn:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-toggle:focus-visible,
+.kit .kit-pop__opt:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-cal__cell:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-cal__nav:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-range__preset:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-modal__x:is(:focus-visible, [data-kit-force~='focus']),
+.kit .kit-drawer__x:focus-visible {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * ⛔⛔ THE TOUCH FLOOR IS REINSTATED HERE, AND THE ORDER MATTERS. Every control
+ * above resets `min-height` and `min-width` so a 32px button is 32px on a
+ * desktop; on a touch screen the 44px floor from css/main.css:3114-3121 is the
+ * right answer and this block puts it back. A @media block placed ABOVE the
+ * rules it overrides has the same specificity and LOSES. This codebase has
+ * shipped that exact mistake, and every CSS guard here strips at-rules before
+ * looking at selectors, so not one of them can see it. Do not reorder.
+ *
+ * ⛔ WIDTH IS A PER-CONTROL DECISION AND IT IS MADE HERE, CONTROL BY CONTROL,
+ * against that control's SHORTEST REAL LABEL. `.kit-btn` gets no width back
+ * because 30px of padding plus two hairlines around a word already clears 44px
+ * across; that argument is about a word-length label and does not carry to a
+ * control whose label can be one character. Nine controls here cannot clear
+ * the floor on their own and get their width back:
+ *
+ *   .kit-seg          "7D" measures 41px
+ *   .kit-period__seg  "7D" measures 33px, the smallest target in the sheet.
+ *                     A 44px floor takes a five-segment bar from 226px to
+ *                     244px, which still fits a 375px phone and a full-width
+ *                     KPI card.
+ *   .kit-paging__btn  "3" measures 33px
+ *   .kit-cal__cell    a day number in a repeat(7, minmax(0, 1fr)) grid
+ *                     measures 31px inside the 238px month: the fiddliest
+ *                     target in the kit and the one a phone needs most. Its
+ *                     floor forces a layout change, which is why a SECOND
+ *                     block follows this one.
+ *   .kit-cal__nav     32px square, sized by its head's 32px grid track; the
+ *                     1fr title column between the two absorbs the growth
+ *   .kit-range__preset 133px while the rail is a 150px column, but the rail
+ *                     stacks into a wrapping row on a small screen and the
+ *                     preset then shrinks to its content: 40px on "7D"
+ *   .kit-toggle       34px track in 4px of padding is 38px when the switch
+ *                     carries no label
+ *   .kit-modal__x     width: 32px; min-width raises the used width, as intended
+ *   .kit-drawer__x    the same
+ *
+ * ⛭ EVERY FIGURE ABOVE IS A MEASUREMENT, NOT AN ESTIMATE: Chromium, standards
+ * mode, fonts.css + main.css + shell-theme.css + this sheet, Inter resolved,
+ * read with offsetWidth/offsetHeight. Read them with getBoundingClientRect
+ * instead and they come back nine tenths of these numbers, because
+ * `.portal-main` carries zoom: 0.9 — see the note in the layout block below.
+ *
+ * The other nine keep the height alone. `.kit-tab` clears 44px with 28px of
+ * padding around a word; `.kit-kpi--link`, `.kit-row--link` and `.kit-lrow`
+ * are full-width blocks; `.kit-input` and `.kit-select__btn` are width: 100%;
+ * `.kit-pop__opt` fills a popover that is at least 180px wide.
+ *
+ * ⛭ THE DAY CELL'S FLOOR FORCES A LAYOUT CHANGE, AND THE LAYOUT LIVES IN THE
+ * NEXT BLOCK, NOT THIS ONE. Seven 44px columns plus six 2px gaps is 320px,
+ * which a fixed 238px `.kit-cal__month` cannot hold. The month has to become
+ * fluid (7 x 44px plus six 2px gaps is 320px against a 226px content box, an
+ * overflow of 94px), and `.kit-cal__month` is not a control: naming it here
+ * would put a
+ * name in a list the buttons contract test reads as the enumerated controls
+ * and make that assertion meaningless. So this block stays a contract about
+ * controls, and the block immediately after it carries the layout the floor
+ * requires.
+ *
+ * The list is EXACTLY the `INTERACTIVE` list in
+ * __tests__/kit/buttons.contract.test.js, in both directions, so a control
+ * cannot be given the floor back without resetting it or reset it without being
+ * given it back. `.kit-kpi--link` and `.kit-row--link` are already far taller
+ * than 44px and are named anyway, because the guard compares sets rather than
+ * guessing which entries could safely be left out.
+ * ------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+    .kit .kit-btn,
+    .kit .kit-tab,
+    .kit .kit-seg,
+    .kit .kit-kpi--link,
+    .kit .kit-lrow,
+    .kit .kit-period__seg,
+    .kit .kit-paging__btn,
+    .kit .kit-input,
+    .kit .kit-select__btn,
+    .kit .kit-toggle,
+    .kit .kit-pop__opt,
+    .kit .kit-cal__cell,
+    .kit .kit-cal__nav,
+    .kit .kit-range__preset,
+    .kit .kit-modal__x,
+    .kit .kit-drawer__x {
+        min-height: 44px;
+    }
+
+    /* The nine whose shortest real label leaves them under the floor across,
+       reasoned one by one in the header above. */
+    .kit .kit-seg,
+    .kit .kit-period__seg,
+    .kit .kit-paging__btn,
+    .kit .kit-cal__cell,
+    .kit .kit-cal__nav,
+    .kit .kit-range__preset,
+    .kit .kit-toggle,
+    .kit .kit-modal__x,
+    .kit .kit-drawer__x {
+        min-width: 44px;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * The layout the floors above force, and nothing else.
+ *
+ * ⛔ THIS IS A SECOND COARSE-POINTER BLOCK ON PURPOSE, AND IT MUST NOT BE
+ * MERGED INTO THE ONE ABOVE. That block is a CONTRACT ABOUT CONTROLS:
+ * __tests__/kit/buttons.contract.test.js reads it as the list of every control
+ * the sheet resets the floor on, asserts it names EXACTLY the `INTERACTIVE`
+ * classes and nothing else, and checks each named selector's own rule for its
+ * 44px. A layout rule living in there would put a non-control in that list and
+ * make the assertion meaningless. This block is the consequence of those
+ * floors, not a list of controls, and the guard reads only the first block —
+ * so the separation is what keeps both honest.
+ *
+ * `.kit-cal__month` stops being a number and becomes its own content. At 238px
+ * fixed it cannot hold the seven 44px columns and six 2px gaps the day cell's
+ * floor produces; `max-content` is exactly that grid plus the month's own
+ * 6px side padding, so the panel follows the cells instead of clipping them.
+ * Measured at a 375px viewport with the preference on: the month computes to
+ * 332px, the grid to 320px, every cell to 44 x 44, and the month's scroll width
+ * equals its client width, so nothing overflows and the page does not scroll
+ * sideways.
+ *
+ * `.kit-cal__head` widens with it, and this one is NOT optional. Its tracks are
+ * `32px minmax(0, 1fr) 32px`, sized for a 32px chevron; the nav's own 44px
+ * floor overflows a 32px track, and measurement caught it doing exactly that —
+ * the left chevron overlapping the month title by 12px and the right one
+ * running 12px past the panel's content edge. Matching the side tracks to the
+ * floor puts both back inside: 44 + 232 + 44 is the same 320px the grid is.
+ *
+ * Nothing else has to move: `.kit-pop` is position: fixed with its own
+ * overflow-y, and `.kit-range__months` is a wrapping flex row, so both absorb
+ * a wider month with the rules they already have.
+ * ------------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+    .kit .kit-cal__month {
+        width: max-content;
+    }
+
+    .kit .kit-cal__head {
+        grid-template-columns: 44px minmax(0, 1fr) 44px;
+    }
+
+    /* ⛔ THE ACTIVATABLE ROW'S TOUCH TARGET, AND `height` IS THE PROPERTY THAT
+       WORKS. `min-height` is ignored by a table-row AND a table-cell box; what
+       CSS 2.1 does honour on a cell is `height`, which it treats as a MINIMUM.
+       So the floor is a height, on the cells, and the row is the max of its
+       cells.
+
+       Padding would reach the same number today, and the reason to prefer a
+       height is simply that a height states the floor instead of deriving it:
+       padding plus a line box lands on 44px only for as long as nothing
+       changes the type, and the type is set in three sheets that this one does
+       not own. A height does not move with the cascade.
+
+       Measured in Chromium at 375px, coarse pointer, standards mode, with
+       fonts.css, main.css, shell-theme.css and this sheet loaded and Inter
+       actually resolved: activatable row 44px against a plain row of 41px.
+
+       Scoped to `.kit-row--link`: a plain data table has nothing to tap and
+       keeps its compact rows.
+
+       ⛭ AND ONE THING THIS MEASUREMENT TURNED UP THAT IS BIGGER THAN THE ROW.
+       css/main.css:90 ships `--page-zoom: 0.9` and `.portal-main` carries
+       `zoom: 0.9`, so everything the kit renders INSIDE the page chrome is
+       scaled to nine tenths: this 44px cell reaches the reader as 39.6px, and
+       so does every other 44px floor in this file. Dialogs and popovers are
+       appended to <body>, outside `.portal-main`, and are not scaled — so the
+       same control is two different physical sizes depending on where it is
+       drawn. The floors here are all written in CSS pixels and are internally
+       consistent; whether the kit should compensate for the page zoom is a
+       decision above this file, and it is recorded here rather than silently
+       absorbed. */
+    .kit .kit-row--link .kit-td {
+        height: 44px;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+ * ⛔ REDUCED MOTION. THIS IS THE LAST RULE IN THE FILE AND
+ * __tests__/kit/type-motion.contract.test.js SAYS SO. Tasks 7 and 8 add forms,
+ * modal, drawer and chart rules ABOVE it. A rule written below it is a rule the
+ * preference cannot reach, at the same specificity, and every other CSS guard
+ * in this repo strips at-rules first, so not one of them can see the mistake.
+ *
+ * Collapsing the three duration tokens stops the whole sheet at once, including
+ * rules that do not exist yet, instead of every one of them having to remember
+ * `transition: none`. That is also why no duration in this file is ever a
+ * literal: a hard-coded 220ms would simply not hear this. css/main.css:3129-3137
+ * already forces 0.01ms on everything with !important in the product; this
+ * block is what makes the sheet correct read on its own, in the harness and in
+ * a test.
+ *
+ * .kit-enter is named outright as well: at 1ms the rise is imperceptible, and
+ * naming it means a region rendered during the preference does not step through
+ * a transform at all.
+ * ------------------------------------------------------------------------- */
+/* The person's own Motion choice (Settings > Preferences: Reduce, published as
+   <html data-motion="reduce"> and put back at boot by index.html) stops the
+   sheet the way the computer's setting below does: the same three tokens and
+   the same two named animations. The dark scope is named for the same reason
+   as below; at (0,2,1) the first selector ties the dark block and wins on
+   order, the second outranks it outright. */
+html[data-motion='reduce'] .kit,
+html[data-motion='reduce'] body:not(.light-mode) .kit {
+    --kit-dur: 1ms;
+    --kit-dur-panel: 1ms;
+    --kit-dur-exit: 1ms;
+}
+
+html[data-motion='reduce'] .kit .kit-enter,
+html[data-motion='reduce'] .kit .kit-chart__fill {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /* ⛔ BOTH SELECTORS, AND THE SECOND ONE IS NOT DECORATION. `.kit` alone is
+       (0,1,0). It beats the LIGHT token block, which is also `.kit`, on source
+       order — but the DARK block is `body:not(.light-mode) .kit`, (0,2,1), and
+       outranks it whatever the order. Measured in Chromium with the condition
+       forced on and `.kit` alone: light collapsed to 1ms while dark stayed at
+       150ms, 240ms and 180ms, so half the users got no collapse at all and the
+       exit timer js/kit/forms.js reads off the root kept its full duration.
+       Matching the dark scope ties its specificity and wins on order. */
+    .kit,
+    body:not(.light-mode) .kit {
+        --kit-dur: 1ms;
+        --kit-dur-panel: 1ms;
+        --kit-dur-exit: 1ms;
+    }
+
+    .kit .kit-enter {
+        animation: none;
+    }
+
+    /* The token collapse above already takes --kit-dur-panel to 1ms, so this is
+       belt and braces: the wash is never animated at all under the preference,
+       rather than animated for a millisecond. */
+    .kit .kit-chart__fill {
+        animation: none;
+    }
+
+    .kit .kit-kpi--link:hover {
+        transform: none;
+    }
+
+    /* The balance card's first look: no rise, no draw, nothing held back. */
+    .kit .kit-bal.is-arriving,
+    .kit .kit-bal__plot.is-drawing .kit-bal__svg {
+        animation: none;
+    }
+
+    .kit .kit-bal.is-waiting {
+        opacity: 1;
+    }
+
+    .kit .kit-bal__plot.is-waiting .kit-bal__svg {
+        clip-path: none;
+    }
+
+    /* The help banner's first look: no rise, no pop, nothing held back. */
+    .kit .kit-help.is-motion-playing,
+    .kit .kit-help.is-motion-playing .kit-help__door {
+        animation: none;
+    }
+
+    .kit .kit-help.is-motion-waiting {
+        opacity: 1;
+    }
+
+    /* The guide's first look: no slide, no pop. */
+    .kit .kit-guide.is-motion-playing .kit-guide__step,
+    .kit .kit-guide.is-motion-playing .kit-guide__mark {
+        animation: none;
+    }
+
+    .kit .kit-guide.is-motion-waiting .kit-guide__step,
+    .kit .kit-guide.is-motion-waiting .kit-guide__mark {
+        opacity: 1;
+    }
+}

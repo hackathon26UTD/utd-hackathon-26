@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" width="640" height="360">
+  <!-- The UI library's stand-in for a camera frame: an empty store aisle
+       drawn from flat shapes. No person, no real footage, no store. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#23252a"/>
+      <stop offset="1" stop-color="#34373d"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3d44"/>
+      <stop offset="1" stop-color="#4a4e56"/>
+    </linearGradient>
+    <radialGradient id="light" cx="0.5" cy="0.35" r="0.6">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#wall)"/>
+  <polygon points="0,360 640,360 460,262 180,262" fill="url(#floor)"/>
+  <polygon points="0,20 180,90 180,262 0,330" fill="#3b3e45"/>
+  <polygon points="640,20 460,90 460,262 640,330" fill="#3b3e45"/>
+  <g opacity="0.75">
+    <rect x="14" y="78" width="150" height="10" fill="#8a7550"/>
+    <rect x="14" y="150" width="150" height="10" fill="#5f7a8f"/>
+    <rect x="14" y="222" width="150" height="10" fill="#7d5a6a"/>
+    <rect x="476" y="78" width="150" height="10" fill="#6f8a55"/>
+    <rect x="476" y="150" width="150" height="10" fill="#8f5f5a"/>
+    <rect x="476" y="222" width="150" height="10" fill="#5f5f8f"/>
+  </g>
+  <rect x="180" y="90" width="280" height="172" fill="#2a2c31"/>
+  <rect width="640" height="360" fill="url(#light)"/>
+</svg>
