@@ -1,12 +1,14 @@
 import { HttpError } from './http.js';
 import { correlateSignals } from './system-evidence.js';
 import { powerBudget } from '../domain/system-policy.js';
+import { sensorChecks, reviewActionSupport } from './system-review.js';
 
 // A conservative transport budget, not an exact tokenizer count. The caller also
 // bounds the complete conversation before every model call.
 export const MODEL_REQUEST_CHARS = 16000;
 export const MODEL_CONVERSATION_RESERVE_CHARS = 2000;
-export const MODEL_AGENT_PACK_TOKENS = 1200;
+// Fits every required pack section; optional status-ladder prose is already represented by tool policies.
+export const MODEL_AGENT_PACK_TOKENS = 1100;
 
 const time = value => value && Number.isFinite(Date.parse(value)) ? Date.parse(value) : null;
 const order = row => time(row.observedAt || row.detectedAt) ?? time(row.receivedAt) ?? 0;
@@ -20,31 +22,36 @@ const latestBy = (rows, key) => {
 export function prepareModelEvidence({ evidence, externalContext, budget, goalHours = 24, maxChars = 6000 }) {
   evidence = { devices: [], ...evidence };
   const relations = correlateSignals(evidence);
+  const checks = sensorChecks(evidence);
   const policies = { policies: evidence.policies, budget: powerBudget(evidence.policies, budget, goalHours) };
-  const devices = evidence.devices.map(d => ({ id: d.id, homeId: d.homeId ?? null,
+  const devices = evidence.devices.map(d => ({ id: d.id,
     lastReceivedAt: d.lastReceivedAt ?? null, latchedCritical: d.latchedCritical === true,
-    helpObservation: d.helpObservation ?? null }));
+    helpObservation: d.helpObservation ?? null,
+    latestFreshness: { fresh: Object.entries(d.latest || {}).filter(([, row]) => row.stale === false).map(([sensor]) => sensor),
+      stale: Object.entries(d.latest || {}).filter(([, row]) => row.stale === true).map(([sensor]) => sensor) } }));
   const indexes = new Map(devices.map((d, i) => [d.id, i]));
   const origin = time(evidence.generatedAt);
-  const offset = value => time(value) === null || origin === null ? null : time(value) - origin;
+  const ageSeconds = value => time(value) === null || origin === null ? null : (origin - time(value)) / 1000;
   const byId = new Map(evidence.observations.map(o => [o.id, o]));
   const latest = latestBy(evidence.observations, o => `${o.deviceId}:${o.sensor}`);
   // Prefer the exact latest record chosen by the evidence loader on timestamp ties.
   const mandatory = new Set([...latest, ...evidence.devices.flatMap(d => Object.values(d.latest || {}))].map(o => o.id));
   for (const relation of relations.relations) for (const id of relation.evidenceIds) mandatory.add(id);
+  for (const check of checks.items) for (const id of check.evidenceIds) mandatory.add(id);
   const mandatoryEvents = new Set(latestBy(evidence.events, e => `${e.deviceId}:${e.type}`).map(e => e.id));
   for (const d of evidence.devices) if (d.helpObservation?.evidenceId) mandatoryEvents.add(d.helpObservation.evidenceId);
   const observationIds = new Set(), eventIds = new Set(), contextIds = new Set();
   const observationRow = o => [o.id, indexes.get(o.deviceId), o.sensor, o.value,
-    offset(o.observedAt), offset(o.receivedAt), o.stale, o.delayed, mandatory.has(o.id)];
-  const eventRow = e => [e.id, indexes.get(e.deviceId), e.type, offset(e.observedAt), offset(e.receivedAt)];
+    ageSeconds(o.observedAt), ageSeconds(o.receivedAt), o.stale, o.delayed, mandatory.has(o.id)];
+  const eventRow = e => [e.id, indexes.get(e.deviceId), e.type, ageSeconds(e.observedAt), ageSeconds(e.receivedAt)];
   const incidentRow = i => [i.id, indexes.get(i.deviceId), i.type, i.severity, i.status,
-    offset(i.detectedAt), offset(i.lastObservedAt)];
+    ageSeconds(i.detectedAt), ageSeconds(i.lastObservedAt)];
   const context = {
     retrieval: 'cache_only', mode: externalContext.mode, scope: externalContext.scope,
-    limitations: 'Selected cached records only. Omitted or empty sources were not supplied as evidence. Regional context does not prove conditions at this home.',
-    sources: externalContext.sources.map(s => ({ id: s.id, status: s.status, sourceDataProvided: false,
-      ...(s.records.length ? { stale: s.stale, fetchedAt: s.fetchedAt, omittedRecords: s.records.length } : {}) })),
+    limitations: 'Empty/omitted sources are not evidence. Cached regional records do not prove home conditions.',
+    sourceColumns: ['id', 'status', 'sourceDataProvided', 'stale', 'fetchedAt', 'omittedRecords'],
+    sources: externalContext.sources.map(s => [s.id, s.status, false,
+      s.records.length ? s.stale : null, s.records.length ? s.fetchedAt : null, s.records.length]),
     records: [],
   };
   const coverage = { source: evidence.coverage, devicesTruncated: evidence.devicesTruncated === true,
@@ -54,14 +61,18 @@ export function prepareModelEvidence({ evidence, externalContext, budget, goalHo
     note: 'Required current/latched evidence retained; older history/context may be omitted.' };
   const timeline = {
     generatedAt: evidence.generatedAt, scope: evidence.scope, devices,
-    timing: 'All *OffsetMs values are milliseconds relative to generatedAt; negative is earlier; null means unknown. Device indexes refer to devices above.',
-    observationColumns: ['id', 'device', 'sensor', 'value', 'observedOffsetMs', 'receivedOffsetMs', 'stale', 'delayed', 'required'], observations: [],
-    eventColumns: ['id', 'device', 'type', 'observedOffsetMs', 'receivedOffsetMs'], events: [],
-    incidentColumns: ['id', 'device', 'type', 'severity', 'status', 'detectedOffsetMs', 'lastObservedOffsetMs'],
+    timing: 'Ages are seconds before generatedAt; 15=15 seconds ago, null=unknown. stale=false means fresh. Device indexes refer to devices above.',
+    observationColumns: ['id', 'device', 'sensor', 'value', 'observedAgeSeconds', 'receivedAgeSeconds', 'stale', 'delayed', 'required'], observations: [],
+    eventColumns: ['id', 'device', 'type', 'observedAgeSeconds', 'receivedAgeSeconds'], events: [],
+    incidentColumns: ['id', 'device', 'type', 'severity', 'status', 'detectedAgeSeconds', 'lastObservedAgeSeconds'],
     incidents: evidence.incidents.map(incidentRow), coverage, externalContext: context,
   };
   const correlationOutput = { relations: relations.relations, unresolvedIncidentIds: evidence.incidents.map(i => i.id),
-    note: 'Incident details and coverage are in read_sensor_timeline. Co-occurrence is not causation.' };
+    sensorChecks: { source: checks.source, omittedCount: checks.omittedCount,
+      columns: ['code', 'device', 'status', 'evidenceIds', 'stale'],
+      items: checks.items.map(c => [c.code, indexes.get(c.deviceId), c.status, c.evidenceIds, c.stale]),
+      note: 'Rule checks, not source citations: conflict=disagreeing latest values; flame corroboration never clears an alert; stale/missing=unknown; Wi-Fi≠internet; delayed=received >2min after observation.' },
+    note: 'Co-occurrence is not causation.' };
   const result = { read_sensor_timeline: timeline, correlate_signals: correlationOutput, plan_power_budget: policies };
   const size = () => JSON.stringify(result).length;
   const syncCounts = () => {
@@ -89,16 +100,16 @@ export function prepareModelEvidence({ evidence, externalContext, budget, goalHo
     if (!source.sourceDataProvided) continue;
     for (const record of source.records) {
       context.records.push({ ...record, source: source.id });
-      context.sources[index].sourceDataProvided = true; context.sources[index].omittedRecords--;
+      context.sources[index][2] = true; context.sources[index][5]--;
       if (size() > maxChars) {
-        context.records.pop(); context.sources[index].omittedRecords++;
-        context.sources[index].sourceDataProvided = context.sources[index].omittedRecords < source.records.length;
+        context.records.pop(); context.sources[index][5]++;
+        context.sources[index][2] = context.sources[index][5] < source.records.length;
       } else contextIds.add(record.id);
     }
   }
-  timeline.observations.sort((a, b) => (a[4] ?? 0) - (b[4] ?? 0) || a[0].localeCompare(b[0]));
+  timeline.observations.sort((a, b) => (b[4] ?? 0) - (a[4] ?? 0) || a[0].localeCompare(b[0]));
   const evidenceIds = new Set([...observationIds, ...eventIds, ...evidence.incidents.map(i => i.id)]);
-  return { tools: result, evidenceIds, contextIds, coverage,
+  return { tools: result, evidenceIds, contextIds, coverage, sensorChecks: checks, actionSupport: reviewActionSupport(evidence, evidenceIds),
     // The persisted checkpoint shows exactly which public records the model saw.
     externalContext: { ...externalContext, sources: externalContext.sources.map(s => {
       const records = s.records.filter(r => contextIds.has(r.id));
