@@ -1,3 +1,4 @@
+import { allowsMotion } from '../display-settings.js';
 // MapLibre wrapper: street-level base maps plus the command center layers. Rebuilds layers after every style switch.
 import { STATUS_COLOR as C, ZONE_TYPES } from './core.js';
 import { CONUS_BOUNDS, CONUS_FIT, CONUS_API_BOX, MIN_ZOOM, MAX_ZOOM, FIT_TO_MAX_ZOOM, clampBbox } from './geo.js';
@@ -55,7 +56,7 @@ export const GROUP_LAYERS = {
   zones: ['zones-fill', 'zones-line', 'zones-pt', 'zones-sel'],
 };
 
-const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const reduced = () => !allowsMotion();
 const HOVER_DWELL_MS = 120, HOVER_LEAVE_PX = 24;
 
 // A feature is kept when any part of it can fall inside the lower 48 box. Alaska, Hawaii and open ocean are dropped.
@@ -73,7 +74,7 @@ export function featureInConus(f) {
 const conusOnly = fc => fc?.features ? { ...fc, features: fc.features.filter(featureInConus) } : fc;
 
 export class MapView {
-  constructor(maplibregl, container, { styleKey = 'street', deviceMinZoom = MIN_ZOOM, showGroups = false, padding } = {}) {
+  constructor(maplibregl, container, { styleKey = 'street', interactive = true, deviceMinZoom = MIN_ZOOM, showGroups = false, padding } = {}) {
     this.gl = maplibregl;
     this.styleKey = STYLES[styleKey] ? styleKey : 'street';
     this.deviceMinZoom = deviceMinZoom; this.showGroups = showGroups;
@@ -89,14 +90,16 @@ export class MapView {
     this.pad = padding || { top: 64, right: 40, bottom: 56, left: 40 };
     this.pointerType = 'mouse';
     this.map = new maplibregl.Map({
-      container, style: STYLES[this.styleKey], attributionControl: { compact: true }, renderWorldCopies: false,
+      container, interactive, style: STYLES[this.styleKey], attributionControl: { compact: true }, renderWorldCopies: false,
       maxBounds: CONUS_BOUNDS, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM,
       // Constrain the center, not the viewport size: narrow screens must still fit all 48 states.
       transformConstrain: (center, zoom) => ({center: new maplibregl.LngLat(Math.max(CONUS_BOUNDS[0][0],Math.min(CONUS_BOUNDS[1][0],center.lng)),Math.max(CONUS_BOUNDS[0][1],Math.min(CONUS_BOUNDS[1][1],center.lat))),zoom:Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom))}),
       bounds: CONUS_FIT, fitBoundsOptions: { padding: this.pad, duration: 0 },
     });
-    this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-    this.map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
+    if (interactive) {
+      this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+      this.map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
+    }
     this.map.on('style.load', () => this.install());
     this.map.on('error', e => this.handlers.error?.(e));
     this.map.on('click', e => this.onClick(e));

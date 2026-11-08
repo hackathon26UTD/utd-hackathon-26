@@ -1,3 +1,4 @@
+import { allowsMotion, mountDisplaySettings } from '../display-settings.js';
 import { mountRadar } from './radar.js';
 // Command center v2: street-level map, live device updates, regions, overlays, zones, information boxes, logs.
 // Everything here consumes JSON from the API. Missing data is shown as unknown, never as safe.
@@ -24,9 +25,9 @@ const requestedScenario = route.get('scenario') === 'hurricane' ? 'water-hurrica
 
 function layout({ demo, role, footer, brand }) {
   return `<div class="shell cc map-only vertical-shell${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">HomeBeacon response map</h1>
-<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="HomeBeacon website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>HomeBeacon</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">Lower 48 states</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>More</summary><div class="cc-more-menu">${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button data-theme-toggle>Switch theme</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
+<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="HomeBeacon website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>HomeBeacon</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">Lower 48 states</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>Settings <span aria-hidden="true">⌄</span></summary><div class="cc-more-menu"><div id="command-display-options"></div>${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
 <div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. Optional radar shows real observations.' : 'Lower 48 states · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
-<aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div><div class="workspace-sidebar-foot"><span class="sidebar-dot" aria-hidden="true"></span><span>HackUTD prototype</span></div></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
+<aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
 <section class="board" aria-label="Properties and map"><div class="map-wrap"><div id="map" class="map" role="region" aria-label="United States response map. Open Devices for a keyboard-accessible home list."></div>
 <div id="radar-controls" class="radar-controls" hidden><button type="button" aria-pressed="false" disabled>Play</button><input type="range" min="0" max="0" value="0" aria-label="Radar observation time" disabled><output aria-live="polite">Loading radar</output><small>Observed radar history · contiguous U.S. · not a forecast or proof of flooding</small></div><aside id="overlay-panel" class="overlay-panel" aria-label="Map layers and zones"><div class="ov-head"><strong>Layers and zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
@@ -107,6 +108,7 @@ export async function mountCommand(env) {
     $('#sidebar-toggle').setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
     if (save) { try { localStorage.setItem('homebeacon-sidebar-collapsed', String(collapsed)); } catch { /* optional preference */ } }
   }
+  mountDisplaySettings($('#command-display-options'));
   setNavCollapsed(navCollapsed);
   $('#sidebar-toggle').onclick = () => setNavCollapsed(!navCollapsed, { save: true });
   narrowScreen.addEventListener('change', e => { if (e.matches) setNavCollapsed(true); });
@@ -114,7 +116,7 @@ export async function mountCommand(env) {
   // ---- map ----
 
   ctx.embed = embedded;
-  const mv = new MapView(maplibregl, 'map', { styleKey: embedded ? 'street' : loadSavedView().base, deviceMinZoom: 1.5, showGroups: false, padding: { top: embedded ? 24 : 64, right: 40, bottom: embedded ? 24 : 56, left: 40 } }); // MAP-V2
+  const mv = new MapView(maplibregl, 'map', { styleKey: embedded ? 'street' : loadSavedView().base, interactive: !embedded, deviceMinZoom: 1.5, showGroups: false, padding: { top: embedded ? 24 : 64, right: 40, bottom: embedded ? 24 : 56, left: 40 } }); // MAP-V2
   ctx.mv = mv;
   ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
   ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
@@ -168,7 +170,7 @@ export async function mountCommand(env) {
     const outgoing = viewElement(S.workspaceView);
     const outgoingOpacity = Number(getComputedStyle(outgoing).opacity);
     cancelViewAnimations();
-    const canMove = animate && !S.embed && !matchMedia('(prefers-reduced-motion:reduce)').matches && window.Kit.motion?.canMove?.() !== false;
+    const canMove = animate && !S.embed && allowsMotion() && window.Kit.motion?.canMove?.() !== false;
     if (outgoing.contains(document.activeElement)) $('[data-view="' + (view || 'map') + '"]')?.focus({ preventScroll: true });
     if (S.workspaceView === view || !canMove) {
       setWorkspaceView(view);
@@ -436,7 +438,7 @@ export async function mountCommand(env) {
     const florida = S.props.filter(p => p.coordinates?.[0] > -90 && p.coordinates?.[0] < -75).map(p => p.coordinates);
     const bounds = florida.length ? [[Math.min(...florida.map(p => p[0])) - .22, Math.min(...florida.map(p => p[1])) - .15], [Math.max(...florida.map(p => p[0])) + .22, Math.max(...florida.map(p => p[1])) + .15]] : [[-84, 26.8], [-81.6, 29.2]];
     S.nationalFitted = true;
-    mv.map.fitBounds(bounds, { padding: S.embed ? { top: 42, right: 24, bottom: 30, left: 24 } : { top: innerWidth < 700 ? 180 : 150, right: 35, bottom: innerWidth < 700 ? 110 : 50, left: 35 }, maxZoom: 10, duration: animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 450 : 0 });
+    mv.map.fitBounds(bounds, { padding: S.embed ? { top: 42, right: 24, bottom: 30, left: 24 } : { top: innerWidth < 700 ? 180 : 150, right: 35, bottom: innerWidth < 700 ? 110 : 50, left: 35 }, maxZoom: 10, duration: animate && allowsMotion() ? 450 : 0 });
   }
 
   function renderPill() {
@@ -494,7 +496,7 @@ export async function mountCommand(env) {
   });
   $('#home-sort').onchange = e => { S.sort = e.target.value; renderList(); };
   document.addEventListener('keydown', e => {
-    if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
+    if (e.key !== 'Escape' || e.defaultPrevented || document.querySelector('dialog[open]')) return;
     if (ctx.closeViewBuilder?.()) { e.preventDefault(); return; }
     if ($('#command-more').open) { $('#command-more').open = false; $('#command-more summary').focus(); return; }
     if ($('#overlay-panel').classList.contains('open')) { $('#overlay-close').click(); return; }

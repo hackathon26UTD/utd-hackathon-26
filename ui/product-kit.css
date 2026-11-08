@@ -12,3 +12,13 @@ body.hb-product{min-height:100dvh;font-family:'Geist Variable',system-ui,sans-se
 @keyframes hb-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}.hb-product .access-page,.hb-product .login,.hb-product .legal,#customer>.shell{animation:hb-enter .45s cubic-bezier(.2,.7,.2,1) both}.hb-product .kit button,.hb-product .kit a{transition:background-color .16s,border-color .16s,color .16s,transform .16s}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Shared display settings and restrained control shapes. */
+.hb-product .kit{--kit-radius:9px;--kit-radius-sm:7px;--kit-radius-lg:12px}
+.hb-product .kit :is(button.kit-btn,a.kit-btn){border-radius:9px}
+.display-settings{position:relative;flex:none}.display-settings>summary{display:flex;align-items:center;justify-content:center;gap:8px;list-style:none;cursor:pointer;min-height:40px;padding:8px 12px;border-radius:9px;font-size:13px;font-weight:500;white-space:nowrap}.display-settings>summary::-webkit-details-marker{display:none}.display-settings>summary:hover{background:var(--kit-surface-2)}.display-settings-panel{position:absolute;right:0;top:calc(100% + 8px);width:270px;max-width:calc(100vw - 32px);padding:18px;background:var(--kit-surface);border:1px solid var(--kit-line);border-radius:12px;box-shadow:0 10px 25px #00000018;z-index:50}
+.display-options{display:grid;gap:16px;min-width:220px}.display-options>label{display:grid;gap:7px;font-size:12px;font-weight:500;color:var(--kit-ink-3)}.display-options .kit-select{width:100%}.display-options .kit-select>button{width:100%;min-height:40px;font-size:13px;border-radius:9px;text-align:left}
+html[data-hb-motion=reduce] *,html[data-hb-motion=reduce] *::before,html[data-hb-motion=reduce] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+.hb-product .kit .display-settings-panel{box-sizing:border-box}
+.hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill).critical{color:var(--kit-bad)}
+.hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill):is(.watch,.elevated){color:var(--kit-warn)}
+.hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill).normal{color:var(--kit-ok)}
