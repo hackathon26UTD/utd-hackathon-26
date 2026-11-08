@@ -1,3 +1,4 @@
+import {brandNode} from './brand.js';
 import {accessView} from './access.js';
 import {backupRuntime} from './backup-runtime.js';
 import {previewDevice} from './customer-preview.js';
@@ -190,7 +191,7 @@ function render() {
   onboarding.stopScan();
   modelGeneration++; modelCleanup?.(); modelCleanup = null;
   photoCleanup?.(); photoCleanup = null;
-  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'Safe Home'), !state.user && h('a', { href: '/dashboard' }, 'Dashboard'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
+  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, brandNode()), !state.user && h('a', { href: '/dashboard' }, 'Dashboard'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'Safe Home shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
     h('p', { class: 'fine' }, 'Contact permission is shown under Manage this box.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));

@@ -35,16 +35,16 @@ The kit keeps every colour as a `--kit-*` token, written twice (light on `.kit`,
 
 | Role | Token | Dark | Light |
 |---|---|---|---|
-| Page | `--kit-bg` | #151c19 | #f6f7f7 |
-| Surface | `--kit-surface` | #1c2520 | #ffffff |
-| Subtle surface | `--kit-surface-2` | #18211c | #f0f3f1 |
-| Border | `--kit-line` | #35433b | #dce2df |
-| Text | `--kit-ink` | #edf3ef | #1d2926 |
-| Muted text | `--kit-ink-3` | #abbcb0 | #52605b |
-| Action | `--kit-hero` | #81d5b1 | #17634f |
-| Action text | `--kit-hero-fg` | #11261b | #ffffff |
+| Page | `--kit-bg` | #171717 | #f7f7f7 |
+| Surface | `--kit-surface` | #202020 | #ffffff |
+| Subtle surface | `--kit-surface-2` | #252525 | #f3f3f3 |
+| Border | `--kit-line` | #414040 | #e4e3e3 |
+| Text | `--kit-ink` | #f5f4f4 | #212121 |
+| Muted text | `--kit-ink-3` | #bbb7b7 | #626060 |
+| Action | `--kit-hero` | #d62311 | #d62311 |
+| Action text | `--kit-hero-fg` | #ffffff | #ffffff |
 
-November 7 simplification: neutral surfaces and green actions replace the earlier dusk/paper palette. Status colors retain distinct red, amber, green and unknown treatments. Screen layouts live in their respective stylesheets; `product-kit.css` provides shared theme/component glue without command-center geometry overrides. The floating map controls use compact rounded shapes; account forms use modest radii.
+November 8 brand update: neutral white/charcoal surfaces and warm red actions follow the State Farm reference; see BRAND.md for the matching open-source font and original Safe Home mark. Status colors retain distinct red, amber, green and unknown treatments. Screen layouts live in their respective stylesheets; `product-kit.css` provides shared theme/component glue without command-center geometry overrides. The floating map controls use compact rounded shapes; account forms use modest radii.
 
 ### Contrast
 
@@ -53,7 +53,7 @@ The generator checks text and component pairs and exits non-zero on failure. Cur
 ## Fonts
 
 Self-hosted from the existing pinned npm dependencies:
-- Headings and body: Geist Variable, one consistent family.
+- Headings and body: Hanken Grotesk Variable, one consistent family.
 - Technical readouts: Spline Sans Mono Variable.
 
 Tokens: `--font-display`, `--font-sans`, `--font-mono`, `--kit-chart-font`. Vendored library sources remain unchanged.
