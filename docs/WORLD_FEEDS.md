@@ -8,10 +8,12 @@ Both feeds use the existing authenticated `/api/overlays?layer=...` response: Ge
 
 | Feed | UI minimum zoom | Coverage and request limit | Freshness |
 | --- | --- | --- | --- |
-| `atmosphere` | 3 | 60 fixed lower-48 request locations; one source-wide batch/cache entry; optional bbox filters returned points | 1,800 seconds |
+| `atmosphere` | 0 | 60 fixed lower-48 request locations; one source-wide batch/cache entry; optional bbox filters returned points | 1,800 seconds |
 | `faults` | 10 | bbox required; maximum longitude OR latitude span 0.75°; up to 16 quarter-degree tiles | 86,400 seconds |
 
 Fault source metadata includes `coverage.maxSpanDeg: 0.75` and `coverage.maxTiles: 16`. A wide view returns HTTP 400 with `minZoom:10` and `maxSpanDeg:0.75`; zoom alone cannot guarantee the span fits every viewport. Prompt for a closer view when necessary. Atmosphere is `coverage.type: sampled-national`, **not** global. Faults are `requested-area`, not complete national coverage. Source status counts cached tiles/points, not measured land area.
+
+Atmosphere explicitly exposes `minZoom:0` in source metadata and supports the intentional lower-48 mobile starting zoom of 1.5–2.8. The same 60-point batch and cache scope apply at every zoom.
 
 ### Atmosphere
 

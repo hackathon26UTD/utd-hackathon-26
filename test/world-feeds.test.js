@@ -36,7 +36,8 @@ test('fixed national sampler is bounded, uniquely identified and requests one ho
   assert.equal(LAYERS.atmosphere, WORLD_LAYERS.atmosphere);
   assert.equal(LAYERS.faults, WORLD_LAYERS.faults);
   assert.equal(feedMetadata(LAYERS.atmosphere).coverage.type, 'sampled-national');
-  assert.equal(LAYERS.atmosphere.minZoom, 3);
+  assert.equal(LAYERS.atmosphere.minZoom, 0);
+  assert.equal(feedMetadata(LAYERS.atmosphere).minZoom, 0);
   assert.equal(LAYERS.faults.minZoom, 10);
   assert.equal(LAYERS.faults.maxSpan, 0.75);
 });
@@ -170,6 +171,7 @@ test('world feeds use existing TTL/stale cache and status; wide faults refuse fe
     const fetcher = async () => { calls++; return reply(ATMOSPHERE_SAMPLES.map(row)); };
     const first = await refreshLayer(db, {}, 'atmosphere', null, { now: NOW, fetcher });
     assert.equal(first.features.length, 60); assert.equal(first.hb.refreshStatus, 'ok');
+    assert.equal((await getFeedStatus(db, { now: NOW })).find(s => s.id === 'atmosphere').minZoom, 0);
     const subset = await refreshLayer(db, {}, 'atmosphere', [-87, 32, -86, 33], { now: NOW, fetcher });
     assert.equal(calls, 1); assert.equal(subset.features.length, 1); assert.equal(subset.hb.delivery, 'cached');
     const later = new Date(+NOW + 1801000);

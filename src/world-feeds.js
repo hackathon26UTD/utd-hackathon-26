@@ -171,7 +171,7 @@ async function fetchFaults(tiles, ctx) {
 }
 
 export const WORLD_LAYERS = {
-  atmosphere: { id: 'atmosphere', name: 'Sampled atmosphere forecast', scope: 'all', scopeKey: () => 'conus-samples-v1', ttlS: 1800, minZoom: 3,
+  atmosphere: { id: 'atmosphere', name: 'Sampled atmosphere forecast', scope: 'all', scopeKey: () => 'conus-samples-v1', ttlS: 1800, minZoom: 0,
     attribution: 'Open-Meteo.com (CC BY 4.0)',
     coverage: { type: 'sampled-national', area: '60 selected lower-48 locations', sampleCount: 60 },
     note: 'Sparse model forecast points, not observations or continuous coverage. Valid time is validAt; observedAt is null. Solar is the preceding-hour mean. Wind direction is where wind comes from.',

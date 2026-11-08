@@ -20,7 +20,7 @@ export function feedMetadata(layer, env = {}) {
   const area = layer.scopeKey?.(env);
   const type = ['nws', 'declarations'].includes(layer.id) ? (area === 'US' ? 'national' : 'state')
     : layer.id === 'eia' ? 'balancing-authority' : layer.scope === 'all' ? 'global' : 'requested-area';
-  return { coverage: layer.coverage || { type, area: area || (type === 'global' ? 'world' : 'bounded map tiles') }, note: layer.note || 'Geographic context does not establish conditions at an individual home.' };
+  return { ...(layer.minZoom === 0 ? { minZoom: 0 } : {}), coverage: layer.coverage || { type, area: area || (type === 'global' ? 'world' : 'bounded map tiles') }, note: layer.note || 'Geographic context does not establish conditions at an individual home.' };
 }
 
 // ---------- parsers ----------
