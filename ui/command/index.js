@@ -4,7 +4,7 @@ import { allowsMotion, mountDisplaySettings } from '../display-settings.js';
 import { mountRadar } from './radar.js';
 // Command center v2: street-level map, live device updates, regions, overlays, zones, information boxes, logs.
 // Everything here consumes JSON from the API. Missing data is shown as unknown, never as safe.
-import { LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
+import { observationClock, LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
 import { api, exerciseMode } from './api.js';
 import { MapView } from './map.js';
 import { mountToolbar, loadSavedView } from './toolbar.js'; // MAP-V2
@@ -383,7 +383,7 @@ export async function mountCommand(env) {
   function propRow(p) {
     const d = displayStatus(p);
     const chips = [p.link?.linked ? '<span class="chip link">Customer</span>' : '', p.risk?.power?.mode && p.risk.power.mode !== 'normal' ? '<span class="chip power">Power save</span>' : '', p.help?.status && p.help.status !== 'none' ? `<span class="chip help">${esc(HELP_LABEL[p.help.status] || '')}</span>` : '', p.risk?.priority?.tier === 'P1' ? '<span class="chip warn">P1</span>' : ''].join('');
-    return `<button class="property" data-key="p-${esc(p.id)}" data-id="${esc(p.id)}" aria-pressed="${S.detailOpen && S.selectedId === p.id && !S.selectedRegion}" aria-controls="detail"><span class="property-title"><strong>${esc(p.name && p.name !== p.id ? p.name : p.id)}</strong><span class="status-dot ${esc(d.status)}" aria-hidden="true"></span></span><small>${esc(p.area || p.id)}</small><span class="property-status"><span class="tag ${esc(d.status)}">${esc(STATUS_LABEL[d.status])}</span>${d.silent ? `<small>Last report ${esc(ageText(p.lastSeen || p.observedAt))}</small>` : '<small>Reporting</small>'}${d.lastKnown && d.status !== 'unknown' ? '<small>Last known</small>' : ''}</span>${chips ? `<span class="property-chips">${chips}</span>` : ''}</button>`;
+    return `<button class="property" data-key="p-${esc(p.id)}" data-id="${esc(p.id)}" aria-pressed="${S.detailOpen && S.selectedId === p.id && !S.selectedRegion}" aria-controls="detail"><span class="property-title"><strong>${esc(p.name && p.name !== p.id ? p.name : p.id)}</strong><span class="status-dot ${esc(d.status)}" aria-hidden="true"></span></span><small>${esc(p.area || p.id)}</small><span class="property-status"><span class="tag ${esc(d.status)}">${esc(STATUS_LABEL[d.status])}</span>${d.silent ? `<small>Last report ${esc(ageText(p.lastSeen || p.observedAt,observationClock(p)))}</small>` : '<small>Reporting</small>'}${d.lastKnown && d.status !== 'unknown' ? '<small>Last known</small>' : ''}</span>${chips ? `<span class="property-chips">${chips}</span>` : ''}</button>`;
   }
 
   function renderList() {
@@ -575,7 +575,7 @@ export async function mountCommand(env) {
 
   // ---- start ----
 
-  if (demo && !S.embed) {
+  if (demo && !S.embed && !SCENARIOS.some(s=>s.id===requestedScenario)) {
     const controls = document.createElement('div'); $('.map-wrap').append(controls);
     studio = mountSimulationStudio($('#simulation-studio'), controls, {
       onFrame: frame => {
@@ -591,13 +591,15 @@ export async function mountCommand(env) {
     });
   }
   S.ovOn.add('regions'); if (!studio) S.ovOn.add('zones');
+  $('#legacy-simulation').hidden=!!studio;
+  $('#simulation-studio').hidden=!studio;
   const ok = await loadBase();
   recompute();
   renderAll();
   overlays.render();
   if (S.selectedId) detailPanel.loadDetail(S.selectedId);
   if (!studio) overlays.loadZones();
-  if (demo && !S.embed) ctx.openWorkspace('demo');
+  if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
   mv.map.once('load', () => loadRegions());
   setInterval(renderPill, 1000);
   setInterval(() => {

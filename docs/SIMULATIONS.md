@@ -18,13 +18,16 @@ The shared pure engine is `domain/simulation.js`, version 1. It generates determ
 
 Wind speed and earthquake magnitude scale illustrative outage likelihood. Earthquake scenarios add a synthetic motion observation. Flood depth affects water-positive probability; fire temperature sets affected sensor temperature. These are test rules, not calibrated physics, forecasts or damage probabilities. Power-loss and offline percentages are probabilities, not exact counts. Offline devices have a last received report; their values are not replaced with invented fresh observations. No-report thresholds only govern simulation freshness. Site danger rules and board firmware thresholds are unchanged.
 
-The configuration includes a fixed ISO epoch, seed, all controls and schema version. Importing it and choosing the same minute yields the same frame. Adjusting a configuration applies when Start simulation is selected. Exported JSON contains only synthetic data.
+The configuration includes a fixed ISO epoch with an explicit timezone, seed, all controls and schema version. Importing it and choosing the same minute yields the same frame. Adjusting or importing a configuration applies only when Start simulation is selected; leaving setup preserves the running world. Export current run saves a versioned `homebeacon-simulation` envelope with config and minute. Both that envelope and full CLI frames reopen at the saved minute by regenerating the engine output; imported property records are never trusted. Browser imports are capped at 2 MiB. Plain settings remain supported. Exported JSON contains only synthetic data.
+
+A place-only request resolves that city's center. Explicit coordinates with a preset must match it; otherwise use `place: "custom"`. Recognized old `/demo?scenario=normal` and other preset links retain their original scenario. The homepage embed remains on its original preset path.
 
 ## Headless use
 
 ```
 npm run simulate -- --schema
 npm run simulate -- --config settings.json --minute 25 --output frame.json
+npm run simulate -- --config frame.json --output reopened.json
 npm run simulate -- --mcp
 ```
 
