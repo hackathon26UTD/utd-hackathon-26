@@ -363,7 +363,7 @@ export async function mountCommand(env) {
     S.filter = 'all'; S.search = ''; S.layerIds = null;
     $('#search').value = ''; $('#filter').value = 'all'; $('#filter').dispatchEvent(new Event('change', { bubbles: true }));
     const wind = r.data.overlays?.exerciseWind || { type: 'FeatureCollection', features: [] };
-    mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length);
+    mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length && ['street','wind'].includes(mv.worldKey));
     const zonesOn = id === 'water-hurricane';
     zonesOn ? S.ovOn.add('zones') : S.ovOn.delete('zones'); mv.setVisible('zones', zonesOn);
     ctx.toolbar?.sync(); // MAP-V2
@@ -581,7 +581,7 @@ export async function mountCommand(env) {
     studio = mountSimulationStudio($('#simulation-studio'), controls, {
       onFrame: frame => {
         S.base = frame.properties; S.demoMeta = frame.scenario; S.demoIssuedAt = frame.issuedAt; S.demoScenario = 'custom'; S.simulationFrame = frame;
-        const wind=frame.overlays.exerciseWind; mv.setExt('exerciseWind',wind); mv.setVisible('exerciseWind',!!wind.features.length);
+        const wind=frame.overlays.exerciseWind; mv.setExt('exerciseWind',wind); mv.setVisible('exerciseWind',!!wind.features.length && ['street','wind'].includes(mv.worldKey));
         mv.setVisible('zones',false); S.ovOn.delete('zones');
         $('#notice').textContent = 'Simulation · '+frame.phase+' · minute '+frame.minute+' · fictional devices';
         S.live.feed = [{key:'sim-frame-'+frame.minute,at:frame.issuedAt,kind:'scenario',level:'info',text:frame.phase+' · '+frame.summary.critical+' critical, '+frame.summary.notReporting+' missing reports'}];
