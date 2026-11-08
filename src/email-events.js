@@ -61,6 +61,14 @@ export async function deliver(db, env, spec, deps = {}) {
       throw e;
     }
     const mail = renderEmail(spec.template, { ...spec.data, now: spec.data?.now || now.toISOString() }, { origin: cfg.origin });
+    if (spec.linkId) {
+      const current = await db.collection('customer_links').findOne({ _id: spec.linkId, deviceId: String(spec.deviceId), customerEmail: to, active: true });
+      const reason = !current ? 'no_customer' : current.consent !== true ? 'no_consent' : current.notificationsPausedUntil && new Date(current.notificationsPausedUntil) > now ? 'paused' : null;
+      if (reason) {
+        await db.collection('email_events').updateOne({ _id: id }, { $set: { status: 'suppressed', reason, finishedAt: now } });
+        return { ok: false, skipped: true, reason };
+      }
+    }
     const result = await sendEmail(env, { to, subject: mail.subject, html: mail.html, text: mail.text, template: spec.template, idempotencyKey: id, tags: [{ name: 'template', value: spec.template.replace(/[^a-z0-9_-]/gi, '_') }] }, deps);
     await db.collection('email_events').updateOne({ _id: id }, { $set: { status: result.ok ? 'sent' : 'failed', providerId: result.id || null, httpStatus: result.status ?? null, reason: result.reason || null, finishedAt: new Date() } });
     return result;
@@ -82,14 +90,16 @@ export async function notifyHelpStatus(db, env, { deviceId, status, updatedAt = 
   if (!HELP_EMAIL_STATUSES.includes(status)) return { ok: false, skipped: true, reason: 'status_not_emailed' };
   const link = await activeLink(db, deviceId);
   if (!link) return { ok: false, skipped: true, reason: 'no_customer' };
-  return deliver(db, env, { event: 'help-status', template: 'help-status', audience: 'customer', to: link.customerEmail, deviceId, token: status, windowMs: HOUR, requireConsent: true, consent: link.consent, data: { status, nickname: link.nickname, updatedAt, exercise: link.exercise === true } }, deps);
+  if (link.notificationsPausedUntil && new Date(link.notificationsPausedUntil) > (deps?.now || new Date())) return { ok: false, skipped: true, reason: 'paused' };
+  return deliver(db, env, { event: 'help-status', linkId: link._id, template: 'help-status', audience: 'customer', to: link.customerEmail, deviceId, token: status, windowMs: HOUR, requireConsent: true, consent: link.consent, data: { status, nickname: link.nickname, updatedAt, exercise: link.exercise === true } }, deps);
 }
 
 /** A customer-visible device message was confirmed on the device. Needs consent. */
 export async function notifyMessageReceipt(db, env, { deviceId, messageId, title, state, at = new Date() }, deps) {
   const link = await activeLink(db, deviceId);
   if (!link) return { ok: false, skipped: true, reason: 'no_customer' };
-  return deliver(db, env, { event: 'receipt', template: 'receipt', audience: 'customer', to: link.customerEmail, deviceId, token: `${messageId}:${state}`, windowMs: 24 * HOUR, requireConsent: true, consent: link.consent, data: { deviceName: link.nickname, title, state, at, exercise: link.exercise === true } }, deps);
+  if (link.notificationsPausedUntil && new Date(link.notificationsPausedUntil) > (deps?.now || new Date())) return { ok: false, skipped: true, reason: 'paused' };
+  return deliver(db, env, { event: 'receipt', linkId: link._id, template: 'receipt', audience: 'customer', to: link.customerEmail, deviceId, token: `${messageId}:${state}`, windowMs: 24 * HOUR, requireConsent: true, consent: link.consent, data: { deviceName: link.nickname, title, state, at, exercise: link.exercise === true } }, deps);
 }
 
 /** Critical incident to the configured operator addresses. Exercise events are tagged, never hidden. */

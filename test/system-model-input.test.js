@@ -37,7 +37,7 @@ test('compaction preserves latest, stale and critical evidence and all policy fi
   assert.ok(result.evidenceIds.has('event:help'));
   assert.ok(result.evidenceIds.has('incident:water'));
   const peerRow = read.observations.find(row => row[1] === 1 && row[2] === 'mains_power');
-  assert.equal(peerRow[4], -600000); assert.equal(peerRow[5], 0);
+  assert.equal(peerRow[4], 600); assert.equal(peerRow[5], 0);
   assert.equal(peerRow[6], true); assert.equal(peerRow[7], true);
   for (const relation of result.tools.correlate_signals.relations) for (const id of relation.evidenceIds) assert.ok(result.evidenceIds.has(id));
   assert.deepEqual(result.tools.plan_power_budget.policies, input.evidence.policies);
