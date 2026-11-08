@@ -132,7 +132,7 @@ export async function mountCommand(env) {
   ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
   ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
   mv.on('error', () => { $('#map-status').textContent = 'Map unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
-  $('.map-credits').prepend($('#notice'));
+  $('#timeline .activity-content').prepend($('#notice'));
   if(embedded&&route.get('weather')==='wind')mv.setWorldView('wind');
   mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else { S.nationalFitted = true; mv.fitConus(); } } });
   mv.handlers.base = () => { updateMapSource(); ctx.toolbar.sync(); };
