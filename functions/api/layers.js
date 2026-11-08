@@ -1,6 +1,7 @@
 import { onRequestGet as getCenter } from './command-center.js';
 import { withDatabase } from '../../lib/mongodb.js';
 import { layerModelObservations, loadModelContext } from '../../src/model-context.js';
+import { DEFAULT_NVIDIA_MODEL, nvidiaMessages } from '../../src/nemotron.js';
 
 const filters = {
   power_lost: p => p.values?.mains_power === false,
@@ -40,19 +41,19 @@ export async function onRequestPost(context) {
       if (!permitted) return Response.json({ error: 'Please wait a minute before another model request.' }, { status: 429 });
       // Allowlisted numeric/boolean signals only. Coordinates are used server-side for cache scope.
       const observations = layerModelObservations(snapshot.properties);
-      model = env.NVIDIA_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1.5';
+      model = env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
       const response = await fetch((env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').replace(/\/$/, '') + '/chat/completions', {
         method: 'POST', headers: { ...(env.NVIDIA_API_KEY ? { Authorization: 'Bearer ' + env.NVIDIA_API_KEY } : {}), 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(40000),
-        body: JSON.stringify({ model, temperature: 0, max_tokens: 800, stream: false, messages: [
+        body: JSON.stringify({ model, temperature: 0, max_tokens: 800, stream: false, messages: nvidiaMessages(model, [
           { role: 'system', content: MODEL_PROMPT },
           { role: 'user', content: JSON.stringify({ question: body.question, observations, externalContext, scope: 'Latest observations only. Up to 500 boxes. This is not the complete database history.' }) },
-        ] }),
+        ]) }),
       });
       if (!response.ok) return Response.json({ error: 'NVIDIA analysis is unavailable. Use a recorded-observation layer.' }, { status: 502 });
       const result = await response.json(), content = result.choices?.[0]?.message?.content || '';
       let proposal;
-      try { proposal = JSON.parse(content.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')); }
+      try { proposal = JSON.parse(content.trim().replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')); }
       catch { return Response.json({ error: 'The model did not return a usable view.' }, { status: 502 }); }
       const validContextIds = new Set(externalContext.sources.filter(s => s.sourceDataProvided).flatMap(s => s.records.map(r => r.id)));
       if (!Array.isArray(proposal.filters) || proposal.filters.length < 1 || proposal.filters.length > 3 || !proposal.filters.every(f => Object.hasOwn(filters, f)) || !['all', 'any'].includes(proposal.combine) || typeof proposal.title !== 'string' || typeof proposal.summary !== 'string' ||
@@ -69,5 +70,5 @@ export async function onRequestPost(context) {
   }
 }
 export async function onRequestGet({ env }) {
-  return Response.json({ configured: Boolean(env.NVIDIA_API_KEY || env.NVIDIA_BASE_URL), model: env.NVIDIA_MODEL || 'nvidia/llama-3.3-nemotron-super-49b-v1.5', presets: Object.keys(filters), scope: 'Latest sensor observations and explicitly available cached public context; source data is unchanged.' }, { headers: { 'Cache-Control': 'no-store' } });
+  return Response.json({ configured: Boolean(env.NVIDIA_API_KEY || env.NVIDIA_BASE_URL), model: env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL, presets: Object.keys(filters), scope: 'Latest sensor observations and explicitly available cached public context; source data is unchanged.' }, { headers: { 'Cache-Control': 'no-store' } });
 }
