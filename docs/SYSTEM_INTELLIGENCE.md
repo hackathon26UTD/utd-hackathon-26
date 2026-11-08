@@ -1,16 +1,65 @@
-# HomeBeacon system intelligence
+# Safe Home system intelligence
 
 ## November 8: Safe Home operator investigation
 
 The device workspace now exposes **Conditions → Nemotron investigation**. Signed-in operators can run real Nemotron on live or registered exercise devices. The exercise-only Simulator is an explicit choice, labeled as not AI. Public `/demo` and browser-generated Simulation Studio frames remain separate: they do not create registered devices for this API.
 
-Results display the actual persisted tool trace, cited sensor values and observation/receipt times, bounded-input coverage, proposed device policies and the 24-hour runtime target. Runtime stays unknown without a supplied energy/draw budget. A fresh run requests a new snapshot; interrupted waits retry the same request ID. Failed runs show their partial trace. Abandoned runs become failed on an authorized status read/retry after three minutes; late completion cannot revive them.
+Results display the actual persisted tool trace, cited sensor values and observation/receipt times, bounded-input coverage, proposed device policies and the 24-hour runtime target. Runtime stays unknown without a supplied energy/draw budget; the optional input form is described below. A fresh run requests a new snapshot; interrupted waits retry the same request ID. Failed runs show their partial trace. Abandoned runs become failed on an authorized status read/retry after three minutes; late completion cannot revive them.
 
 Model requests now use a compact projection with a 16,000-character conversation ceiling and a smaller grounding pack. Latest readings, unresolved incidents, help state, correlation references and deterministic policies remain mandatory; omitted history/context is reported. Mandatory evidence that cannot fit fails explicitly before inference. This is a conservative character bound, not an exact tokenizer guarantee. Citations must refer to records actually supplied to the model. Original stored evidence is unchanged. Failed POST responses include the actor-scoped run ID, trace and sanitized error; completed responses include allowlisted `citedEvidence` metadata.
 
 The NVIDIA adapter uses manual redirect handling and rejects non-success responses. Cloudflare Workers rejects `redirect: "error"`; the assembled app test exposed and fixed this compatibility issue.
 
 Verification: real Nano 9B v2 completed all four tools using synthetic records in disposable MongoDB, both through the CLI and the local Cloudflare app. Browser Stop waiting → Retry recovered the same completed run, and the explicit simulator remained labeled. Battery figures in the CLI example are fictional inputs, not measured endurance. Publication status is recorded in WORKLOG.
+
+## November 8 follow-on: review queue, observation checks and brief
+
+Implemented in the Nemotron follow-on branch as Ayan's integration workstream. Release and production verification belong in WORKLOG; this section alone does not establish that the newest code is deployed.
+
+**Review** is a separate operator sidebar view. Opening it or refreshing observations loads the deterministic queue only. **Run Nemotron review** explicitly sends the bounded, allowlisted group summaries to the configured NVIDIA server. Exercise mode also offers **Simulator**, labeled as scripted and not AI. Public/browser-generated simulations do not populate this queue. Selecting a group opens its primary device's Conditions view; same-home peer records remain inspectable in the saved snapshot.
+
+The queue order is a human-review policy, not an AI risk score: unresolved help/high or critical incidents first; recorded water, alarm-proxy, power and conflicting/unsupported-value concerns next; missing/stale conditions or failed API reachability next; other reporting groups last. No category declares a home safe. A fresh battery or connectivity reading alone does not establish a fresh condition observation. `lastConditionObservedAt` is separate from `lastObservedAt` for any included reading.
+
+The scan examines at most **240 enabled devices**, in registered-device-ID order, then groups by valid home ID (otherwise by device) and returns at most **12 groups** in review order. Coverage reports examined/total devices, examined/returned groups, omissions, limits and separate `scanComplete`/`shortlistComplete` flags. With a partial scan, the queue is not claimed to be the highest-priority homes across the unexamined fleet. One highest-priority unresolved incident per device is expanded; additional incident counts remain visible. Latest-timestamp binary readings preserve positive, negative and unsupported-value representatives, including normalized power aliases. Duplicate/additional values are counted as omitted. Same-time conflicting help/OK reports retain the help request for review; only a strictly newer observed OK can supersede it.
+
+### Fleet API and model workflow
+
+`GET /api/ops/review-queue?mode=exercise` returns `{mode, generatedAt, queue, coverage, policy, nvidia}` without calling a model or saving an investigation. Omit the mode query for live data. Each queue item includes its group ID, device IDs, fixed priority, reasons with source IDs, timestamps, evidence, unknowns and item coverage. IDs are `home:<registered-id>` or `device:<registered-id>`; display labels are generated from IDs, not personal names or addresses.
+
+Start an explicit fleet model review with:
+
+```json
+{
+  "requestId": "fleet-review-001",
+  "engine": "nemotron"
+}
+```
+
+Send that body to `POST /api/ops/review-queue?mode=exercise`. `engine` is required; only `requestId` and `engine` are accepted. The server loads a new snapshot, rather than accepting client-supplied evidence. `engine: "simulator"` is restricted to exercise mode.
+
+1. `read_fleet_shortlist` reads group summaries, review reasons and exact coverage.
+2. `check_review_gaps` inspects missing/stale evidence and snapshot limits.
+3. `save_fleet_checkpoint` saves a cited interpretation for human review after both reads complete.
+
+The model cannot reorder the deterministic queue. Fleet citations refer to supplied **queue-group IDs**, whose underlying source records are retained in the snapshot; they are not presented as model citations to individual sensor rows. Compact reason tables and shared uncertainty dictionaries keep the bounded model input within a 16,000-character conversation guard. Oversized input fails explicitly; this is not an exact tokenizer guarantee. The model must name at least one cited group and explain a specific concern or gap. Known unsupported partial-scan/shortlist claims trigger one bounded correction attempt, then a clear failure if unresolved. The separately generated `checkpoint.coverageStatement` remains authoritative. These checks do not validate every sentence of model prose.
+
+POST returns an actor-scoped run with `{id, state, mode, engine, model, simulated, trace, snapshot, checkpoint, error, modelVerified}` plus run timestamps. `GET /api/ops/review-queue?mode=exercise&run_id=<id>` retrieves it. First completion returns 201; identical request-ID recovery returns 200 or 202 while running; changing engine with the same ID returns 409. Failed runs do not silently restart. A three-minute lease expires abandoned running records on an authorized read/retry, and late completion cannot revive them. Fleet and device investigations share the four-runs-per-operator-per-minute limit. Runs expire after 30 days. Four model rounds and a 55-second workflow deadline bound the fleet call; no arbitrary database query, messaging, dispatch or hardware tool is offered.
+
+Both fleet and device endpoints deny anonymous/public-demo access and isolate live/exercise modes and saved runs by actor. `modelVerified: true` means real model inference completed; it is not a claim of factual accuracy. Provider failure never switches silently to the simulator.
+
+### Device checks, supported actions and responder draft
+
+The existing four-tool device investigation now adds `checkpoint.sensorChecks` and `checkpoint.responderBrief`. **Sensor cross-checks** are explicitly labeled deterministic observation-quality checks. They cover latest-time disagreements, flame readings needing corroboration, stale latest records, delayed uploads, absent power/water observations, and Wi-Fi association without verified internet/API delivery. Missing or negative corroboration never rules out fire or clears a critical observation. Findings carry supporting source IDs where evidence exists; missing-data findings do not invent citations. The bounded result reports omitted findings.
+
+`correlate_signals` provides these checks to Nemotron alongside explicit relationships. Source IDs must have been supplied to the model. Water-review and power-review actions are offered only when the input contains supporting observations/events/incidents, and the checkpoint must cite matching support. An unsupported action receives at most one bounded correction request; continued failure saves no completed checkpoint or brief. General internal check-in/device-health/connectivity review actions remain available. Action validation does not certify model prose or authorize an external action.
+
+The **Responder brief · draft** separates recorded facts and observation/receipt timestamps, unknowns, labeled model interpretation, and a proposed follow-up. It is assembled from the validated checkpoint and immutable allowlisted evidence. The brief repeats at most 24 facts and reports omitted records. **Copy brief** and **Download .txt** act locally in the browser; no responder, household or vendor receives a message from these controls. The simulator version remains labeled as not AI.
+
+**Runtime estimate · optional** now accepts a target from 1–168 hours, remaining usable Wh, all three normal/saver/critical draws, and an assumption or operator-supplied bench-measurement basis. Leave energy/draw blank or use **Clear estimate** to retain unknown runtime. The UI reserves 15% of supplied energy. The target and a calculated projection are not measured endurance, and the proposal is not applied to hardware.
+
+### Repeatable verification
+
+`npm run review:demo` creates a disposable local MongoDB fixture with multiple synthetic home scenarios, runs labeled simulator reviews and checks saved results. `npm run review:demo -- --nvidia` uses the configured real model on those synthetic observations. No Atlas households or production telemetry are seeded by this helper. See the script's `--output` option for an artifact and WORKLOG for the latest actual run, failures, fixes and publication evidence.
 
 November 7, 2026. Adyaan's integration workstream, preserving Ayan's command-center/product work and Dhruv's firmware/API work.
 
