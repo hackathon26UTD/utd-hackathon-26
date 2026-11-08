@@ -3,6 +3,8 @@
 Owner: Ayan's workstream. Updated November 7, 2026, America/Chicago.
 Status: Ayan approved the rendered satellite-map direction for Astra to develop and refine. This is an evolving implementation brief, not a claim that the production replacement is implemented or accepted. Record new answers here rather than scattering requirements across chats.
 
+> November 7, latest user correction: use the supplied ARGUS screenshot's slim top bar and collapsible vertical sidebar for HomeBeacon. Keep margins small so the map occupies the remaining canvas. Switching Map, Overview, Devices, Activity and Demo should fade out the current workspace and fade in the next. This explicitly supersedes the earlier prohibition on a full-height navigation rail and the horizontal floating tab island. The retained map, on-demand home evidence, role boundaries and source labeling still apply. Implementation and verification are recorded in WORKLOG.
+
 ## 1. Decisions and their source
 
 ### Locked by Ayan

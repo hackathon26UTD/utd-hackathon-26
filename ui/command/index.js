@@ -21,11 +21,11 @@ const embedded = route.get('embed') === 'hero';
 const requestedScenario = route.get('scenario') === 'hurricane' ? 'water-hurricane' : route.get('scenario');
 
 function layout({ demo, role, footer, brand }) {
-  return `<div class="shell cc map-only${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">HomeBeacon response map</h1>
-<header class="cc-hub"><a href="/" class="cc-brand" aria-label="HomeBeacon website">HomeBeacon</a><span class="cc-scope">United States</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>More</summary><div class="cc-more-menu">${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button data-theme-toggle>Switch theme</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
+  return `<div class="shell cc map-only vertical-shell${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">HomeBeacon response map</h1>
+<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="HomeBeacon website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>HomeBeacon</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">United States</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>More</summary><div class="cc-more-menu">${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button data-theme-toggle>Switch theme</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
 <div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. No live disaster data.' : 'U.S. imagery · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
 <div class="map-tools" role="toolbar" aria-label="Map tools"><button id="quick-weather" aria-pressed="false"${demo ? ' disabled title="Official weather layers require operator sign-in"' : ''}>Weather</button>${demo ? '<button id="quick-wind" aria-pressed="true">Wind · exercise</button>' : ''}<button id="quick-power" aria-pressed="false">Power loss</button><button id="quick-water" aria-pressed="false">Water reports</button><button id="overlay-toggle" aria-expanded="false" aria-controls="overlay-panel">Layers</button><button id="fit-homes">Find devices</button><button id="national-view">U.S. view</button><button id="open-view-builder" aria-controls="layer-dialog" aria-expanded="false">Create view</button></div>
-<nav class="workspace-island" aria-label="Workspace views"><button data-view="map" aria-pressed="true" aria-controls="map">Map</button><button data-view="overview" aria-expanded="false" aria-controls="overview-panel">Overview</button><button data-view="homes" aria-expanded="false" aria-controls="device-panel">Devices <span id="device-count">0</span></button><button id="activity-link" data-view="activity" aria-expanded="false" aria-controls="timeline">Activity</button><button data-view="demo" aria-expanded="false" aria-controls="demo-panel">Demo</button></nav><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
+<aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div><div class="workspace-sidebar-foot"><span class="sidebar-dot" aria-hidden="true"></span><span>HackUTD prototype</span></div></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
 <section class="board" aria-label="Properties and map"><div class="map-wrap"><div id="map" class="map" role="region" aria-label="United States response map. Open Devices for a keyboard-accessible home list."></div>
 <aside id="overlay-panel" class="overlay-panel" aria-label="Map layers and zones"><div class="ov-head"><strong>Layers and zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
@@ -59,6 +59,7 @@ export async function mountCommand(env) {
   // Full workspace views sit beside the retained map canvas, not inside its inert subtree.
   $('.workspace').append($('#device-panel'));
   $('#embed-label').hidden = !embedded;
+  $('.map-wrap').append($('.map-tools'), $('#notice'), $('#active-layer'));
 
   const S = {
     demo, role, base: [], live: newLiveState(), liveState: 'starting', errors: 0, liveAt: 0, props: [], selectedId: null, selectedRegion: null,
@@ -66,6 +67,48 @@ export async function mountCommand(env) {
   };
   const ctx = { S, $, esc, demo, role, announce, toast, api };
   ctx.renderAll = () => renderAll();
+
+  // Real Argus section-menu component; local layout adapts it to this workspace.
+  const navItems = [
+    { id: 'map', label: 'Map', icon: ['m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2z', 'M9 3v16M15 5v16'] },
+    { id: 'overview', label: 'Overview', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
+    { id: 'homes', label: 'Devices', icon: ['M5 3h14v18H5z', 'M9 7h6M9 11h6M10 17h4'] },
+    { id: 'activity', label: 'Activity', icon: ['M3 12h4l3-8 4 16 3-8h4'] },
+    { id: 'demo', label: 'Demo', icon: ['M8 4v16l12-8z'] },
+  ];
+  const narrowScreen = matchMedia('(max-width:700px)');
+  let storedCollapse = null;
+  try { storedCollapse = localStorage.getItem('homebeacon-sidebar-collapsed'); } catch { /* local preference is optional */ }
+  let navCollapsed = narrowScreen.matches || storedCollapse === 'true';
+  const navigation = window.Kit.sectionMenu({
+    label: 'Workspace views', title: false,
+    groups: [{ label: 'Workspace', items: navItems.map(item => ({ ...item, href: item.id === 'demo' && !demo ? '/demo?view=demo' : '#' + item.id })) }],
+    active: 'map', collapsed: navCollapsed,
+    onSelect: id => { if (narrowScreen.matches) setNavCollapsed(true); ctx.openWorkspace(id); },
+  });
+  $('#workspace-menu').append(navigation.el);
+  const controlledPanels = { map: 'map', overview: 'overview-panel', homes: 'device-panel', activity: 'timeline', demo: 'demo-panel' };
+  navItems.forEach(item => {
+    const link = navigation.el.querySelector(`[data-id="${item.id}"]`);
+    link.dataset.view = item.id;
+    link.setAttribute('aria-controls', controlledPanels[item.id]);
+    if (item.id === 'activity') link.id = 'activity-link';
+    if (item.id === 'homes') {
+      const count = document.createElement('span'); count.id = 'device-count'; count.className = 'sidebar-count'; count.textContent = '0';
+      link.append(count);
+    }
+  });
+  function setNavCollapsed(collapsed, { save = false } = {}) {
+    navCollapsed = collapsed;
+    $('.vertical-shell').classList.toggle('sidebar-collapsed', collapsed);
+    navigation.setCollapsed(collapsed);
+    $('#sidebar-toggle').setAttribute('aria-expanded', String(!collapsed));
+    $('#sidebar-toggle').setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    if (save) { try { localStorage.setItem('homebeacon-sidebar-collapsed', String(collapsed)); } catch { /* optional preference */ } }
+  }
+  setNavCollapsed(navCollapsed);
+  $('#sidebar-toggle').onclick = () => setNavCollapsed(!navCollapsed, { save: true });
+  narrowScreen.addEventListener('change', e => { if (e.matches) setNavCollapsed(true); });
 
   // ---- map ----
 
@@ -98,44 +141,80 @@ export async function mountCommand(env) {
   ctx.afterSend = () => { if (S.bottomTab === 'sent') bottom.show('sent'); if (S.selectedId) detailPanel.loadDetail(S.selectedId, { quiet: true }); };
 
   const viewPanels = { homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
+  let transitionId = 0, viewAnimations = [];
   function setWorkspaceView(view) {
     S.workspaceView = view;
     $('.workspace').classList.toggle('view-open', !!view);
     $('.board').inert = !!view; $('.board').setAttribute('aria-hidden', String(!!view));
-    $('.map-tools').inert = !!view; $('.map-tools').setAttribute('aria-hidden', String(!!view));
-    for (const [key, selector] of Object.entries(viewPanels)) $(selector).hidden = key !== view;
-    document.querySelectorAll('[data-view]').forEach(b => {
-      b.setAttribute('aria-expanded', String(b.dataset.view === view));
-      b.setAttribute('aria-pressed', String(b.dataset.view === (view || 'map')));
-    });
+    $('.map-tools').inert = !!view;
+    for (const [key, selector] of Object.entries(viewPanels)) {
+      const panel = $(selector); panel.hidden = key !== view; panel.inert = key !== view;
+      panel.setAttribute('aria-hidden', String(key !== view));
+    }
+    navigation.setActive(view || 'map');
+    $('#workspace-name').textContent = navItems.find(item => item.id === (view || 'map')).label;
+    document.querySelectorAll('[data-view]').forEach(link => link.setAttribute('aria-expanded', String(link.dataset.view === (view || 'map'))));
   }
-  ctx.closeWorkspace = ({ focus = true } = {}) => {
+  const viewElement = view => view ? $(viewPanels[view]) : $('.board');
+  const viewFocus = view => view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
+  function cancelViewAnimations() { viewAnimations.forEach(animation => animation.cancel()); viewAnimations = []; }
+  async function transitionWorkspace(view, { animate = true, focusTarget = null } = {}) {
+    const id = ++transitionId;
+    const outgoing = viewElement(S.workspaceView);
+    const outgoingOpacity = Number(getComputedStyle(outgoing).opacity);
+    cancelViewAnimations();
+    const canMove = animate && !S.embed && !matchMedia('(prefers-reduced-motion:reduce)').matches && window.Kit.motion?.canMove?.() !== false;
+    if (outgoing.contains(document.activeElement)) $('[data-view="' + (view || 'map') + '"]')?.focus({ preventScroll: true });
+    if (S.workspaceView === view || !canMove) {
+      setWorkspaceView(view);
+      focusTarget?.focus({ preventScroll: true });
+      return true;
+    }
+    outgoing.inert = true;
+    const fadeOut = outgoing.animate([{ opacity: outgoingOpacity }, { opacity: 0 }], { duration: 110, easing: 'ease-out', fill: 'forwards' });
+    viewAnimations.push(fadeOut);
+    try { await fadeOut.finished; } catch { return false; }
+    if (id !== transitionId) return false;
+    setWorkspaceView(view);
+    const incoming = viewElement(view);
+    incoming.inert = true;
+    fadeOut.cancel();
+    const fadeIn = incoming.animate([{ opacity: 0, transform: 'translateY(3px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 160, easing: 'ease-out', fill: 'forwards' });
+    viewAnimations = [fadeIn];
+    try { await fadeIn.finished; } catch { return false; }
+    if (id !== transitionId) return false;
+    fadeIn.cancel(); viewAnimations = [];
+    incoming.inert = false;
+    focusTarget?.focus({ preventScroll: true });
+    return true;
+  }
+  ctx.closeWorkspace = ({ focus = true, animate = focus } = {}) => {
     const previous = S.workspaceView;
-    setWorkspaceView(null);
-    if (focus) document.querySelector(`[data-view="${previous || 'map'}"]`)?.focus({ preventScroll: true });
+    return transitionWorkspace(null, { animate, focusTarget: focus ? $('[data-view="' + (previous || 'map') + '"]') : null });
   };
   ctx.openWorkspace = view => {
     ctx.closeViewBuilder?.({ focus: false });
-    if (view === 'map') return ctx.closeWorkspace();
     if (view === 'demo' && !demo) { location.href = '/demo?view=demo'; return; }
     if (view === 'priorities') view = 'homes';
+    if (view === 'map') view = null;
     ctx.closeDetail({ restoreFocus: false });
     $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false');
-    setWorkspaceView(view);
     if (view === 'homes') { $('#queue-title').textContent = 'Devices'; renderList(); }
     else if (view === 'overview') renderOverview();
     else if (view === 'demo') renderDemo();
-    (view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : $('#demo-title')).focus({ preventScroll: true });
+    return transitionWorkspace(view, { focusTarget: viewFocus(view) });
   };
+  setWorkspaceView(null);
   ctx.positionDetail = () => {
     const card = $('#detail'), path = $('#detail-connector path');
     if (!S.detailOpen || card.hidden) { path.setAttribute('d', ''); return; }
     const region = S.regions.find(r => r.key === S.selectedRegion);
     const coord = S.selectedRegion ? region?.centroid || (region?.bbox ? [(region.bbox[0] + region.bbox[2]) / 2, (region.bbox[1] + region.bbox[3]) / 2] : null) : S.props.find(p => p.id === S.selectedId)?.coordinates;
-    const point = coord ? mv.map.project(coord) : { x: innerWidth / 2, y: innerHeight / 2 };
+    const width = $('.board').clientWidth, height = $('.board').clientHeight;
+    const point = coord ? mv.map.project(coord) : { x: width / 2, y: height / 2 };
     const mobile = innerWidth < 700, w = card.offsetWidth, h = card.offsetHeight;
-    const left = Math.max(12, Math.min(innerWidth - w - 12, mobile ? point.x - w / 2 : point.x + 26));
-    const top = Math.max(S.embed ? 42 : mobile ? 145 : 130, Math.min(innerHeight - h - (S.embed ? 18 : mobile ? 82 : 40), point.y - h - 24));
+    const left = Math.max(8, Math.min(width - w - 8, mobile ? point.x - w / 2 : point.x + 26));
+    const top = Math.max(S.embed ? 42 : 66, Math.min(height - h - 32, point.y - h - 24));
     card.style.left = left + 'px'; card.style.top = top + 'px';
     const endX = Math.max(left + 18, Math.min(left + w - 18, point.x));
     const endY = point.y > top + h ? top + h : point.y < top ? top : Math.max(top + 18, Math.min(top + h - 18, point.y));
@@ -144,12 +223,13 @@ export async function mountCommand(env) {
   mv.map.on('move', ctx.positionDetail);
   new ResizeObserver(() => ctx.positionDetail()).observe($('#detail'));
   window.addEventListener('resize', ctx.positionDetail);
+  new ResizeObserver(() => { mv.map.resize(); ctx.positionDetail(); }).observe($('#map'));
   ctx.revealDetailAnchor = () => {
     if (!S.detailOpen || (!S.embed && innerWidth >= 700)) return;
     const r = S.regions.find(x => x.key === S.selectedRegion);
     const coord = S.selectedRegion ? r?.centroid : S.props.find(p => p.id === S.selectedId)?.coordinates;
     if (!coord) return;
-    const point = mv.map.project(coord), targetY = innerHeight - (S.embed ? 30 : 115);
+    const point = mv.map.project(coord), targetY = $('.board').clientHeight - (S.embed ? 30 : 60);
     if (Math.abs(point.y - targetY) > 8) mv.map.panBy([0, point.y - targetY], { duration: matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 200 });
   };
 
@@ -175,7 +255,7 @@ export async function mountCommand(env) {
     requestAnimationFrame(() => {
       if (!S.detailOpen || S.workspaceView) return;
       const active = document.activeElement;
-      if (active === document.body || active === S.detailReturnFocus || active?.closest('#device-panel,#overview-panel')) $('#detail-close')?.focus({ preventScroll: true });
+      if (active === document.body || active === S.detailReturnFocus || active === $('[data-view="map"]') || active?.closest('#device-panel,#overview-panel')) $('#detail-close')?.focus({ preventScroll: true });
     });
   }
   ctx.closeDetail = ({ restoreFocus = true } = {}) => {
@@ -388,7 +468,6 @@ export async function mountCommand(env) {
     $('#filter').value = S.filter;
     $('#filter').dispatchEvent(new Event('change', { bubbles: true }));
   });
-  $('.workspace-island').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) ctx.openWorkspace(b.dataset.view); });
   document.querySelectorAll('[data-close-view]').forEach(b => b.onclick = () => ctx.closeWorkspace());
   $('#queue-close').onclick = () => ctx.closeWorkspace();
   $('#activity-close').onclick = () => ctx.closeWorkspace();
@@ -398,7 +477,7 @@ export async function mountCommand(env) {
     if (b.dataset.overviewFilter) { S.search = ''; $('#search').value = ''; S.filter = b.dataset.overviewFilter; $('#filter').value = S.filter; S.queueTab = 'homes'; $('#filter').dispatchEvent(new Event('change', { bubbles: true })); ctx.openWorkspace('homes'); }
   };
   $('#demo-scenarios').onclick = e => { const b = e.target.closest('[data-scenario]'); if (b) loadScenario(b.dataset.scenario); };
-  $('#demo-show-map').onclick = () => { ctx.closeWorkspace({ focus: false }); fitScenario(); $('[data-view="map"]').focus(); };
+  $('#demo-show-map').onclick = async () => { if (await ctx.closeWorkspace({ focus: false, animate: true })) { fitScenario(); $('[data-view="map"]').focus(); } };
   $('#demo-show-overview').onclick = () => ctx.openWorkspace('overview');
   window.addEventListener('message', e => {
     if (!demo || !S.embed || e.origin !== location.origin || e.source !== window.parent || e.data?.type !== 'homebeacon:preview-step' || S.demoBusy) return;
