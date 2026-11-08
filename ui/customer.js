@@ -103,7 +103,7 @@ function boxOverview() {
     h('nav',{class:'customer-quicklinks','aria-label':'Quick links'},[
       ['Add household member','household-tools','♧'],['Add device','add-device','+'],['Device history','devices','↗'],['Account settings','account-settings','⚙']
     ].map(([name,id,icon])=>h('a',{href:preview?'/customer?mode=signin#'+id:'#'+id,onclick:e=>{if(preview)return;
-      const target=document.getElementById(id);if(target){e.preventDefault();if(target.tagName==='DETAILS')target.open=true;target.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
+      const target=document.getElementById(id);if(target){e.preventDefault();const details=target.tagName==='DETAILS'?target:target.querySelector('details');if(details)details.open=true;target.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
     }},h('span',{'aria-hidden':'true'},icon),h('strong',null,name),h('span',{class:'quick-arrow','aria-hidden':'true'},'›')))));
 }
 function showVitalDetail(button) {
@@ -196,6 +196,7 @@ function render() {
     h('p', { class: 'fine' }, 'Contact permission is shown under Manage this box.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
   root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), msgEl('session'), ...(preview ? [boxOverview()] : state.user ? appView() : guestView())), foot));
   if (state.user || preview) {startBox();updateOverview();}
+  if (state.user && location.hash === '#add-device') requestAnimationFrame(() => { const target=root.querySelector('#add-device'); if(target){target.querySelector('details').open=true;target.scrollIntoView({behavior:'instant',block:'start'});} });
   if (!preview) households.sync();
   if(state.user){const photo=h('details',{class:'card',id:'profile',open:location.hash==='#profile'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
 }
