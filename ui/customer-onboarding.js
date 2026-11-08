@@ -2,20 +2,22 @@
 // Pure helpers are exported for unit tests. Every string reaches the page through textContent (the injected `h`), never innerHTML.
 // Contract: docs/ONBOARDING.md sections 3 and 6. Only /api/customer/* endpoints are called.
 
-export const SERIAL_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 characters, no I, L, O, 0, 1
+export const SERIAL_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // No I, L, O, 0, 1; derive the modulus from this string.
 export const WAITING_HELP_AFTER_MS = 10 * 60 * 1000;
-export const PAUSED_FOREVER = '2099-12-31T00:00:00.000Z';
 
 // ---------- serial and code helpers ----------
-// Check character: sum of (position 1..7 times alphabet index) mod 31, as the alphabet character.
+// Check character: sum of (position 1..7 times alphabet index) mod alphabet length, as the alphabet character.
 // The server never rejects on this (older boxes have 8 random characters); it only drives a typo hint here.
 export function serialCheckChar(body7) {
+  const body = String(body7 ?? '').toUpperCase();
+  if (body.length !== 7 || [...body].some(c => !SERIAL_ALPHABET.includes(c))) return null;
   let sum = 0;
-  for (let i = 0; i < 7; i++) sum += (i + 1) * SERIAL_ALPHABET.indexOf(body7[i]);
-  return SERIAL_ALPHABET[sum % 31];
+  for (let i = 0; i < 7; i++) sum += (i + 1) * SERIAL_ALPHABET.indexOf(body[i]);
+  return SERIAL_ALPHABET[sum % SERIAL_ALPHABET.length];
 }
+
 export function normalizeSerial(raw) {
-  let s = String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let s = String(raw ?? '').toUpperCase().replace(/[\s-]/g, '');
   if (s.startsWith('HB') && s.length === 10) s = s.slice(2);
   if (s.length !== 8) return '';
   return `HB-${s.slice(0, 4)}-${s.slice(4)}`;
@@ -24,7 +26,7 @@ export function normalizeSerial(raw) {
 export function serialCheck(raw) {
   const s = normalizeSerial(raw);
   if (!s) return 'invalid';
-  const body = s.replace(/-/g, '').slice(0, 8);
+  const body = s.slice(3).replace(/-/g, '');
   if ([...body].some(c => !SERIAL_ALPHABET.includes(c))) return 'invalid';
   return serialCheckChar(body.slice(0, 7)) === body[7] ? 'ok' : 'mismatch';
 }
@@ -51,31 +53,37 @@ export function codeProblem(raw) {
 }
 // Reads a scanned QR string, a pasted link, or a URL fragment. Returns {serial, code} or null. Never navigates anywhere.
 export function parseClaimText(text) {
-  const m = /claim=([A-Za-z0-9-]{8,16})\.([A-Za-z0-9-]{6,9})(?![A-Za-z0-9])/.exec(String(text ?? '')) || /^\s*(HB-?[A-Za-z0-9-]{8,12})\.([A-Za-z0-9-]{6,9})\s*$/.exec(String(text ?? ''));
+  const raw = String(text ?? '').trim();
+  const fragment = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : raw;
+  const m = /^(?:claim=)?(HB-?[A-Za-z0-9]{4}-?[A-Za-z0-9]{4})\.([A-Za-z0-9]{6}|[A-Za-z0-9]{4}-?[A-Za-z0-9]{4})$/i.exec(fragment);
   if (!m) return null;
   const serial = normalizeSerial(m[1]), code = normalizeCode(m[2]);
-  return serial && code ? { serial, code } : null;
+  return serial && serialCheck(serial) !== 'invalid' && code ? { serial, code } : null;
 }
-export const readClaimFragment = hash => (/^#claim=/.test(hash) ? parseClaimText(hash) : null);
+export function readClaimFragment(win = globalThis) {
+  const hash = win.location.hash;
+  if (!hash.startsWith('#claim=')) return null;
+  // Strip even malformed claims before the first authentication request. Never persist the code.
+  win.history.replaceState(null, '', win.location.pathname + win.location.search);
+  return parseClaimText(hash);
+}
 
 // ---------- state and time helpers ----------
 export function lastSeenOf(d) { return d?.lastSeenAt || d?.lastSeen || null; }
-// Maps a customer device view to one of: active, awaiting, silent, disabled, other. Uses the server state when present,
-// otherwise falls back to the older fields so the page still works before the server ships the new view.
+// Reporting is connectivity only. It never implies that conditions in the home are normal.
 export function boxStatus(d) {
-  const last = lastSeenOf(d);
-  if (d?.state === 'active') return { kind: 'active', label: 'Reporting', pill: d.status || 'normal' };
-  if (d?.state === 'inactive') {
-    switch (d.reason) {
+  const fleet = d?.fleetStatus;
+  if (fleet?.state === 'active') return { kind: 'active', label: 'Reporting', pill: 'reporting' };
+  if (fleet?.state === 'inactive') {
+    switch (fleet.reason) {
       case 'awaiting_first_report': return { kind: 'awaiting', label: 'Waiting for first report', pill: 'no_recent_signal' };
       case 'silent': return { kind: 'silent', label: 'No recent signal', pill: 'no_recent_signal' };
       case 'disabled': return { kind: 'disabled', label: 'Paused by the team', pill: 'no_recent_signal' };
       default: return { kind: 'other', label: 'Not reporting', pill: 'no_recent_signal' };
     }
   }
-  if (!last) return { kind: 'awaiting', label: 'Waiting for first report', pill: 'no_recent_signal' };
-  if (d?.status === 'no_recent_signal') return { kind: 'silent', label: 'No recent signal', pill: 'no_recent_signal' };
-  return { kind: 'active', label: 'Reporting', pill: d?.status || 'normal' };
+  if (!lastSeenOf(d) && !d?.firstReportAt) return { kind: 'awaiting', label: 'Waiting for first report', pill: 'no_recent_signal' };
+  return { kind: 'other', label: 'Reporting status unavailable', pill: 'no_recent_signal' };
 }
 export function agoShort(iso, now = Date.now()) {
   if (!iso) return 'never';
@@ -105,19 +113,18 @@ export function pauseUntil(choice, now = Date.now()) {
   if (choice === 'on') return null;
   if (choice === '24h') return new Date(now + 24 * 3600e3).toISOString();
   if (choice === '7d') return new Date(now + 7 * 24 * 3600e3).toISOString();
-  if (choice === 'until') return PAUSED_FOREVER;
   return undefined;
 }
 export function pauseChoiceOf(iso, now = Date.now()) {
   if (!iso) return 'on';
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t) || t <= now) return 'on';
-  return t >= new Date('2090-01-01').getTime() ? 'until' : t - now > 2 * 24 * 3600e3 ? '7d' : '24h';
+  return t - now > 2 * 24 * 3600e3 ? '7d' : '24h';
 }
-// Body for POST /api/customer/claim. Name only goes with contact consent; the exact address flag only with an address.
+// Only supported claim fields. No speculative privacy or email controls.
 export function claimBody(f, user) {
   const consent = !!f.consent, address = String(f.address || '').trim();
-  const body = { serial: normalizeSerial(f.serial), code: normalizeCode(f.code), consent, emailAlerts: !!f.emailAlerts, locationConsent: !!address && !!f.locationConsent };
+  const body = { serial: normalizeSerial(f.serial), code: normalizeCode(f.code), consent };
   const nickname = String(f.nickname || '').trim(), room = String(f.room || '').trim(), name = String(f.contactName || user?.contactName || '').trim();
   if (nickname) body.nickname = nickname;
   if (room) body.room = room;
@@ -143,15 +150,17 @@ export function startCameraScan(video, { onText, onError, g = globalThis }) {
   const stop = () => { stopped = true; if (raf) (g.cancelAnimationFrame || clearTimeout)(raf); stream?.getTracks().forEach(t => t.stop()); stream = null; try { video.srcObject = null; } catch { /* detached */ } };
   (async () => {
     const detector = await qrDetector(g);
+    if (stopped) return;
     if (!detector) return onError('This browser cannot read QR codes. Type the serial and code instead.');
     try { stream = await g.navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); }
-    catch { return onError('The camera is not available or was blocked. Type the serial and code instead.'); }
+    catch { if (stopped) return; return onError('The camera is not available or was blocked. Type the serial and code instead.'); }
     if (stopped) return stop();
     video.srcObject = stream; video.setAttribute('playsinline', ''); video.muted = true;
     try { await video.play(); } catch { /* autoplay can be refused; frames still arrive once visible */ }
     const loop = async () => {
       if (stopped) return;
       try { const hits = await detector.detect(video); const hit = hits.find(x => x.rawValue); if (hit) { stop(); return onText(hit.rawValue); } } catch { /* a frame can fail; try the next */ }
+      if (stopped) return;
       raf = (g.requestAnimationFrame || (fn => setTimeout(fn, 200)))(loop);
     };
     loop();
@@ -161,14 +170,13 @@ export function startCameraScan(video, { onText, onError, g = globalThis }) {
 export async function scanImageFile(file, g = globalThis) {
   const detector = await qrDetector(g);
   if (!detector) return null;
-  try { const bitmap = await g.createImageBitmap(file); const hits = await detector.detect(bitmap); bitmap.close?.(); return hits.find(x => x.rawValue)?.rawValue || null; } catch { return null; }
+  let bitmap;
+  try { bitmap = await g.createImageBitmap(file); const hits = await detector.detect(bitmap); return hits.find(x => x.rawValue)?.rawValue || null; } catch { return null; } finally { bitmap?.close?.(); }
 }
 
 // ---------- copy ----------
 export const COPY = {
   consentContact: 'The response team may contact me about this box. This shares my name and email with them.',
-  consentLocation: 'Share my exact address with the response team. Without this they see only the general area.',
-  consentEmail: 'Email me when my box goes quiet. Email may be off while we test. You will still see it on this page.',
   wifi: [
     'Your installer sets up Wi-Fi for now. A box cannot join a new network from this page yet.',
     'Keep the box powered and close to your router, then wait a few minutes. This page checks every 10 seconds.',
@@ -176,20 +184,19 @@ export const COPY = {
   ],
   reset: 'There is no reset button yet. To wipe a box and start over, ask the team to reflash it. Unlinking here does not erase the box.',
   unlink: 'This removes the box from your account and deletes the contact name and box name you gave. Past readings stay with the box for the team and stop showing here. To link it again you need a new pairing code.',
-  transfer: 'This unlinks the box and gives you a new serial and code to hand to the next owner. They are shown once.',
 };
 
 // ---------- views ----------
-export function onboardingUI({ h, api, state, refresh, say, msgEl, field, submit, win = globalThis }) {
+export function onboardingUI({ h, api, state, refresh, renderDevices, say, msgEl, field, submit, win = globalThis }) {
   state.add ||= { step: state.prefill ? 'confirm' : 'find', serial: state.prefill?.serial || '', code: state.prefill?.code || '', hinted: '', scan: false };
-  state.claimedAt ||= {}; state.serials ||= {}; state.handover ||= null; state.reporting ||= null;
+  state.claimedAt ||= {}; state.serials ||= {}; state.reporting ||= null;
   const manageNodes = new Map();
   let scanner = null;
   const support = scanSupport(win);
 
   const stopScan = () => { scanner?.stop(); scanner = null; state.add.scan = false; };
   const slot = () => win.document?.getElementById('add-box');
-  function redraw() { const el = slot(); if (el) el.replaceChildren(...addBody()); }
+  function redraw() { const el = slot(); if (el) { el.replaceChildren(...addBody()); el.querySelector('input:not([type=checkbox]),button')?.focus(); } }
   const checkbox = (name, text, extra = {}) => h('label', { class: 'check', for: 'f-' + name }, h('input', { type: 'checkbox', id: 'f-' + name, name, ...extra }), h('span', null, text));
 
   // Fills the form from a scanned or pasted value and moves on to the confirm step.
@@ -222,43 +229,46 @@ export function onboardingUI({ h, api, state, refresh, say, msgEl, field, submit
     field('Pairing code', 'code', { mono: true, hint: 'On the card inside the box. 8 characters like K4M7-XP2R, or 6 digits on older cards', value: a.code, max: 12, auto: 'off' }),
     h('button', { class: 'primary', type: 'submit' }, 'Continue'), msgEl('find'));
     return [
-      h('p', { class: 'muted' }, 'Your box already has its identity. You only need to tie it to this account. Scan the QR code on the pairing card, or type the serial and code.'),
+      h('p', { class: 'muted' }, 'Scan the QR code on the pairing card, or type the serial and code to add your box.'),
       (support.camera || support.detector) ? h('div', { class: 'row scan-actions' },
         support.camera && h('button', { type: 'button', onclick: () => { a.scan = true; a.scanError = ''; redraw(); } }, 'Scan the QR code'),
         support.detector && h('label', { class: 'scan-photo' }, 'Or scan a photo', photo)) : h('p', { class: 'fine' }, 'This browser cannot scan QR codes, so type the serial and code.'),
       a.scan && scanPanel(),
       a.scanError && h('p', { class: 'msg err', role: 'alert' }, a.scanError),
       form,
-      h('p', { class: 'fine' }, 'Nothing is sent to us until you confirm on the next step. We never show whether a serial exists.'),
+      h('p', { class: 'fine' }, 'The serial and code are sent only when you choose Link my box.'),
     ];
   }
 
   function confirmStep() {
     const a = state.add;
-    const contactName = field('Your name', 'contactName', { auto: 'name', value: state.user?.contactName, hint: 'Shown to the response team', max: 60 });
+    const contactName = field('Your name', 'contactName', { auto: 'name', value: state.user?.contactName, hint: 'Shared if you allow contact below', max: 60, optional: true });
     const nameWrap = h('div', { class: 'consent-name', hidden: true }, contactName);
     const contact = checkbox('consent', COPY.consentContact, { onchange: e => { nameWrap.hidden = !e.target.checked; contactName.querySelector('input').required = e.target.checked; } });
-    const addrInput = field('Address (optional)', 'address', { auto: 'street-address', optional: true, max: 300, hint: 'Street, city, state and ZIP. You can add it later. It is sent to the U.S. Census address service to place your box on the map.' });
-    const loc = checkbox('locationConsent', COPY.consentLocation, { disabled: true });
-    addrInput.querySelector('input').addEventListener('input', e => { loc.querySelector('input').disabled = !e.target.value.trim(); if (!e.target.value.trim()) loc.querySelector('input').checked = false; });
+    const addrInput = field('Address (optional)', 'address', { auto: 'street-address', optional: true, max: 300, hint: 'Street, city, state and ZIP. It is sent to the U.S. Census address service to place your box on the map.' });
     const form = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'confirm', async f => {
-      const r = await api('/api/customer/claim', 'POST', claimBody({ ...f, serial: a.serial, code: a.code, consent: e.target.consent.checked, emailAlerts: e.target.emailAlerts.checked, locationConsent: e.target.locationConsent.checked }, state.user));
+      const r = await api('/api/customer/claim', 'POST', claimBody({ ...f, serial: a.serial, code: a.code, consent: !!f.consent }, state.user));
       if (!r.ok) return say('confirm', r.data.error || 'Something went wrong. Try again.');
       const id = r.data.id; if (id) { state.claimedAt[id] = Date.now(); state.serials[id] = a.serial; }
+      state.prefill = null;
+      if (id && f.room?.trim()) {
+        const roomSave = await api('/api/customer/devices/' + encodeURIComponent(id), 'PATCH', { room: f.room.trim() });
+        if (!roomSave.ok) say('linked', 'Your box is linked, but the room could not be saved. Open Manage this box to try again.');
+      }
       Object.assign(a, { step: 'done', code: '', linkId: id, hinted: '' });
       say('confirm', ''); redraw(); await refresh();
     }); } },
-    h('div', { class: 'row picked' }, h('div', null, h('strong', null, 'Box ', a.serial), h('p', { class: 'fine' }, 'Code accepted on the next step. It is used once.')), h('button', { type: 'button', class: 'link', onclick: () => { a.step = 'find'; a.code = ''; redraw(); } }, 'Change')),
+    h('div', { class: 'row picked' }, h('div', null, h('strong', null, 'Box ', a.serial), h('p', { class: 'fine' }, 'We will check the code when you choose Link my box.')), h('button', { type: 'button', class: 'link', onclick: () => { a.step = 'find'; a.code = ''; redraw(); } }, 'Change')),
     field('Box name (optional)', 'nickname', { optional: true, hint: 'Like Garage or Back door', max: 40 }),
     field('Room (optional)', 'room', { optional: true, hint: 'Like Kitchen', max: 40 }),
     addrInput,
-    h('fieldset', { class: 'consents' }, h('legend', null, 'What you share (all off unless you choose)'), contact, nameWrap, loc, checkbox('emailAlerts', COPY.consentEmail)),
+    h('fieldset', { class: 'consents' }, h('legend', null, 'Contact permission (optional)'), contact, nameWrap),
     h('button', { class: 'primary', type: 'submit' }, 'Link my box'), msgEl('confirm'));
-    return [h('p', { class: 'muted' }, 'Last step. Name the box if you like, then choose what the response team may see. You can change all of this later.'), form];
+    return [h('p', { class: 'muted' }, 'Last step. Name the box if you like, then choose what the response team may see. Your address is optional.'), form];
   }
 
   function doneStep() {
-    return [h('p', { class: 'banner', role: 'status' }, 'Box linked. Look for it in your list above. It shows as waiting until it reports for the first time.'), h('button', { type: 'button', onclick: () => { Object.assign(state.add, { step: 'find', serial: '', code: '' }); redraw(); } }, 'Add another box')];
+    return [msgEl('linked'), h('p', { class: 'banner', role: 'status' }, 'Box linked. Look for it in your list above. It shows as waiting until it reports for the first time.'), h('button', { type: 'button', onclick: () => { Object.assign(state.add, { step: 'find', serial: '', code: '' }); redraw(); } }, 'Add another box')];
   }
   function addBody() {
     const a = state.add;
@@ -273,12 +283,13 @@ export function onboardingUI({ h, api, state, refresh, say, msgEl, field, submit
   // ---------- per-box ----------
   function waitingView(d) {
     const st = boxStatus(d), seen = lastSeenOf(d), serial = d.serial || state.serials[d.id];
+    if (st.kind === 'other') return h('p', { class: 'fine' }, 'We cannot confirm whether this box is reporting. Missing information does not mean your home is safe.');
     if (st.kind === 'disabled') return h('div', { class: 'wait' }, h('p', null, 'The team has paused this box. It will not report until they turn it back on.'), h('p', { class: 'fine' }, 'Contact the team if you did not expect this.'));
     if (st.kind === 'awaiting') {
       const help = needsWifiHelp(d, state.claimedAt[d.id]);
       return h('div', { class: 'wait', role: 'status' },
         h('p', { class: 'wait-title' }, h('span', { class: 'spinner', 'aria-hidden': 'true' }), 'Waiting for your box to report'),
-        h('p', { class: 'fine' }, 'We have not heard from it yet. Nothing is shown as safe or unsafe until it does. Checked every 10 seconds while this page is open.'),
+        h('p', { class: 'fine' }, 'We have not heard from it yet. A report cannot tell you whether your home is safe. Checked every 10 seconds while this page is open.'),
         help && h('div', { class: 'wifi-help' }, h('strong', null, 'Still nothing after 10 minutes'), h('ul', { class: 'plain' }, COPY.wifi.map(t => h('li', null, t))), serial && h('p', { class: 'fine' }, 'If you contact the team, give them this serial: ', h('code', null, serial), '. Never share the pairing code.')));
     }
     if (st.kind === 'silent') {
@@ -288,64 +299,89 @@ export function onboardingUI({ h, api, state, refresh, say, msgEl, field, submit
     }
     return null;
   }
-  const reportingBanner = d => (state.reporting?.has(d.id) ? h('p', { class: 'banner', role: 'status' }, 'Your box is reporting. ', h('button', { type: 'button', class: 'link', onclick: () => { state.reporting.delete(d.id); win.__rerender?.(); } }, 'Dismiss')) : null);
-  const lastHeard = d => { const s = boxStatus(d); return s.kind === 'awaiting' ? null : h('p', { class: 'fine' }, 'Last heard from: ', h('span', { 'data-ago': lastSeenOf(d) || '' }, agoShort(lastSeenOf(d)))); };
+  const reportingBanner = d => (state.reporting?.has(d.id) && boxStatus(d).kind === 'active' ? h('p', { class: 'banner', role: 'status' }, 'Your box is reporting. ', h('button', { type: 'button', class: 'link', onclick: () => { state.reporting.delete(d.id); renderDevices(); } }, 'Dismiss')) : null);
+  const lastHeard = d => { const s = boxStatus(d); return s.kind === 'awaiting' ? null : h('p', { class: 'fine' }, 'Heard from your box: ', h('span', { 'data-ago': lastSeenOf(d) || '' }, agoShort(lastSeenOf(d)))); };
 
   function manageView(d) {
     let m = manageNodes.get(d.id);
     if (m) { m.update(d); return m.node; }
-    const local = { confirm: null };
-    const out = h('div', { class: 'manage-out' });
+    let current = d, busy = false;
+    const path = '/api/customer/devices/' + encodeURIComponent(d.id);
     const note = msgEl('manage-' + d.id);
-    const send = async (patch, okText) => { say('manage-' + d.id, 'Saving...', 'ok'); const r = await api('/api/customer/devices?id=' + encodeURIComponent(d.id), 'PATCH', patch); if (!r.ok) { say('manage-' + d.id, r.data.error || 'Could not save. Try again.'); return r; } say('manage-' + d.id, okText, 'ok'); await refresh(); return r; };
-    const nameForm = h('form', { onsubmit: e => { e.preventDefault(); const f = Object.fromEntries(new FormData(e.target)); const patch = {}; if (f.nickname.trim()) patch.nickname = f.nickname.trim(); patch.room = f.room.trim(); send(patch, 'Saved.'); } },
-      field('Box name', 'nickname-' + d.id, { value: d.nickname, max: 40, optional: true }), field('Room', 'room-' + d.id, { value: d.room || '', max: 40, optional: true }), h('button', { class: 'primary', type: 'submit' }, 'Save'));
-    // field() uses the id as the form key, so map back to plain names on submit.
-    nameForm.querySelectorAll?.('input').forEach?.(i => { i.name = i.name.replace(/-[0-9a-f]{24}$/, ''); });
-    const pause = h('select', { id: 'pause-' + d.id, name: 'pause', 'aria-label': 'Email notifications', onchange: e => send({ notificationsPausedUntil: pauseUntil(e.target.value) }, e.target.value === 'on' ? 'Email notifications are on.' : 'Email notifications paused.') },
-      [['on', 'Email notifications on'], ['24h', 'Pause for 24 hours'], ['7d', 'Pause for 7 days'], ['until', 'Pause until I turn them on']].map(([v, t]) => h('option', { value: v }, t)));
-    const toggle = (key, text) => { const input = h('input', { type: 'checkbox', id: `${key}-${d.id}`, onchange: e => send({ [key]: e.target.checked }, 'Saved.') }); return { input, node: h('label', { class: 'check', for: `${key}-${d.id}` }, input, h('span', null, text)) }; };
-    const tEmail = toggle('emailAlerts', COPY.consentEmail), tLoc = toggle('locationConsent', COPY.consentLocation), tContact = toggle('consent', COPY.consentContact);
-    const leave = async reissue => {
-      const r = await api('/api/customer/devices?id=' + encodeURIComponent(d.id) + (reissue ? '&reissue=1' : ''), 'DELETE');
-      if (r.ok || r.status === 404) { if (reissue && r.data.serial) state.handover = { name: d.nickname, serial: r.data.serial, code: r.data.pairingCode }; manageNodes.delete(d.id); await refresh(); win.__rerender?.(); return; }
-      say('manage-' + d.id, r.data.error || 'Could not unlink. Try again.');
+    const nameField = field('Box name', 'nickname-' + d.id, { value: d.nickname, max: 40 });
+    const roomField = field('Room (optional)', 'room-' + d.id, { value: d.room || '', max: 40, optional: true });
+    const nameInput = nameField.querySelector('input'), roomInput = roomField.querySelector('input');
+    nameInput.name = 'nickname'; roomInput.name = 'room';
+    const send = async (patch, okText) => {
+      if (busy) return;
+      busy = true; setBusy(true); say('manage-' + d.id, 'Saving...', 'ok');
+      try {
+        const r = await api(path, 'PATCH', patch);
+        if (!r.ok) { say('manage-' + d.id, r.data.error || 'Could not save. Try again.'); return; }
+        current = { ...current, ...patch };
+        say('manage-' + d.id, okText, 'ok'); await refresh();
+      } finally { busy = false; update(current); setBusy(false); }
     };
+    const nameForm = h('form', { onsubmit: e => {
+      e.preventDefault();
+      if (!nameInput.value.trim()) return say('manage-' + d.id, 'Enter a box name.');
+      send({ nickname: nameInput.value.trim(), room: roomInput.value.trim() }, 'Box details saved.');
+    } }, nameField, roomField, h('button', { class: 'primary', type: 'submit' }, 'Save'));
+    const pauseActions = h('div', { class: 'row pause-actions' },
+      [['24h', 'Pause for 24 hours'], ['7d', 'Pause for 7 days'], ['on', 'Resume alerts']].map(([choice, label]) =>
+        h('button', { type: 'button', onclick: () => send({ notificationsPausedUntil: pauseUntil(choice) }, choice === 'on' ? 'Pause removed. Email delivery is still off during testing.' : 'Email alerts paused. Reports still appear here.') }, label)));
+    const pauseNote = h('p', { class: 'fine' });
+    const contactNote = h('p', { class: 'fine' });
     const confirmBox = h('div', { class: 'confirm-box', hidden: true });
-    const ask = kind => { local.confirm = kind; confirmBox.hidden = false; confirmBox.replaceChildren(h('p', null, kind === 'transfer' ? COPY.transfer : COPY.unlink), h('div', { class: 'row' }, h('button', { type: 'button', class: 'danger', onclick: () => leave(kind === 'transfer') }, kind === 'transfer' ? 'Unlink and show new code' : 'Yes, unlink'), h('button', { type: 'button', onclick: () => { local.confirm = null; confirmBox.hidden = true; } }, 'Keep it'))); };
+    const leave = async () => {
+      if (busy) return;
+      busy = true; setBusy(true);
+      try {
+        const r = await api(path, 'DELETE');
+        if (r.ok || r.status === 404) {
+          state.devices = (state.devices || []).filter(x => x.id !== d.id);
+          manageNodes.delete(d.id); state.reporting?.delete(d.id); state.kinds?.delete(d.id);
+          renderDevices(); await refresh();
+          win.document?.querySelector('#add-box')?.closest('details')?.querySelector('summary')?.focus();
+        } else say('manage-' + d.id, r.data.error || 'Could not remove the box. Try again.');
+      } finally { busy = false; setBusy(false); }
+    };
+    const remove = h('button', { type: 'button', class: 'danger', onclick: () => {
+      confirmBox.hidden = false;
+      confirmBox.replaceChildren(h('p', null, COPY.unlink), h('div', { class: 'row' },
+        h('button', { type: 'button', class: 'danger', onclick: leave }, 'Yes, unlink and remove'),
+        h('button', { type: 'button', onclick: () => { confirmBox.hidden = true; remove.focus(); } }, 'Keep this box')));
+      confirmBox.querySelector('button')?.focus();
+    } }, 'Unlink and remove this box');
     const node = h('details', { class: 'manage' }, h('summary', null, 'Manage this box'),
       h('div', { class: 'settings-stack' }, nameForm,
-        h('div', { class: 'stack' }, h('label', { for: 'pause-' + d.id }, 'Email notifications', h('small', null, 'Pausing stops emails only. Anything urgent still shows on this page.'), pause)),
-        h('fieldset', { class: 'consents' }, h('legend', null, 'What you share'), tContact.node, tLoc.node, tEmail.node), note,
-        h('div', { class: 'row' }, h('button', { type: 'button', class: 'danger', onclick: () => ask('unlink') }, 'Unlink this box'), h('button', { type: 'button', onclick: () => ask('transfer') }, 'Give it to someone else')),
-        confirmBox, out,
-        h('details', { class: 'reset' }, h('summary', null, 'Wi-Fi and factory reset'), h('p', { class: 'fine' }, COPY.wifi[0]), h('p', { class: 'fine' }, COPY.reset))));
-    const update = nd => {
-      const fresh = nd || d;
-      pause.value = pauseChoiceOf(fresh.notificationsPausedUntil);
-      pause.dispatchEvent?.(new win.Event('kit-sync'));
-      if (fresh.emailAlerts !== undefined) tEmail.input.checked = !!fresh.emailAlerts;
-      if (fresh.locationConsent !== undefined) tLoc.input.checked = !!fresh.locationConsent;
-      if (fresh.consent !== undefined) tContact.input.checked = !!fresh.consent;
-    };
+        h('fieldset', { class: 'consents' }, h('legend', null, 'Email alerts'), h('p', { class: 'fine' }, 'Pausing affects emails only. Reports and team updates remain here. Email delivery is off during testing.'), pauseActions, pauseNote),
+        contactNote, note, remove, confirmBox,
+        h('details', { class: 'reset' }, h('summary', null, 'Wi-Fi and reset help'), h('p', { class: 'fine' }, COPY.wifi[0]), h('p', { class: 'fine' }, COPY.reset))));
+    function setBusy(value) {
+      node.querySelectorAll('input,select,button').forEach(el => { el.disabled = value; });
+      node.setAttribute('aria-busy', String(value));
+    }
+    function update(fresh) {
+      if (!busy) {
+        // Keep unsaved edits during the ten-second refresh.
+        if (nameInput.value === (current.nickname || '')) nameInput.value = fresh.nickname || '';
+        if (roomInput.value === (current.room || '')) roomInput.value = fresh.room || '';
+        current = fresh;
+      }
+      pauseNote.textContent = pauseChoiceOf(current.notificationsPausedUntil) === 'on' ? 'No pause is set.' : 'Paused until ' + new Date(current.notificationsPausedUntil).toLocaleString() + '.';
+      contactNote.textContent = current.consent ? 'You allowed the response team to contact you about this box.' : 'You have not allowed the response team to contact you about this box.';
+    }
     m = { node, update }; manageNodes.set(d.id, m); update(d);
     return node;
   }
   function pruneManage(devices) { const live = new Set(devices.map(x => x.id)); for (const id of manageNodes.keys()) if (!live.has(id)) manageNodes.delete(id); }
 
-  function handoverCard() {
-    const x = state.handover; if (!x) return null;
-    return h('article', { class: 'card handover', 'aria-label': 'New pairing code', role: 'alert' },
-      h('h2', null, 'Hand this to the next owner'),
-      h('p', null, (x.name ? x.name + ' is' : 'The box is') + ' unlinked from your account. Here is the new serial and code. They are shown once and are not stored on this page after you close this.'),
-      h('dl', { class: 'handover-codes' }, h('dt', null, 'Serial'), h('dd', null, h('code', null, x.serial)), h('dt', null, 'Pairing code'), h('dd', null, h('code', null, x.code || 'not returned'))),
-      h('button', { type: 'button', onclick: () => { state.handover = null; win.__rerender?.(); } }, 'I have copied it, close'));
-  }
-
   // Notes devices that moved from waiting to reporting, so the page can say so once.
   function trackReporting(devices) {
     state.reporting ||= new Set(); state.kinds ||= new Map();
     for (const d of devices) {
+      if (!state.claimedAt[d.id]) state.claimedAt[d.id] = Date.now();
       const kind = boxStatus(d).kind, prev = state.kinds.get(d.id);
       if (prev === 'awaiting' && kind === 'active') state.reporting.add(d.id);
       state.kinds.set(d.id, kind);
@@ -355,5 +391,6 @@ export function onboardingUI({ h, api, state, refresh, say, msgEl, field, submit
   function tick() {
     win.document?.querySelectorAll?.('[data-ago]').forEach(el => { if (el.dataset.ago) el.textContent = agoShort(el.dataset.ago); });
   }
-  return { addView, manageView, waitingView, reportingBanner, lastHeard, handoverCard, trackReporting, tick, stopScan };
+  function reset() { stopScan(); manageNodes.clear(); state.add = { step: 'find', serial: '', code: '', hinted: '' }; state.prefill = null; state.claimedAt = {}; state.serials = {}; state.reporting = new Set(); state.kinds = new Map(); }
+  return { reset, addView, manageView, waitingView, reportingBanner, lastHeard, trackReporting, tick, stopScan };
 }

@@ -1,6 +1,6 @@
 // Pure JavaScript QR Code encoder. Byte mode, error correction level M, versions 1 to 10.
 // No dependencies, no I/O. Output is a boolean matrix plus helpers to draw it as SVG.
-// Tables follow ISO/IEC 18004 (level M). The unit test decodes its own matrix.
+// Tables follow ISO/IEC 18004 (level M). Tests use an independent OpenCV decoder when available.
 
 // Per version (index = version): [ecCodewordsPerBlock, [[blockCount, dataCodewordsPerBlock], ...]]
 const EC_M = [
@@ -272,6 +272,7 @@ export function qrPath(modules, quiet = 4) {
 
 /** Standalone SVG string. Text is a pure function of the matrix, so nothing needs escaping. */
 export function qrSvg(text, { quiet = 4, label = 'QR code', className = '' } = {}) {
+  if (!Number.isInteger(quiet) || quiet < 4 || quiet > 32) throw new RangeError('QR quiet zone must be 4 to 32 modules.');
   const { modules } = encodeQr(text);
   const full = modules.length + quiet * 2;
   const cls = className ? ` class="${className.replace(/[^a-z0-9_-]/gi, '')}"` : '';

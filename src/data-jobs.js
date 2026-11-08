@@ -1,3 +1,4 @@
+import { checkSilentFleet } from './device-lifecycle.js';
 import { LAYERS,refreshLayer } from './feeds.js';
 import { ensureDataStore,materializeDailyStats } from './data-store.js';
 import { refreshHouseholdAlerts } from './household-alerts.js';
@@ -25,5 +26,6 @@ export async function refreshData(db,env,{now=new Date(),limit=3,fetcher,trigger
  let households;
  try{households=await refreshHouseholdAlerts(db,env,{now,fetcher});}
  catch{households={status:'error',message:'Household alerts could not be checked. No delivery claim is made.'};}
- return{at:now,trigger,outcomes,households};
+ let fleet;try{fleet=await checkSilentFleet(db,now);}catch{fleet={status:'error'};}
+ return{at:now,trigger,outcomes,households,fleet};
 }

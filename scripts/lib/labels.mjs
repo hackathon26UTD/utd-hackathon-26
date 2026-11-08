@@ -1,15 +1,15 @@
-// Serial helpers, label sheet HTML and per-box secrets headers for box provisioning. Pure functions, no I/O.
+// Serial helpers, label sheet HTML and per-box secrets headers for box provisioning. Pure functions, no file I/O.
 // Everything that reaches HTML goes through esc(). The sheet contains pairing codes (not device keys).
 import { randomBytes } from 'node:crypto';
 import { qrSvg } from './qr.mjs';
 
 export const SERIAL_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 characters, no I, L, O, 0, 1
 export const SERIAL_RE = /^HB-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
-export const CODE_V2_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
+export const CODE_V2_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}-?[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
 export const CODE_V1_RE = /^\d{6}$/;
 export const DEVICE_KEY_RE = /^dk_[A-Za-z0-9_-]{16,}$/;
 
-/** Check character for a 7 character serial body: sum of (position 1..7) x alphabet index, mod 31. */
+/** Check character for a 7 character serial body: sum of (position 1..7) x alphabet index, mod alphabet length. */
 export function checkChar(body7) {
   const body = String(body7).toUpperCase();
   if (body.length !== 7) return null;
@@ -38,7 +38,7 @@ export function randomSerial(bytes = randomBytes) {
   return serialFromBody(body);
 }
 
-/** Result of checking a serial the server returned. checksum is null for the legacy 8 random character form. */
+/** Result of checking a serial the server returned. A checksum mismatch is advisory: legacy serials have 8 random characters. */
 export function checkSerial(serial) {
   const s = String(serial || '').toUpperCase();
   if (!SERIAL_RE.test(s)) return { valid: false, checksum: false };
@@ -50,7 +50,7 @@ const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;
 export const esc = (v) => String(v ?? '').replace(/[&<>"'`]/g, (c) => ESC[c]);
 
 /** Group a code for reading: XXXX-XXXX stays as is, 6 digits become NNN NNN. */
-export const prettyCode = (code) => (CODE_V1_RE.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : String(code));
+export const prettyCode = (code) => (CODE_V1_RE.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : String(code).replace(/^(.{4})(.{4})$/, '$1-$2'));
 
 const CSS = `
 :root{color-scheme:light;--ink:#14181f;--mute:#586271;--line:#c9d0da;--bg:#eef1f5;--panel:#fff;--accent:#0b5cad}
@@ -92,16 +92,16 @@ h1{font-size:22px;margin:0 0 4px}
 }`;
 
 function stickerHtml(d) {
-  return `<div class="sticker"><div><div class="brand">HomeBeacon</div><div class="serial">${esc(d.serial)}</div></div><div class="small">The pairing card is inside the box. If you need help, tell us the serial only. Never share the code.</div></div>`;
+  return `<div class="sticker"><div><div class="brand">Safe Home</div><div class="serial">${esc(d.serial)}</div></div><div class="small">The pairing card is inside the box. If you need help, tell us the serial only. Never share the code.</div></div>`;
 }
 
 function cardHtml(d, host) {
-  const svg = qrSvg(d.qrPayload, { label: `Pairing QR code for ${d.serial}` });
+  const svg = qrSvg(d.qr ?? d.qrPayload, { label: `Pairing QR code for ${d.serial}` });
   return `<div class="card">${svg}<div><h3>Connect your box</h3><ol><li>Sign in at ${esc(host)}/customer</li><li>Choose Add my box</li><li>Scan the code, or type the serial and code</li></ol><div class="small">Serial</div><div class="code" style="font-size:14px">${esc(d.serial)}</div><div class="small">Pairing code</div><div class="code">${esc(prettyCode(d.pairingCode))}</div><div class="keep">Keep this card private. Whoever holds it can add this box to an account. It works once.</div></div></div>`;
 }
 
 /**
- * Printable label sheet. devices: [{ name, serial, pairingCode, qrPayload }]. Returns a full HTML document
+ * Printable label sheet. devices: [{ name, serial, pairingCode, qr (or qrPayload) }]. Returns a full HTML document
  * with no scripts and a strict content security policy.
  */
 export function buildSheet(devices, { batch = '', origin = '', createdAt = new Date().toISOString() } = {}) {
@@ -149,7 +149,7 @@ export function buildSecretsHeader(d, { apiBase, wifi = {}, rand = randomBytes }
     `#define ESPNOW_PMK ${q(pmk)}`,
     `#define ESPNOW_LMK ${q(lmk)}`,
     '#define MESH_NODES { \\',
-    `  { ${q(d.serial)}, "00:00:00:00:00:00", ${q(d.id)}, ${q(d.deviceKey)} }, \\`,
+    `  { ${q(d.serial)}, "00:00:00:00:00:00", ${q(d.deviceId ?? d.id)}, ${q(d.deviceKey)} }, \\`,
     '}',
     '',
   ].join('\n');

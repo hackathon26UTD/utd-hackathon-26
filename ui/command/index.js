@@ -1,3 +1,5 @@
+import {mountFleet} from '../fleet.js'; // Fleet UI ownership hook.
+import '../fleet.css';
 import {endDemoSession} from './demo-session.js';
 import {mountWeatherPlayback} from './weather-playback.js';
 import { mountNews } from './news.js';
@@ -78,6 +80,8 @@ export async function mountCommand(env) {
     regions: [], followUps: [], riskState: 'idle', riskAt: 0, feeds: new Map(), filter: 'all', search: '', layerIds: null, queueTab: 'homes', detail: null, detailTab: 'overview', detailOpen: false, fitted: false, embed: embedded, demoScenario: SCENARIOS.some(s => s.id === requestedScenario) ? requestedScenario : 'water-hurricane', demoRequest: 0,
   };
   const ctx = { S, $, esc, demo, role, announce, toast, api };
+  const fleetRoot = document.createElement('section'); fleetRoot.id = 'fleet-panel'; fleetRoot.hidden = true; $('.workspace').append(fleetRoot);
+  const fleet = mountFleet(fleetRoot, {api: (url, options) => api(demo && !exerciseMode ? url + '?mode=exercise' : url, options), role: demo ? 'demo' : role, onClose: () => ctx.closeWorkspace()});
   let studio = null;
   $('#end-demo')?.addEventListener('click', async () => {
     const button=$('#end-demo');button.disabled=true;studio?.pause();
@@ -91,6 +95,7 @@ export async function mountCommand(env) {
     { id: 'map', label: 'Map', icon: ['m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2z', 'M9 3v16M15 5v16'] },
     { id: 'overview', label: 'Overview', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
     { id: 'homes', label: 'Devices', icon: ['M5 3h14v18H5z', 'M9 7h6M9 11h6M10 17h4'] },
+    { id: 'fleet', label: 'Fleet', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
     { id: 'news', label: 'News', icon: ['M4 3h16v18H4z','M8 7h8M8 11h8M8 15h5'] },
     { id: 'activity', label: 'Activity', icon: ['M3 12h4l3-8 4 16 3-8h4'] },
     { id: 'demo', label: 'Simulations', icon: ['M8 4v16l12-8z'] },
@@ -106,7 +111,7 @@ export async function mountCommand(env) {
     onSelect: id => { if (narrowScreen.matches) setNavCollapsed(true); ctx.openWorkspace(id); },
   });
   $('#workspace-menu').append(navigation.el);
-  const controlledPanels = { map: 'map', overview: 'overview-panel', homes: 'device-panel', activity: 'timeline', demo: 'demo-panel' };
+  const controlledPanels = { fleet: 'fleet-panel', map: 'map', overview: 'overview-panel', homes: 'device-panel', activity: 'timeline', demo: 'demo-panel' };
   navItems.forEach(item => {
     const link = navigation.el.querySelector(`[data-id="${item.id}"]`);
     link.dataset.view = item.id;
@@ -170,9 +175,10 @@ export async function mountCommand(env) {
   ctx.loadRegions = () => loadRegions();
   ctx.afterSend = () => { if (S.bottomTab === 'sent') bottom.show('sent'); if (S.selectedId) detailPanel.loadDetail(S.selectedId, { quiet: true }); };
 
-  const viewPanels = { news:'#news-panel', homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
+  const viewPanels = { fleet: '#fleet-panel', news:'#news-panel', homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
   let transitionId = 0, viewAnimations = [];
   function setWorkspaceView(view) {
+    if (view !== 'fleet') fleet.hide();
     S.workspaceView = view;
     $('.workspace').classList.toggle('view-open', !!view);
     $('.board').inert = !!view; $('.board').setAttribute('aria-hidden', String(!!view));
@@ -185,7 +191,7 @@ export async function mountCommand(env) {
     document.querySelectorAll('[data-view]').forEach(link => link.setAttribute('aria-expanded', String(link.dataset.view === (view || 'map'))));
   }
   const viewElement = view => view ? $(viewPanels[view]) : $('.board');
-  const viewFocus = view => view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
+  const viewFocus = view => view==='fleet'?$('#fleet-title'):view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
   function cancelViewAnimations() { viewAnimations.forEach(animation => animation.cancel()); viewAnimations = []; }
   async function transitionWorkspace(view, { animate = true, focusTarget = null } = {}) {
     if(view!=='demo')studio?.pause();
@@ -230,6 +236,7 @@ export async function mountCommand(env) {
     ctx.closeDetail({ restoreFocus: false });
     $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false');
     if (view === 'homes') { $('#queue-title').textContent = 'Devices'; renderList(); }
+    else if(view==='fleet')fleet.refresh();
     else if(view==='news')news.refresh();
     else if (view === 'overview') renderOverview();
     else if (view === 'demo') { studio?.pause(); renderDemo(); }

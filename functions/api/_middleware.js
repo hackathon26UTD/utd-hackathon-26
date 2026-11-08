@@ -6,7 +6,7 @@ const json=(body,status,extra={})=>Response.json(body,{status,headers:{'Cache-Co
 const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings','/api/device/history-sync'];
 const DEVICE_GET=['/api/device/messages','/api/device/settings'];
 // Read-only paths a demo account may GET (exercise data only; handlers filter on the exercise flag).
-const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
+const DEMO_GET=['/api/ops/fleet','/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
 // One database connection per API request, shared by the session check and the handler.
 export const onRequest=async context=>{
   // DB_TRACE=1 (never set in production) reports connections and commands for one request, for diagnosis only.
