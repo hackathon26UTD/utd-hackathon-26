@@ -121,3 +121,31 @@ test('a provisioned operator can change their password and the previous session 
   assert.equal((await signIn(operatorEmail)).status, 401);
   assert.equal((await signIn(operatorEmail, 'new-test-only-operator-password')).status, 200);
 });
+
+test('reusing a provisioned email and identical timestamp/credentials cannot revive an old operator cookie', async () => {
+  await db.collection('operator_accounts').updateOne({_id: operatorEmail}, {$set: {createdAt: new Date(1)}});
+  const original = await db.collection('operator_accounts').findOne({_id: operatorEmail});
+  const signedIn = await signIn(operatorEmail);
+  const oldSession = await readSession(sessionRequest(signedIn), env);
+  assert.ok(oldSession.accountGeneration);
+  await db.collection('operator_accounts').deleteOne({_id: operatorEmail});
+  await db.collection('operator_accounts').insertOne(original);
+  assert.equal(await readSession(sessionRequest(signedIn), env), null);
+  const replacement = await signIn(operatorEmail);
+  const newSession = await readSession(sessionRequest(replacement), env);
+  assert.equal(replacement.status, 200);
+  assert.notEqual(oldSession.accountGeneration, newSession.accountGeneration);
+  assert.equal(await readSession(sessionRequest(signedIn), env), null);
+});
+
+test('configured legacy operator is generation-bound and deleting/recreating its profile revokes the cookie', async () => {
+  const signedIn = await signIn(env.OPERATOR_EMAIL);
+  const oldSession = await readSession(sessionRequest(signedIn), env);
+  assert.ok(oldSession.accountGeneration);
+  await db.collection('operator_accounts').deleteOne({_id: env.OPERATOR_EMAIL});
+  assert.equal(await readSession(sessionRequest(signedIn), env), null);
+  const replacement = await signIn(env.OPERATOR_EMAIL);
+  assert.equal(replacement.status, 200);
+  assert.notEqual((await readSession(sessionRequest(replacement), env)).accountGeneration, oldSession.accountGeneration);
+  assert.equal(await readSession(sessionRequest(signedIn), env), null);
+});

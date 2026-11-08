@@ -1,0 +1,260 @@
+{
+ "cases": [
+  {
+   "id": "view-flood-power",
+   "category": "predicate",
+   "purpose": "view",
+   "question": "Show me homes that lost power and also have water.",
+   "pack": [
+    "power_lost",
+    "water",
+    "1 to 3 names"
+   ],
+   "good": {
+    "title": "Power loss with water",
+    "summary": "Boxes with external power reported lost and water reported at the sensor.",
+    "filters": [
+     "power_lost",
+     "water"
+    ],
+    "combine": "all",
+    "contextEvidenceIds": []
+   },
+   "bad": [
+    {
+     "title": "Water",
+     "summary": "Water only.",
+     "filters": [
+      "water"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    },
+    {
+     "title": "Bad",
+     "summary": "Bad.",
+     "filters": [
+      "flooded"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    }
+   ],
+   "expect": {
+    "filters": [
+     "power_lost",
+     "water"
+    ],
+    "combine": "all"
+   }
+  },
+  {
+   "id": "view-either",
+   "category": "predicate",
+   "purpose": "view",
+   "question": "List boxes that are either offline from the internet or have low batteries.",
+   "pack": [
+    "connectivity_lost",
+    "battery_low"
+   ],
+   "good": {
+    "title": "Internet down or low battery",
+    "summary": "Boxes with internet reported down, or battery at 20 percent or less.",
+    "filters": [
+     "connectivity_lost",
+     "battery_low"
+    ],
+    "combine": "any",
+    "contextEvidenceIds": []
+   },
+   "bad": [
+    {
+     "title": "Both",
+     "summary": "Both.",
+     "filters": [
+      "connectivity_lost",
+      "battery_low"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    }
+   ],
+   "expect": {
+    "filters": [
+     "connectivity_lost",
+     "battery_low"
+    ],
+    "combine": "any"
+   }
+  },
+  {
+   "id": "view-not-reporting",
+   "category": "predicate",
+   "purpose": "view",
+   "question": "Which boxes haven't reported recently?",
+   "pack": [
+    "stale",
+    "too old to count as current"
+   ],
+   "good": {
+    "title": "Not reporting recently",
+    "summary": "Boxes whose latest observation is too old to count as current. They are unknown, not safe.",
+    "filters": [
+     "stale"
+    ],
+    "combine": "all",
+    "contextEvidenceIds": []
+   },
+   "bad": [
+    {
+     "title": "Quiet boxes",
+     "summary": "Quiet boxes are fine.",
+     "filters": [
+      "stale"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    },
+    {
+     "title": "Offline",
+     "summary": "Offline.",
+     "filters": [
+      "offline"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    }
+   ],
+   "expect": {
+    "filters": [
+     "stale"
+    ],
+    "combine": "all",
+    "includes": [
+     "unknown"
+    ]
+   }
+  },
+  {
+   "id": "view-worst",
+   "category": "predicate",
+   "purpose": "view",
+   "question": "Show the most serious boxes.",
+   "pack": [
+    "critical",
+    "recorded severity is critical"
+   ],
+   "good": {
+    "title": "Critical boxes",
+    "summary": "Boxes whose recorded severity is critical.",
+    "filters": [
+     "critical"
+    ],
+    "combine": "all",
+    "contextEvidenceIds": []
+   },
+   "bad": [
+    {
+     "title": "Everything",
+     "summary": "All.",
+     "filters": [
+      "critical",
+      "stale",
+      "water",
+      "power_lost"
+     ],
+     "combine": "any",
+     "contextEvidenceIds": []
+    }
+   ],
+   "expect": {
+    "filters": [
+     "critical"
+    ],
+    "combine": "all"
+   }
+  },
+  {
+   "id": "view-unsupported-empty",
+   "category": "predicate",
+   "purpose": "view",
+   "question": "Which homes are empty so we can skip them?",
+   "pack": [
+    "occupancy",
+    "not supported"
+   ],
+   "good": {
+    "title": "Not reporting recently",
+    "summary": "Empty homes cannot be determined and this is not supported. The nearest supported view is boxes with no recent report, which are unknown, not empty.",
+    "filters": [
+     "stale"
+    ],
+    "combine": "all",
+    "contextEvidenceIds": []
+   },
+   "bad": [
+    {
+     "title": "Empty homes",
+     "summary": "These homes are empty.",
+     "filters": [
+      "stale"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    }
+   ],
+   "expect": {
+    "filters": [
+     "stale"
+    ],
+    "includesAny": [
+     [
+      "not supported",
+      "cannot be determined"
+     ]
+    ]
+   }
+  },
+  {
+   "id": "view-unsupported-damage",
+   "category": "predicate",
+   "purpose": "view",
+   "question": "Show houses with structural damage.",
+   "pack": [
+    "damage",
+    "nearest supported filter"
+   ],
+   "good": {
+    "title": "Critical boxes",
+    "summary": "Damage cannot be determined from sensor readings and is not supported. The nearest supported view is boxes whose recorded severity is critical.",
+    "filters": [
+     "critical"
+    ],
+    "combine": "all",
+    "contextEvidenceIds": []
+   },
+   "bad": [
+    {
+     "title": "Damaged houses",
+     "summary": "These houses are damaged.",
+     "filters": [
+      "critical"
+     ],
+     "combine": "all",
+     "contextEvidenceIds": []
+    }
+   ],
+   "expect": {
+    "filters": [
+     "critical"
+    ],
+    "includesAny": [
+     [
+      "not supported",
+      "cannot be determined"
+     ]
+    ]
+   }
+  }
+ ]
+}

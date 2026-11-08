@@ -16,6 +16,7 @@ function dress(root){
   entry?.widget.remove();
   const widget=K.select({id:(n.id||n.name||'choice')+'-kit',value:n.value,options:[...n.options].filter(o=>!o.disabled).map(o=>({value:o.value,label:o.textContent})),onChange:value=>{n.value=value;n.dispatchEvent(new Event('change',{bubbles:true}));}});
   widget.dataset.productControl='select';const trigger=widget.querySelector('button');trigger.setAttribute('aria-label',labelFor(n));trigger.disabled=n.disabled;
+  if(n.closest('.display-options')){const name=value=>trigger.setAttribute('aria-label',labelFor(n)+': '+([...n.options].find(o=>o.value===value)?.textContent||''));const set=widget.kitSet.bind(widget);widget.kitSet=value=>{set(value);name(value);};name(n.value);}
   n.hidden=true;n.tabIndex=-1;n.after(widget);selects.set(n,{widget,signature});
   n.addEventListener('change',()=>widget.kitSet(n.value));
  });

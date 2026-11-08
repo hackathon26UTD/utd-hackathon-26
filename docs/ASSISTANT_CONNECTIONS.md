@@ -14,15 +14,17 @@ URL: `https://utd-hackathon-26.pages.dev/mcp`.
 
 Use a custom remote connection with OAuth and automatic client registration in ChatGPT or Claude. Availability depends on the host's plan/workspace configuration. The product is not listed in either provider's app directory. Official setup references: [ChatGPT custom MCP](https://developers.openai.com/api/docs/guides/custom-mcp-server), [Claude custom connectors](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
-The official MCP SDK provides stateless Streamable HTTP with JSON responses. Only bearer access tokens issued by HomeBeacon are accepted; customer/operator cookies and device/admin keys are not MCP credentials. GET streams are unsupported (405); POST handles initialization, notifications, tool discovery and calls. Origin is restricted when present. Responses are not cached.
+The official MCP SDK provides stateless Streamable HTTP with JSON responses. Only bearer access tokens issued by Safe Home are accepted; customer/operator cookies and device/admin keys are not MCP credentials. GET streams are unsupported (405); POST handles initialization, notifications, tool discovery and calls. Origin is restricted when present. Responses are not cached.
 
-Three read-only tools:
+Five read-only tools, including these three customer tools:
 
 - `homebeacon_get_build_guide`: setup steps, ingest schema and website registration link.
 - `homebeacon_list_devices`: the connected customer's current conditions and freshness.
 - `homebeacon_get_device_reports`: one owned link's customer-safe status and at most 30 allowlisted observations from the previous 30 days.
 
 The result excludes household addresses, names, emails, operator notes, customer message bodies and all keys. IDs are customer link IDs. Tool inputs do not accept queries, collections, provider URLs or ingestion payloads. No tool can create/alter hazards, register hardware credentials, send messages, change help status or dispatch responders. The model's explanation is not used as a condition classification.
+
+Two additional tools, `homebeacon_simulation_settings` and `homebeacon_run_simulation`, generate isolated fictional worlds without reading or changing customer records. See [SIMULATIONS.md](SIMULATIONS.md) for CLI, HTTP and local MCP use.
 
 ### Authorization
 

@@ -3,7 +3,7 @@ import {test,before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {MongoMemoryReplSet} from 'mongodb-memory-server';
 import {MongoClient,ObjectId} from 'mongodb';
-import {issueSession,sessionCookie,readSession,issueCustomerSession,readCustomerSession,customerCookie,CUSTOMER_COOKIE} from '../src/operator-session.js';
+import {issueSession as issueOperatorBound,sessionCookie,readSession,issueCustomerSession as issueCustomerBound,authenticationAccount,readCustomerSession,customerCookie,CUSTOMER_COOKIE} from '../src/operator-session.js';
 import {normalizeSerial,normalizeCode,makeSerial,makeCode,customerStatus,FAIL_TEXT,claimDevice} from '../src/customer.js';
 import {onRequest as register} from '../functions/api/customer/register.js';
 import {onRequest as login} from '../functions/api/customer/login.js';
@@ -16,6 +16,17 @@ import {onRequest as pairing} from '../functions/api/ops/pairing.js';
 import {onRequest as helpStatus} from '../functions/api/ops/help-status.js';
 import {onRequest as middleware} from '../functions/api/_middleware.js';
 
+async function issueSession(settings,email,role='operator') {
+  let account=await authenticationAccount(db,'operator',email);
+  if(!account){await db.collection('operator_accounts').insertOne({_id:email,role,sessionGeneration:crypto.randomUUID(),salt:'fixture-salt',hash:'fixture-hash'});account=await authenticationAccount(db,'operator',email);}
+  return issueOperatorBound(settings,email,role,{verifiedAccount:account,accountBacked:true,db});
+}
+async function issueCustomerSession(settings,email) {
+  const account=await authenticationAccount(db,'customer',email);
+  // The first cross-role signature-only test intentionally has no registered customer.
+  if(!account)return issueCustomerBound({SESSION_SECRET:settings.SESSION_SECRET},email);
+  return issueCustomerBound(settings,email,{verifiedAccount:account,db});
+}
 const ADMIN='ak_test_admin',ORIGIN='https://home.test';
 let server,client,db,env,ipCounter=0;
 before(async()=>{if(!process.env.TEST_CUSTOMER_MONGODB_URI)server=await MongoMemoryReplSet.create({replSet:{count:1}});const uri=process.env.TEST_CUSTOMER_MONGODB_URI||server.getUri();client=await MongoClient.connect(uri);env={MONGODB_URI:uri,MONGODB_DB:'customer_test',SESSION_SECRET:'customer-test-secret',API_ADMIN_KEY:ADMIN};db=client.db(env.MONGODB_DB);await db.dropDatabase();});

@@ -1,8 +1,12 @@
+import { mountNews } from './news.js';
+import { simulationWind } from './wind-flow.js';
+import { mountSimulationStudio } from '../simulation-studio.js';
+import '../simulation-studio.css';
 import { allowsMotion, mountDisplaySettings } from '../display-settings.js';
 import { mountRadar } from './radar.js';
 // Command center v2: street-level map, live device updates, regions, overlays, zones, information boxes, logs.
 // Everything here consumes JSON from the API. Missing data is shown as unknown, never as safe.
-import { LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
+import { observationClock, LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
 import { api, exerciseMode } from './api.js';
 import { MapView } from './map.js';
 import { mountToolbar, loadSavedView } from './toolbar.js'; // MAP-V2
@@ -24,22 +28,25 @@ const embedded = route.get('embed') === 'hero';
 const requestedScenario = route.get('scenario') === 'hurricane' ? 'water-hurricane' : route.get('scenario');
 
 function layout({ demo, role, footer, brand }) {
-  return `<div class="shell cc map-only vertical-shell${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">HomeBeacon response map</h1>
-<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="HomeBeacon website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>HomeBeacon</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">Lower 48 states</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>Settings <span aria-hidden="true">⌄</span></summary><div class="cc-more-menu"><div id="command-display-options"></div>${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
+  return `<div class="shell cc map-only vertical-shell${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">Safe Home response map</h1>
+<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="Safe Home website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>Safe Home</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">Lower 48 states</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Simulation' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>Settings <span aria-hidden="true">⌄</span></summary><div class="cc-more-menu"><div id="command-display-options"></div>${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button id="thresholds">Alert thresholds</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
 <div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. Optional radar shows real observations.' : 'Lower 48 states · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
 <aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
 <section class="board" aria-label="Properties and map"><div class="map-wrap"><div id="map" class="map" role="region" aria-label="United States response map. Open Devices for a keyboard-accessible home list."></div>
-<div id="radar-controls" class="radar-controls" hidden><button type="button" aria-pressed="false" disabled>Play</button><input type="range" min="0" max="0" value="0" aria-label="Radar observation time" disabled><output aria-live="polite">Loading radar</output><small>Observed radar history · contiguous U.S. · not a forecast or proof of flooding</small></div><aside id="overlay-panel" class="overlay-panel" aria-label="Map layers and zones"><div class="ov-head"><strong>Layers and zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
+<div id="radar-controls" class="radar-controls" hidden><div class="radar-heading"><strong>Rain radar</strong><output aria-live="off">Loading radar</output><button type="button" data-radar-latest>Latest</button></div><div class="radar-track"><button type="button" data-radar-play aria-pressed="false" disabled>Play</button><input type="range" min="0" max="0" value="0" aria-label="Radar observation time" disabled></div><div class="radar-ticks"><span data-radar-start></span><span data-radar-end></span></div><small>NOAA observed history · not a forecast</small><p class="radar-status" role="status"></p></div>
+<aside id="overlay-panel" class="overlay-panel" aria-label="Operator zones"><div class="ov-head"><strong>Operator zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
 <div id="draw-bar" class="draw-bar hidden" role="group" aria-label="Zone drawing"><p id="draw-help"></p><span id="draw-count" class="muted"></span><div class="tools"><button id="draw-undo" class="small">Undo point</button><button id="draw-finish" class="small primary">Finish</button><button id="draw-cancel" class="small">Cancel</button></div></div>
-<details class="map-caption"><summary>Map key &amp; sources</summary><div class="map-key"><p>${LADDER.slice().reverse().map(k => `<span class="tag ${k}">${STATUS_LABEL[k]}</span>`).join(' ')}</p><p class="legend-note"><small>Large blue circles group device locations, not severity. Small blue ring: linked customer. Grey edge: last known. Unknown does not mean safe.</small></p><small id="map-status">Loading street map.</small><p><small>${demo ? 'Dallas and Florida homes, wind exposure and zones are fictional. Wind circles are not a forecast.' : 'The base map is geographic context. Public-layer coverage varies by source; see Data sources for verified coverage. Electricity demand is not household outage telemetry.'}</small></p></div></details></div>
+<p id="map-status" class="sr-only" role="status">Loading map.</p></div>
 <aside id="device-panel" class="queue" aria-label="Devices and priorities" hidden><div class="panel-title"><div><h2 id="queue-title">Devices</h2><p class="view-lead">Search observations, compare readings and choose a home to inspect.</p></div><button id="queue-close" class="small" aria-label="Close device list">Close</button></div><div class="queue-tabs" role="tablist" aria-label="Lists">${[['homes', 'Homes'], ['priorities', 'Priorities'], ['regions', 'Areas']].map(([k, l]) => `<button role="tab" data-qtab="${k}" aria-selected="${k === 'homes'}" id="qtab-${k}">${l}</button>`).join('')}</div><div class="panel-head" id="queue-filters"><label><span class="sr-only">Search homes</span><input id="search" type="search" placeholder="Search home or area"></label><label><span class="sr-only">Filter by status</span><select id="filter"><option value="all">All statuses</option><option value="critical">Critical</option><option value="elevated">Elevated</option><option value="watch">Watch</option><option value="unknown">Unknown</option><option value="normal">No active alerts</option><option value="offline">Not reporting</option><option value="linked">Customer linked</option><option value="power">Power loss</option></select></label><label><span class="sr-only">Sort homes</span><select id="home-sort"><option value="priority">Sort by priority</option><option value="power">Power loss first</option><option value="battery">Lowest battery</option><option value="age">Oldest report</option></select></label></div><div id="properties" class="properties" aria-label="List"></div><div class="queue-foot"><button id="send-area"${demo ? ' disabled title="Exercise mode is read only"' : ''}>Message map area</button><button id="export" class="small">Export homes</button></div></aside>
 <svg id="detail-connector" aria-hidden="true"><path></path></svg><section id="detail" class="detail" aria-label="Selected home details" aria-live="polite" hidden></section></section>
 <section id="timeline" class="timeline cc-bottom" aria-label="Activity" hidden><div class="panel-title"><div><h2 id="activity-title" tabindex="-1">Activity</h2><p class="view-lead">Device updates, operator logs and message delivery.</p></div><button id="activity-close" class="small">Close</button></div><div class="activity-content"><div class="activity-toolbar"><div class="tabs" role="tablist" aria-label="Activity"><button role="tab" data-btab="feed" aria-selected="true">Updates</button><button role="tab" data-btab="logs" aria-selected="false">Logs</button><button role="tab" data-btab="sent" aria-selected="false">Sent messages</button></div></div><div id="bottom-body" class="bottom-body" role="tabpanel"></div></div></section>
+<section id="news-panel" class="full-view news-view" aria-labelledby="news-title" hidden><div class="panel-title"><div><h2 id="news-title" tabindex="-1">News</h2><p class="view-lead">Live watches, warnings and advisories from the National Weather Service.</p></div><button data-close-view>Back to map</button></div><div id="news-content" class="full-view-body"></div></section>
 <section id="overview-panel" class="full-view overview-view" aria-labelledby="overview-title" hidden><div class="panel-title"><div><h2 id="overview-title" tabindex="-1">Overview</h2><p class="view-lead">Reported conditions across the homes in this workspace.</p></div><button data-close-view class="small">Back to map</button></div><div id="overview-content" class="full-view-body"></div></section>
-<section id="demo-panel" class="full-view demo-view" aria-labelledby="demo-title" hidden><div class="panel-title"><div><h2 id="demo-title" tabindex="-1">Try a scenario</h2><p class="view-lead">Choose a fictional situation and inspect how the reports change.</p></div><button data-close-view class="small">Back to map</button></div><div class="full-view-body"><p class="demo-boundary">Synthetic data only. Scenarios never change connected devices or send messages.</p><div id="demo-scenarios" class="scenario-grid">${SCENARIOS.map(s => `<button class="scenario-option" data-scenario="${s.id}" aria-pressed="false"><strong>${s.label}</strong><span>${s.description}</span></button>`).join('')}</div><div id="demo-summary" class="demo-summary"></div><div class="demo-actions"><button id="demo-show-map" class="primary">Explore this scenario on the map</button><button id="demo-show-overview">See overview</button><p id="demo-status" role="status"></p></div><p class="muted">Each selection loads a new read-only scenario snapshot. Nothing advances automatically.</p></div></section>
+<section id="demo-panel" class="full-view demo-view" aria-labelledby="demo-title" hidden><div class="panel-title"><div><h2 id="demo-title" tabindex="-1">Simulations</h2><p class="view-lead">Set up a world, choose an event, then follow the reports.</p></div><button data-close-view class="small">Back to map</button></div><div class="full-view-body"><div id="simulation-studio"></div><div id="legacy-simulation" hidden><p class="demo-boundary">Synthetic data only. Scenarios never change connected devices or send messages.</p><div id="demo-scenarios" class="scenario-grid">${SCENARIOS.map(s => `<button class="scenario-option" data-scenario="${s.id}" aria-pressed="false"><strong>${s.label}</strong><span>${s.description}</span></button>`).join('')}</div><div id="demo-summary" class="demo-summary"></div><div class="demo-actions"><button id="demo-show-map" class="primary">Explore this scenario on the map</button><button id="demo-show-overview">See overview</button><p id="demo-status" role="status"></p></div><p class="muted">Each selection loads a new read-only scenario snapshot. Nothing advances automatically.</p></div></div></section>
 </main></div>
 <dialog id="source-dialog" aria-labelledby="source-title"><h2 id="source-title">Public context</h2><p>Official alerts add regional context. They do not confirm damage to an individual home.</p><div id="source-list" aria-live="polite">Loading source status.</div><form method="dialog"><button>Close</button></form></dialog>
+<dialog id="threshold-dialog" class="wide" aria-labelledby="threshold-title"><h2 id="threshold-title">Alert thresholds</h2><p>Each box report is checked against these rules. A rule with a duration only counts once the condition has lasted that long without a break, up to the latest report. The highest matching level sets the home's status.</p><label class="threshold-filter">Find a sensor <input id="threshold-find" type="search" autocomplete="off" placeholder="power, water, flame"></label><div id="threshold-list"></div><p class="soft-note">Advisory only. Thresholds come from the shared risk configuration; raw water and sound values match the box firmware's calibration and should be recalibrated together. A box that stops reporting is unknown, never safe.</p><form method="dialog"><button>Close</button></form></dialog>
 <dialog id="follow-dialog" aria-labelledby="follow-title"><form id="follow-form"><h2 id="follow-title">Record follow-up</h2><label>Action<select name="action"><option value="contact">Contact attempted</option><option value="inspection">Inspection requested</option><option value="resident_reported_evacuated">Resident reported evacuation</option><option value="responder_confirmed">Responder confirmation</option><option value="acknowledge">Reviewed observation</option></select></label><label>Note<textarea name="note" maxlength="1500" required></textarea></label><p>This records a note. It does not dispatch emergency services.</p><p id="follow-status" role="status"></p><div class="tools"><button type="button" id="cancel-follow">Cancel</button><button class="primary">Save note</button></div></form></dialog>
 <dialog id="msg-dialog" class="wide" aria-labelledby="msg-heading"><form id="msg-form"><h2 id="msg-heading">Send a message</h2><p class="muted">A short message for the device screen. It arrives when the device next checks in. Do not include passwords or keys.</p>
 <fieldset><legend>Send to</legend><div id="msg-scope" class="stack"></div></fieldset>
@@ -68,6 +75,7 @@ export async function mountCommand(env) {
     regions: [], followUps: [], riskState: 'idle', riskAt: 0, feeds: new Map(), filter: 'all', search: '', layerIds: null, queueTab: 'homes', detail: null, detailTab: 'overview', detailOpen: false, fitted: false, embed: embedded, demoScenario: SCENARIOS.some(s => s.id === requestedScenario) ? requestedScenario : 'water-hurricane', demoRequest: 0,
   };
   const ctx = { S, $, esc, demo, role, announce, toast, api };
+  let studio = null;
   ctx.renderAll = () => renderAll();
 
   // Real Argus section-menu component; local layout adapts it to this workspace.
@@ -75,8 +83,9 @@ export async function mountCommand(env) {
     { id: 'map', label: 'Map', icon: ['m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2z', 'M9 3v16M15 5v16'] },
     { id: 'overview', label: 'Overview', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
     { id: 'homes', label: 'Devices', icon: ['M5 3h14v18H5z', 'M9 7h6M9 11h6M10 17h4'] },
+    { id: 'news', label: 'News', icon: ['M4 3h16v18H4z','M8 7h8M8 11h8M8 15h5'] },
     { id: 'activity', label: 'Activity', icon: ['M3 12h4l3-8 4 16 3-8h4'] },
-    { id: 'demo', label: 'Demo', icon: ['M8 4v16l12-8z'] },
+    { id: 'demo', label: 'Simulations', icon: ['M8 4v16l12-8z'] },
   ];
   const narrowScreen = matchMedia('(max-width:700px)');
   let storedCollapse = null;
@@ -84,7 +93,7 @@ export async function mountCommand(env) {
   let navCollapsed = narrowScreen.matches || storedCollapse === 'true';
   const navigation = window.Kit.sectionMenu({
     label: 'Workspace views', title: false,
-    groups: [{ label: 'Workspace', items: navItems.map(item => ({ ...item, href: item.id === 'demo' && !demo ? '/demo?view=demo' : '#' + item.id })) }],
+    groups: [{ label: 'Workspace', items: navItems.map(item => ({ ...item, href: item.id === 'demo' && !demo ? '/simulations' : '#' + item.id })) }],
     active: 'map', collapsed: navCollapsed,
     onSelect: id => { if (narrowScreen.matches) setNavCollapsed(true); ctx.openWorkspace(id); },
   });
@@ -109,6 +118,7 @@ export async function mountCommand(env) {
     if (save) { try { localStorage.setItem('homebeacon-sidebar-collapsed', String(collapsed)); } catch { /* optional preference */ } }
   }
   mountDisplaySettings($('#command-display-options'));
+  ctx.navigation = { get collapsed() { return navCollapsed; }, setCollapsed: setNavCollapsed };
   setNavCollapsed(navCollapsed);
   $('#sidebar-toggle').onclick = () => setNavCollapsed(!navCollapsed, { save: true });
   narrowScreen.addEventListener('change', e => { if (e.matches) setNavCollapsed(true); });
@@ -121,6 +131,8 @@ export async function mountCommand(env) {
   ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
   ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
   mv.on('error', () => { $('#map-status').textContent = 'Map unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
+  $('.map-credits').prepend($('#notice'));
+  if(embedded&&route.get('weather')==='wind')mv.setWorldView('wind');
   mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else { S.nationalFitted = true; mv.fitConus(); } } });
   mv.handlers.base = () => { updateMapSource(); ctx.toolbar.sync(); };
   mv.map.on('style.load', updateMapSource);
@@ -142,13 +154,14 @@ export async function mountCommand(env) {
   const detailPanel = mountDetail(ctx);
   const overlays = mountOverlays(ctx);
   mountRadar(mv, document);
+  const news=mountNews(ctx,$('#news-content'));ctx.news=news;
   const bottom = mountBottom(ctx);
   mountDialogs(ctx);
   ctx.showLogs = q => bottom.showLogs(q);
   ctx.loadRegions = () => loadRegions();
   ctx.afterSend = () => { if (S.bottomTab === 'sent') bottom.show('sent'); if (S.selectedId) detailPanel.loadDetail(S.selectedId, { quiet: true }); };
 
-  const viewPanels = { homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
+  const viewPanels = { news:'#news-panel', homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
   let transitionId = 0, viewAnimations = [];
   function setWorkspaceView(view) {
     S.workspaceView = view;
@@ -163,7 +176,7 @@ export async function mountCommand(env) {
     document.querySelectorAll('[data-view]').forEach(link => link.setAttribute('aria-expanded', String(link.dataset.view === (view || 'map'))));
   }
   const viewElement = view => view ? $(viewPanels[view]) : $('.board');
-  const viewFocus = view => view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
+  const viewFocus = view => view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
   function cancelViewAnimations() { viewAnimations.forEach(animation => animation.cancel()); viewAnimations = []; }
   async function transitionWorkspace(view, { animate = true, focusTarget = null } = {}) {
     const id = ++transitionId;
@@ -201,14 +214,15 @@ export async function mountCommand(env) {
   };
   ctx.openWorkspace = view => {
     ctx.closeViewBuilder?.({ focus: false });
-    if (view === 'demo' && !demo) { location.href = '/demo?view=demo'; return; }
+    if (view === 'demo' && !demo) { location.href = '/simulations'; return; }
     if (view === 'priorities') view = 'homes';
     if (view === 'map') view = null;
     ctx.closeDetail({ restoreFocus: false });
     $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false');
     if (view === 'homes') { $('#queue-title').textContent = 'Devices'; renderList(); }
+    else if(view==='news')news.refresh();
     else if (view === 'overview') renderOverview();
-    else if (view === 'demo') renderDemo();
+    else if (view === 'demo') { studio?.pause(); renderDemo(); }
     return transitionWorkspace(view, { focusTarget: viewFocus(view) });
   };
   setWorkspaceView(null);
@@ -331,7 +345,7 @@ export async function mountCommand(env) {
     $('#demo-status').textContent = S.demoBusy ? 'Loading scenario…' : S.demoError || (S.demoIssuedAt ? 'Snapshot loaded at ' + new Date(S.demoIssuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Choose a scenario to begin.');
     $('#demo-show-map').disabled = !!S.demoBusy || !S.props.length;
     $('#demo-show-overview').disabled = !!S.demoBusy || !S.props.length;
-    $('#embed-label').textContent = S.demoBusy ? 'Loading fictional scenario…' : S.demoError ? 'Demo unavailable · open full demo to retry' : (meta?.label || 'Demo') + ' · ' + countStatuses(S.props).critical + ' critical reports · fictional';
+    $('#embed-label').textContent = S.demoBusy ? 'Loading fictional scenario…' : S.demoError ? 'Simulation unavailable · open simulations to retry' : (meta?.label || 'Simulation') + ' · ' + countStatuses(S.props).critical + ' critical reports · fictional';
   }
 
   async function loadScenario(id, { initial = false } = {}) {
@@ -344,7 +358,7 @@ export async function mountCommand(env) {
     if (!r.ok || r.data?.synthetic !== true || !Array.isArray(r.data.properties)) {
       S.demoError = 'Scenario could not load. Select it again to retry.';
       renderDemo();
-      if (initial) $('#notice').textContent = 'Synthetic scenario unavailable. Open Demo to retry.';
+      if (initial) $('#notice').textContent = 'Synthetic scenario unavailable. Open Simulations to retry.';
       return false;
     }
     S.demoScenario = r.data.scenario?.id || id;
@@ -358,14 +372,15 @@ export async function mountCommand(env) {
     S.detailOpen = false; S.selectedId = null; S.selectedRegion = null;
     S.filter = 'all'; S.search = ''; S.layerIds = null;
     $('#search').value = ''; $('#filter').value = 'all'; $('#filter').dispatchEvent(new Event('change', { bubbles: true }));
+    mv.simulationWind=simulationWind(id);mv.windFlow.update();
     const wind = r.data.overlays?.exerciseWind || { type: 'FeatureCollection', features: [] };
-    mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length);
-    const zonesOn = id === 'water-hurricane';
+    mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length && mv.worldKey==='street');
+    const zonesOn = false;
     zonesOn ? S.ovOn.add('zones') : S.ovOn.delete('zones'); mv.setVisible('zones', zonesOn);
     ctx.toolbar?.sync(); // MAP-V2
     $('#notice').textContent = (S.demoMeta?.label || 'Scenario') + ' · fictional homes and readings. Read only.';
     recompute(); renderAll(); await loadRegions(); ctx.positionDetail();
-    if (!initial && S.embed) fitScenario({ animate: true });
+    if (S.embed) fitScenario({ animate: !initial });
     if (S.embed && window.parent !== window) window.parent.postMessage({ type: 'homebeacon:preview-state', scenarioId: S.demoScenario, label: S.demoMeta?.label || S.demoScenario }, location.origin);
     return true;
   }
@@ -380,7 +395,7 @@ export async function mountCommand(env) {
   function propRow(p) {
     const d = displayStatus(p);
     const chips = [p.link?.linked ? '<span class="chip link">Customer</span>' : '', p.risk?.power?.mode && p.risk.power.mode !== 'normal' ? '<span class="chip power">Power save</span>' : '', p.help?.status && p.help.status !== 'none' ? `<span class="chip help">${esc(HELP_LABEL[p.help.status] || '')}</span>` : '', p.risk?.priority?.tier === 'P1' ? '<span class="chip warn">P1</span>' : ''].join('');
-    return `<button class="property" data-key="p-${esc(p.id)}" data-id="${esc(p.id)}" aria-pressed="${S.detailOpen && S.selectedId === p.id && !S.selectedRegion}" aria-controls="detail"><span class="property-title"><strong>${esc(p.name && p.name !== p.id ? p.name : p.id)}</strong><span class="status-dot ${esc(d.status)}" aria-hidden="true"></span></span><small>${esc(p.area || p.id)}</small><span class="property-status"><span class="tag ${esc(d.status)}">${esc(STATUS_LABEL[d.status])}</span>${d.silent ? `<small>Last report ${esc(ageText(p.lastSeen || p.observedAt))}</small>` : '<small>Reporting</small>'}${d.lastKnown && d.status !== 'unknown' ? '<small>Last known</small>' : ''}</span>${chips ? `<span class="property-chips">${chips}</span>` : ''}</button>`;
+    return `<button class="property" data-key="p-${esc(p.id)}" data-id="${esc(p.id)}" aria-pressed="${S.detailOpen && S.selectedId === p.id && !S.selectedRegion}" aria-controls="detail"><span class="property-title"><strong>${esc(p.name && p.name !== p.id ? p.name : p.id)}</strong><span class="status-dot ${esc(d.status)}" aria-hidden="true"></span></span><small>${esc(p.area || p.id)}</small><span class="property-status"><span class="tag ${esc(d.status)}">${esc(STATUS_LABEL[d.status])}</span>${d.silent ? `<small>Last report ${esc(ageText(p.lastSeen || p.observedAt,observationClock(p)))}</small>` : '<small>Reporting</small>'}${d.lastKnown && d.status !== 'unknown' ? '<small>Last known</small>' : ''}</span>${chips ? `<span class="property-chips">${chips}</span>` : ''}</button>`;
   }
 
   function renderList() {
@@ -490,7 +505,9 @@ export async function mountCommand(env) {
   $('#demo-show-map').onclick = async () => { if (await ctx.closeWorkspace({ focus: false, animate: true })) { fitScenario(); $('[data-view="map"]').focus(); } };
   $('#demo-show-overview').onclick = () => ctx.openWorkspace('overview');
   window.addEventListener('message', e => {
-    if (!demo || !S.embed || e.origin !== location.origin || e.source !== window.parent || e.data?.type !== 'homebeacon:preview-step' || S.demoBusy) return;
+    if (!demo || !S.embed || e.origin !== location.origin || e.source !== window.parent) return;
+    if(e.data?.type==='homebeacon:preview-playback'){mv.windFlow.setPaused(e.data.running!==true);return;}
+    if(e.data?.type!=='homebeacon:preview-step'||S.demoBusy)return;
     const at = SCENARIOS.findIndex(s => s.id === S.demoScenario);
     loadScenario(SCENARIOS[(at + 1) % SCENARIOS.length].id);
   });
@@ -517,7 +534,7 @@ export async function mountCommand(env) {
   }
 
   async function loadBase() {
-    if (demo) return loadScenario(S.demoScenario, { initial: true });
+    if (demo) return studio ? true : loadScenario(S.demoScenario, { initial: true });
     if (exerciseMode) { S.base = []; return true; } // exercise homes arrive through the live feed only
     const r = await api('/api/command-center');
     if (r.status === 401) { location.href = '/login'; return false; }
@@ -572,14 +589,33 @@ export async function mountCommand(env) {
 
   // ---- start ----
 
-  S.ovOn.add('regions'); S.ovOn.add('zones');
+  if (demo && !S.embed && !SCENARIOS.some(s=>s.id===requestedScenario)) {
+    const controls = document.createElement('div'); $('.map-wrap').append(controls);
+    studio = mountSimulationStudio($('#simulation-studio'), controls, {
+      onFrame: frame => {
+        S.base = frame.properties; S.demoMeta = frame.scenario; S.demoIssuedAt = frame.issuedAt; S.demoScenario = 'custom'; S.simulationFrame = frame;
+        mv.simulationWind=simulationWind('custom',frame.config,frame.minute);mv.windFlow.update();
+        const wind=frame.overlays.exerciseWind; mv.setExt('exerciseWind',wind); mv.setVisible('exerciseWind',!!wind.features.length && mv.worldKey==='street');
+        mv.setVisible('zones',false); S.ovOn.delete('zones');
+        $('#notice').textContent = 'Simulation · '+frame.phase+' · minute '+frame.minute+' · fictional devices';
+        S.live.feed = [{key:'sim-frame-'+frame.minute,at:frame.issuedAt,kind:'scenario',level:'info',text:frame.phase+' · '+frame.summary.critical+' critical, '+frame.summary.notReporting+' missing reports'}];
+        recompute(); renderAll(); loadRegions();
+      },
+      onExplore: async () => { ctx.closeDetail({restoreFocus:false}); await ctx.closeWorkspace({focus:false}); fitHomes(); },
+      onConfigure: () => ctx.openWorkspace('demo'),
+    });
+  }
+  S.ovOn.add('regions'); if (!studio) S.ovOn.add('zones');
+  $('#legacy-simulation').hidden=!!studio;
+  $('#simulation-studio').hidden=!studio;
   const ok = await loadBase();
   recompute();
   renderAll();
   overlays.render();
   if (S.selectedId) detailPanel.loadDetail(S.selectedId);
-  overlays.loadZones();
-  if (demo && !S.embed && route.get('view') === 'demo') ctx.openWorkspace('demo');
+  if(!S.embed)news.start();
+  if (!studio) overlays.loadZones();
+  if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
   mv.map.once('load', () => loadRegions());
   setInterval(renderPill, 1000);
   setInterval(() => {

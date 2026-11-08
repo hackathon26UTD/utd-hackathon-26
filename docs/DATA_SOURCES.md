@@ -29,6 +29,13 @@ Gotchas found today:
 - **FIRMS:** Suomi NPP data ended November 2, 2026; use NOAA-20/NOAA-21 VIIRS products.
 - **No free live power-outage API exists** (PowerOutage.us is paid; utility outage maps are not official APIs). Our boxes' power-loss readings are the live outage layer.
 
+## Map world-view additions, November 8
+
+- **Wind, sunshine, UV and temperature:** integrated `atmosphere` overlay through the existing authenticated feed cache. Open-Meteo supplies 60 fixed lower-48 model forecast locations at every map zoom. Real upstream and local Pages checks returned 60 usable points. Values retain units and forecast valid time; this is sparse sampling, not continuous coverage or sensor observations. No new key required.
+- **Fault lines:** integrated `faults` overlay from the official USGS Quaternary Fault and Fold Database layer 21. Real upstream and local Pages checks returned 91 traces for a bounded Bay Area query. Local zoom and request limits apply. Geological traces are not earthquake predictions or evidence of current movement. No new key required.
+
+See [WORLD_FEEDS.md](WORLD_FEEDS.md) for official sources, cache behavior, request limits and parser evidence; [MAP_WORLD_VIEWS.md](MAP_WORLD_VIEWS.md) for cartography and source-state behavior. The older catalog rows above retain their stated verification date.
+
 ## Static datasets (load once into MongoDB)
 
 | Source | What it gives | Access | Status |

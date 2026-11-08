@@ -1,14 +1,14 @@
-# HomeBeacon design contract
+# Safe Home design contract
 
 > November 8 current direction: white lower-48 street map, state zoom and a full device workspace with actual Argus tabs. The public homepage has a non-interactive animated overview, three example readings, compact rounded actions, upper-right theme/motion Settings, and team/event/intent/services below. The sidebar collapses with a reduced-motion-aware transition. See [homepage refinement](design/HOMEPAGE_CLEANUP.md), [MARKETING.md](MARKETING.md) and [MAP_V2_SPEC.md](MAP_V2_SPEC.md). These supersede the older satellite, drawer and interactive-homepage descriptions below.
 
 ## Direction
 
-An operational recovery map, built for comparing affected homes and deciding the next follow-up. HomeBeacon is the product name. Avoid promotional claims, decorative gradients, invented risk percentages, and em dashes.
+An operational recovery map, built for comparing affected homes and deciding the next follow-up. Safe Home is the product name. Avoid promotional claims, decorative gradients, invented risk percentages, and em dashes.
 
 ## Argus source
 
-The owner's actual Argus kit is vendored unchanged under `ui/kit/vendor`. HomeBeacon uses Kit.select, Kit main tabs, Kit section navigation and existing product glue. Read [UI_KIT.md](UI_KIT.md) and `ui/kit/PROVENANCE.md` before changing components. The public reference is https://argus.build/ui; its media CLI is unrelated.
+The owner's actual Argus kit is vendored unchanged under `ui/kit/vendor`. Safe Home uses Kit.select, Kit main tabs, Kit section navigation and existing product glue. Read [UI_KIT.md](UI_KIT.md) and `ui/kit/PROVENANCE.md` before changing components. The public reference is https://argus.build/ui; its media CLI is unrelated.
 
 ## Tokens
 

@@ -18,6 +18,8 @@
 #endif
 #include "mesh.h"
 #include "uplink.h"
+#include "local_history.h"
+#include "history_sync.h"
 
 static const MeshNodeCfg NODES[] = MESH_NODES;
 constexpr int NODE_COUNT = sizeof(NODES) / sizeof(NODES[0]);
@@ -35,9 +37,9 @@ void detectMpu() {
   Wire.beginTransmission(mpuAddr); Wire.write(0x6B); Wire.write(0); Wire.endTransmission(); mpuOk = true;
 }
 int accelDevMg() {
-  if (!mpuOk) return 0;
-  Wire.beginTransmission(mpuAddr); Wire.write(0x3B); if (Wire.endTransmission(false) != 0) return 0;
-  if (Wire.requestFrom(mpuAddr, (uint8_t)6) != 6) return 0;
+  if (!mpuOk) return -1;
+  Wire.beginTransmission(mpuAddr); Wire.write(0x3B); if (Wire.endTransmission(false) != 0) return -1;
+  if (Wire.requestFrom(mpuAddr, (uint8_t)6) != 6) return -1;
   int16_t ax = (Wire.read() << 8) | Wire.read(), ay = (Wire.read() << 8) | Wire.read(), az = (Wire.read() << 8) | Wire.read();
   float g = sqrtf((float)ax * ax + (float)ay * ay + (float)az * az) / 16384.0f;
   return (int)fabsf((g - 1.0f) * 1000.0f);
@@ -73,7 +75,7 @@ void fillState(MeshMsg &m) {
 #if USE_TILT
   m.flags |= F_TILT_VALID; if (cur.tilt) m.flags |= F_TILT;
 #endif
-  if (mpuOk) { m.flags |= F_ACCEL_VALID; m.accelMilliG = cur.accelMg; }
+  if (mpuOk && cur.accelMg >= 0) { m.flags |= F_ACCEL_VALID; m.accelMilliG = cur.accelMg; }
 #if USE_MAINS_SENSE
   m.flags |= F_MAINS_VALID; if (cur.mains) m.flags |= F_MAINS;
 #endif
@@ -85,6 +87,7 @@ void sendReading() { MeshMsg m = {}; m.type = MSG_READING; fillState(m); mesh::s
 void sendEvent(const char *name) { MeshMsg m = {}; m.type = MSG_EVENT; strncpy(m.event, name, sizeof m.event - 1); fillState(m); mesh::send(m); Serial.printf("[event] %s\n", name); }
 
 void observe(const MeshMsg &m, bool own) {
+  local_history::observe(m, own);
   if (!own) Serial.printf("[mesh] %s from box %s seq %u (%u hops)%s\n", m.type == MSG_EVENT ? m.event : "reading", m.origin, m.seq, m.hops, mesh::isOnline ? " -> uploading" : " -> relayed");
 }
 bool deliver(const MeshMsg &m) { return uplink::enqueueMsg(m); }
@@ -109,7 +112,7 @@ void handleSerial() {
   while (Serial.available()) {
     char c = Serial.read(); if (c != '\n' && c != '\r') { buf += c; continue; }
     String cmd = buf; buf = ""; cmd.trim(); if (!cmd.length()) continue;
-    if (cmd == "help") Serial.println(F("Commands: help | mac | i2c | sensors | watch | mesh | ping | wifi | api | queue | selftest"));
+    if (cmd == "help") Serial.println(F("Commands: help | mac | i2c | sensors | watch | mesh | ping | wifi | api | history | queue | selftest"));
     else if (cmd == "mac") Serial.printf("[mac] %s\n", WiFi.macAddress().c_str());
     else if (cmd == "i2c") { Serial.print("[i2c]"); for (uint8_t a = 1; a < 127; a++) if (i2cPresent(a)) Serial.printf(" 0x%02X", a); Serial.printf("  mpu=%s\n", mpuOk ? "yes" : "no"); }
     else if (cmd == "sensors") cmdSensors();
@@ -118,6 +121,7 @@ void handleSerial() {
     else if (cmd == "ping") cmdPing();
     else if (cmd == "wifi") Serial.printf("[wifi] %s ch=%d internet=%s\n", uplink::wifiUp() ? "connected" : "offline", WiFi.channel(), uplink::apiHealthy ? "yes" : "no");
     else if (cmd == "api") { const MeshNodeCfg *n = mesh::nodeCfg(MY_NODE_ID); if (n) uplink::selftest(n->deviceId, n->deviceKey); }
+    else if (cmd == "history") { local_history::print(); history_sync::print(); }
     else if (cmd == "queue") Serial.printf("[queue] %u uploads waiting (RAM); %d own messages waiting for a gateway ACK\n", (unsigned)uplink::queued(), mesh::pendingCount());
     else if (cmd == "selftest") { Serial.println("=== selftest ==="); Serial.printf("[mesh] %s\n", mesh::ready ? "PASS" : "FAIL"); cmdSensors(); mesh::printStatus(); Serial.println("Run `ping` to test delivery through the mesh."); }
     else Serial.println("unknown command; type help");
@@ -132,9 +136,20 @@ void setup() {
   analogReadResolution(12);
   setenv("TZ", "UTC0", 1); tzset();
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 100000); detectMpu();
+  uint32_t historyFlags = F_MAINS_VALID;
+#if USE_FLAME
+  historyFlags |= F_FLAME_VALID;
+#endif
+#if USE_TILT
+  historyFlags |= F_TILT_VALID;
+#endif
+  if (mpuOk) historyFlags |= F_ACCEL_VALID;
+
   WiFi.mode(WIFI_STA);
   mesh::onDeliver = deliver; mesh::onObserve = observe; mesh::onTime = setClock;
   mesh::begin(MY_NODE_ID, NODES, NODE_COUNT, ESPNOW_PMK, ESPNOW_LMK);
+  const MeshNodeCfg *historyNode = mesh::nodeCfg(MY_NODE_ID);
+  local_history::begin({historyFlags, USE_BATTERY != 0, SHAKE_MILLI_G, 1}, historyNode ? historyNode->deviceId : nullptr);
   uplink::begin(WIFI_SSID, WIFI_PASS, API_BASE, false, FALLBACK_CHANNEL);
   Serial.printf("boot #%u | mesh=%d (%d boxes) mpu=%d | MAC %s | PIR warming up %d s\n", mesh::bootCount, mesh::ready, NODE_COUNT, mpuOk, WiFi.macAddress().c_str(), PIR_WARMUP_MS / 1000);
   sample(); prev = cur;
@@ -143,8 +158,10 @@ void setup() {
 
 void loop() {
   handleSerial();
+  local_history::loop();
   mesh::loop();
   uplink::loop();
+  history_sync::loop();
   if (millis() - lastSample >= SAMPLE_MS) {
     lastSample = millis(); sample();
     if (cur.motion && !prev.motion) sendEvent("motion.detected");
