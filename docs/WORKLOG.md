@@ -715,3 +715,13 @@ Final local review: integrated main `545f8e9` in merge `9af42bb`, preserving bot
 Product findings fixed: server linkedAt survives reload so waiting-box help is not delayed again, and fleet reason labels/field limits match the server. Customer UI verification: 18 checks (9 browser, 9 helper), Fleet: 16 browser checks, plus a focused backend response check. Browser fixtures remain isolated and explicitly documented. Complete reviews are in ONBOARDING_SECURITY.md and ONBOARDING_PRODUCT.md. Board agent ran one real local step with uplink disabled, exit 0; the separate host-assisted production stream continues. Production release validation follows after CI.
 
 Release reconciliation: while PR62 checks passed, teammate PR63 device onboarding merged to main. The first merge attempt was blocked by an append-only WORKLOG conflict. Merged main d6ec2ed, retained both work-log entries and the automatically combined Fleet/Review UI hooks, and reran the relevant checks/build before publishing the combined revision.
+
+## November 8, 2026 — Box B ported to XIAO ESP32-C3 (mesh-only demo box)
+
+Request: port `firmware/box_b` from a classic ESP32 dev board to the team's Seeed XIAO ESP32-C3. User decision: box B carries no sensors and exists to demo the mesh; it relays through box A, which uploads.
+
+Changes: `config.h` uses the C3 pin map (D0–D10, analog only on D0–D2) with every sensor switch at 0 (new `USE_MPU`), `PIN_LED -1` (no user LED), and new `CAN_BE_GATEWAY 0`. In relay-only mode `box_b.ino` skips the uplink and history sync and never joins Wi-Fi. It scans for the hotspot only to share box A's channel, re-scanning every 30 s while no gateway is heard. It still sends `box.boot`, a 10 s heartbeat reading and `ping`. `scripts/firmware.mjs` FQBN is now `esp32:esp32:XIAO_ESP32C3:PartitionScheme=huge_app`. In core 3.3.12, CDC On Boot defaults to Enabled and the `CDCOnBoot=cdc` option means Disabled, so it is not set. TESTING.md has a new section 0b for build, upload and checks.
+
+Verification: arduino-cli compile with the real git-ignored secrets passed (1,203,017 bytes, 38% of Huge APP; 14% RAM). Not yet flashed or tested on hardware; `common/*` and box A untouched.
+
+Next: user uploads `firmware/.build/box_b_c3` (or `box_b.ino.merged.bin` at 0x0, which contains secrets: keep private) and checks `ping` → `PASS: acknowledged by gateway A`.
