@@ -24,6 +24,8 @@
     "nvidia:check": "node scripts/check-nvidia.mjs",
     "data": "node scripts/data-admin.mjs",
     "mesh-test": "node scripts/mesh-test.mjs",
+    "send-test-data": "node scripts/send-test-data.mjs",
+    "uno-to-dashboard": "node scripts/uno-to-dashboard.mjs",
     "simulate": "node scripts/simulations.mjs",
     "email:preview": "node scripts/preview-customer-email.mjs",
     "hb": "node scripts/hb.mjs"

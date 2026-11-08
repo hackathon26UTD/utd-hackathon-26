@@ -573,3 +573,12 @@ Added concise fixed monitoring descriptions; kept hardware backup claims framed 
 Dependency install and build passed. All 587 tests passed without failures/skips; 22 targeted weather/world tests passed. A direct Open-Meteo fetch returned 60 locations × 24 complete hourly steps. Chrome fixture checks passed fixed homepage descriptions, hidden map simulation controls, independent weather clock, both forecast subjects, phone/dark/reduced-motion behavior and scoped weather-player Axe with zero page errors. Final regression and deployment evidence follows.
 
 Final local regressions: 15 workflow/household Chrome cases pass. Homepage autoplay/pause, avatars, themes and 320/390/768px layout checks pass. The final weather browser run passes both forecast views, independent simulation/device clock, hidden map simulation transport, radar/forecast exclusivity and dark/phone/reduced-motion controls with zero page errors or scoped player Axe findings.
+
+## 2026-11-08 morning: real sensors to the live dashboard over Wi-Fi (Dhruv)
+
+- Sensors are wired to the Arduino Uno Q (A0 water, A1 flame AO, D13 tilt, D11 buzzer, A4/A5 DS1307). `firmware/uno_q_sensors` reads them and sends one JSON line per second out of D1; Uno Q D1 -> XIAO S3 D7 + GND. Flashed from this laptop with arduino-cli (`arduino:zephyr:unoq`; upload goes over ADB, the port re-enumerates, retry if "device offline"). DS1307 does not answer on the Uno Q's I2C (`rtc:false`); time comes from NTP instead.
+- Bench path first: `firmware/uno_bridge` + `npm run uno-to-dashboard` uploaded via the laptop as exercise device BENCH-UNOQ (30 uploads, 0 failed).
+- Then box A firmware gained `USE_UNOQ` (sensors from D7, buzzer/sound/mains off) and was provisioned with the admin key (`npm run provision -- --box A=20:6E:F1:88:1C:78 --box B=58:8C:81:AD:24:C4`): box A device 6af078ec0c50e80b3a8af30c. On the phone hotspot it became the mesh gateway and uploaded directly: live API shows its readings (water, flame, tilt, mesh_hops) and events (box.boot, sensors.online, flame.detected/cleared). No laptop in the path.
+- Buzzer was sounding constantly: the module is active-low and the sketch held the pin LOW as "off". Disabled in the sketch (pin floating); re-flash of the Uno Q pending because its ADB link went offline (replug).
+- Flame sensor tripped at raw ~297 without a flame: likely sunlight/IR; adjust the module pot or `FLAME_SEEN_RAW`.
+- Not yet: box B on the real firmware (needs XIAO C3 pin remap), mesh handover with real data, power-outage sensing.
