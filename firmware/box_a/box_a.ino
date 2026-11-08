@@ -37,7 +37,27 @@ bool sdOk = false, camOk = false, oledOk = false, rtcOk = false, mpuOk = false;
 uint8_t mpuAddr = 0;
 Adafruit_SSD1306 oled(128, 64, &Wire, -1);
 
-struct Snapshot { int waterRaw = 0; bool water = false; bool mainsValid = false, mains = true; int mainsMv = 0; int accelMg = 0; bool shaking = false; int soundHits = 0; } cur, prev;
+struct Snapshot { int waterRaw = 0; bool water = false; bool waterValid = true; bool mainsValid = false, mains = true; int mainsMv = 0; int accelMg = 0; bool shaking = false; int soundHits = 0;
+                  bool unoValid = false; bool flame = false; int flameRaw = 0; bool tilt = false; } cur, prev;
+#if USE_UNOQ
+struct UnoQ { bool water, flame, tilt; int waterRaw, flameRaw; uint32_t at; unsigned long lines, bad; } uno = {};
+String unoBuf;
+// Read the Uno Q's JSON lines from D7 (see firmware/uno_q_sensors).
+void pollUno() {
+  while (Serial1.available()) {
+    char c = Serial1.read();
+    if (c == '\r') continue;
+    if (c != '\n') { if (unoBuf.length() < 300) unoBuf += c; continue; }
+    JsonDocument d;
+    if (!deserializeJson(d, unoBuf) && d["src"] == "unoq") {
+      uno.water = d["water"] | false; uno.flame = d["flame"] | false; uno.tilt = d["tilt"] | false;
+      uno.waterRaw = d["water_raw"] | 0; uno.flameRaw = d["flame_raw"] | 0; uno.at = millis(); uno.lines++;
+    } else if (unoBuf.length()) uno.bad++;
+    unoBuf = "";
+  }
+}
+bool unoFresh() { return uno.lines && millis() - uno.at < UNOQ_STALE_MS; }
+#endif
 uint32_t lastSample = 0, lastTelemetry = 0, soundWindowStart = 0, buttonDownAt = 0;
 int soundHitsWindow = 0, lastSoundLevel = -1; bool buttonWasDown = false;
 uint32_t lastHeard[mesh::MAX_NODES] = {0}; bool silentFlagged[mesh::MAX_NODES] = {false};
@@ -89,7 +109,12 @@ int readWaterRaw() {
   digitalWrite(PIN_WATER_PWR, LOW); return sum / 8;
 }
 void sampleSensors() {
+#if USE_UNOQ
+  cur.unoValid = unoFresh(); cur.waterValid = cur.unoValid;
+  if (cur.unoValid) { cur.water = uno.water; cur.waterRaw = uno.waterRaw; cur.flame = uno.flame; cur.flameRaw = uno.flameRaw; cur.tilt = uno.tilt; }
+#else
   cur.waterRaw = readWaterRaw(); cur.water = cur.waterRaw >= WATER_WET_RAW;
+#endif
 #if USE_MAINS_SENSE
   cur.mainsMv = analogReadMilliVolts(PIN_MAINS_SENSE); cur.mainsValid = true; cur.mains = cur.mainsMv >= MAINS_PRESENT_MV;
 #endif
@@ -101,7 +126,12 @@ void pollSound() {
   if (lvl != lastSoundLevel) { if (lvl == SOUND_ACTIVE_LEVEL) soundHitsWindow++; lastSoundLevel = lvl; }
 #endif
 }
-void beep(int times, int onMs = 120) { for (int i = 0; i < times; i++) { digitalWrite(PIN_BUZZER, HIGH); delay(onMs); digitalWrite(PIN_BUZZER, LOW); delay(onMs); } }
+void beep(int times, int onMs = 120) {
+#if USE_UNOQ
+  return;  // the buzzer is on the Uno Q (D11); D7 is the Uno Q data line
+#endif
+  for (int i = 0; i < times; i++) { digitalWrite(PIN_BUZZER, HIGH); delay(onMs); digitalWrite(PIN_BUZZER, LOW); delay(onMs); }
+}
 
 // ───────── camera ─────────
 #if USE_CAMERA
@@ -158,7 +188,8 @@ bool deliver(const MeshMsg &m) { return uplink::enqueueMsg(m); }
 // ───────── sending ─────────
 void sendReading() {
   MeshMsg m = {}; m.type = MSG_READING;
-  m.flags |= F_WATER_VALID; if (cur.water) m.flags |= F_WATER; m.waterRaw = cur.waterRaw;
+  if (cur.waterValid) { m.flags |= F_WATER_VALID; if (cur.water) m.flags |= F_WATER; m.waterRaw = cur.waterRaw; }
+  if (cur.unoValid) { m.flags |= F_FLAME_VALID | F_TILT_VALID; if (cur.flame) m.flags |= F_FLAME; if (cur.tilt) m.flags |= F_TILT; m.flameRaw = cur.flameRaw; }
   if (cur.mainsValid) { m.flags |= F_MAINS_VALID; if (cur.mains) m.flags |= F_MAINS; }
   if (mpuOk) { m.flags |= F_ACCEL_VALID; m.accelMilliG = cur.accelMg; }
 #if USE_SOUND
@@ -170,7 +201,7 @@ void sendEvent(const char *name, bool photo = false) {
   String img = photo ? snapshot(name) : "";
   MeshMsg m = {}; m.type = MSG_EVENT; strncpy(m.event, name, sizeof m.event - 1);
   if (cur.mainsValid) { m.flags |= F_MAINS_VALID; if (cur.mains) m.flags |= F_MAINS; }
-  m.flags |= F_WATER_VALID; if (cur.water) m.flags |= F_WATER;
+  if (cur.waterValid) { m.flags |= F_WATER_VALID; if (cur.water) m.flags |= F_WATER; }
   mesh::send(m);
   Serial.printf("[event] %s%s\n", name, img.length() ? (" photo " + img).c_str() : "");
 }
@@ -190,7 +221,7 @@ void drawOled() {
 }
 
 // ───────── serial tests ─────────
-void printHelp() { Serial.println(F("Commands: help | mac | i2c | sensors | water | mains | sound | button | beep | sd | cam | wifi | time | api | mesh | ping | queue | selftest")); }
+void printHelp() { Serial.println(F("Commands: help | mac | i2c | sensors | water | mains | sound | button | beep | sd | cam | wifi | time | api | mesh | ping | queue | uno | selftest")); }
 void cmdI2C() { Serial.print("[i2c] found:"); for (uint8_t a = 1; a < 127; a++) if (i2cPresent(a)) Serial.printf(" 0x%02X", a); Serial.printf("  rtc=%d mpu=%s oled=%d\n", rtcOk, mpuOk ? (mpuAddr == 0x69 ? "0x69" : "0x68") : "no", oledOk); }
 bool cmdSd() {
   if (!sdOk) { Serial.println("[sd] FAIL: no card (FAT32, <=32 GB, seated in the Sense board)"); return false; }
@@ -239,6 +270,9 @@ void handleSerial() {
     else if (cmd == "time") Serial.printf("[time] %s rtc=%d\n", mesh::timeValid() ? uplink::isoTime(mesh::nowEpoch()).c_str() : "not set", rtcOk);
     else if (cmd == "api") { if (selfCfg()) uplink::selftest(selfCfg()->deviceId, selfCfg()->deviceKey); }
     else if (cmd == "mesh") mesh::printStatus();
+#if USE_UNOQ
+    else if (cmd == "uno") Serial.printf("[uno] %s lines=%lu bad=%lu last %lus ago | water=%d(%d) flame=%d(%d) tilt=%d\n", unoFresh() ? "OK" : "NO DATA", uno.lines, uno.bad, uno.lines ? (millis() - uno.at) / 1000 : 0, uno.water, uno.waterRaw, uno.flame, uno.flameRaw, uno.tilt);
+#endif
     else if (cmd == "ping") cmdPing();
     else if (cmd == "queue") Serial.printf("[queue] %u uploads waiting (%s); %d own messages waiting for a gateway ACK\n", (unsigned)uplink::queued(), sdOk ? "SD" : "RAM", mesh::pendingCount());
     else if (cmd == "selftest") selftest();
@@ -251,7 +285,11 @@ void setup() {
   Serial.begin(115200); delay(1500);
   Serial.println("\nHomeBeacon box " MY_NODE_ID " (XIAO ESP32S3 Sense) starting");
   pinMode(PIN_WATER_PWR, OUTPUT); digitalWrite(PIN_WATER_PWR, LOW);
+#if USE_UNOQ
+  Serial1.begin(115200, SERIAL_8N1, UNOQ_RX_PIN, -1);  // listen only; D6 stays free
+#else
   pinMode(PIN_BUZZER, OUTPUT); digitalWrite(PIN_BUZZER, LOW);
+#endif
   pinMode(PIN_BUTTON, INPUT_PULLUP); pinMode(PIN_SOUND_DO, INPUT);
   analogReadResolution(12);
   setenv("TZ", "UTC0", 1); tzset();
@@ -279,6 +317,9 @@ void loop() {
   mesh::loop();
   uplink::loop();
   pollSound();
+#if USE_UNOQ
+  pollUno();
+#endif
 
   bool down = digitalRead(PIN_BUTTON) == LOW;
   if (down && !buttonWasDown) buttonDownAt = millis();
@@ -297,7 +338,10 @@ void loop() {
   if (millis() - lastSample >= SAMPLE_MS) {
     lastSample = millis(); sampleSensors();
     bool changed = false;
-    if (cur.water != prev.water) { sendEvent(cur.water ? "water.detected" : "water.cleared", cur.water); if (cur.water) beep(3); changed = true; }
+    if (cur.unoValid != prev.unoValid) { sendEvent(cur.unoValid ? "sensors.online" : "sensors.offline"); changed = true; }
+    if (cur.unoValid && prev.unoValid && cur.flame != prev.flame) { sendEvent(cur.flame ? "flame.detected" : "flame.cleared"); changed = true; }
+    if (cur.unoValid && prev.unoValid && cur.tilt != prev.tilt) { sendEvent(cur.tilt ? "tilt.detected" : "tilt.cleared"); changed = true; }
+    if (cur.waterValid && prev.waterValid && cur.water != prev.water) { sendEvent(cur.water ? "water.detected" : "water.cleared", cur.water); if (cur.water) beep(3); changed = true; }
     if (cur.mainsValid && cur.mains != prev.mains) { sendEvent(cur.mains ? "power.restored" : "power.lost"); changed = true; }
     if (cur.shaking && !prev.shaking) { sendEvent("shaking.detected"); changed = true; }
     if (changed || millis() - lastTelemetry >= TELEMETRY_MS) { sendReading(); lastTelemetry = millis(); }
