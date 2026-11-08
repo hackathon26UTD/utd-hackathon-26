@@ -6,7 +6,7 @@ try{
  const context=await browser.newContext({viewport:{width:1440,height:1000},reducedMotion:'no-preference'});const page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(15000);
  await page.goto(origin+'/demo?scenario=water-hurricane');await expect(page.locator('#map-hazards')).toBeVisible();
  await expect(page.getByText('Map key & sources',{exact:true})).toHaveCount(0);await expect(page.locator('.maplibregl-ctrl-scale')).toHaveCount(0);await expect(page.locator('#overlay-toggle')).toBeHidden();
- await expect(page.locator('.map-credits')).toBeVisible();
+ await expect(page.locator('.map-credits')).toHaveCount(0);await expect(page.locator('.maplibregl-ctrl-attrib-button')).toBeVisible();
  await page.locator('#map-hazards').click();const weather=page.getByRole('checkbox',{name:/Weather alerts/});await expect(weather).toBeEnabled();await weather.check();await expect(page.getByText('Sign in as an operator to load public layers.')).toHaveCount(0);await page.keyboard.press('Escape');
  await page.locator('[data-view="news"]').click();await expect(page.locator('.news-card').first()).toBeVisible({timeout:30000});
  await expect(page.locator('.news-status')).toContainText('active alerts');
