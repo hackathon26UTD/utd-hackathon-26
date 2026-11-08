@@ -3,6 +3,7 @@
 import { OVERLAYS, SOURCE_STATUS_TEXT, ageText } from './core.js';
 import { BASE_OPTIONS } from './map.js';
 import { setOverlay } from './overlays.js';
+import { mountWorldControls } from './world-controls.js';
 
 const VIEW_KEY = 'homebeacon-map-view', AREA_KEY = 'homebeacon-map-area';
 const glyph = {
@@ -19,9 +20,9 @@ const HAZARD_NAMES = { nws: 'Weather alerts', nfhl: 'Flood zones', gauges: 'Rive
 const HAZARD_GROUPS = [
   ['Alerts and declarations', ['nws', 'declarations']],
   ['Water', ['nfhl', 'gauges', 'nwps', 'river_forecast', 'tides']],
-  ['Earth and fire', ['quakes', 'firms']],
+  ['Earth and fire', ['faults', 'quakes', 'firms']],
   ['Air and power', ['airnow', 'eia', 'ercot']],
-  ['Forecasts and shelters', ['weather', 'nws_forecast', 'shelters']],
+  ['Forecasts and shelters', ['atmosphere', 'weather', 'nws_forecast', 'shelters']],
 ];
 const KEY_NAMES = { firms: 'FIRMS_MAP_KEY', airnow: 'AIRNOW_API_KEY', eia: 'EIA_API_KEY' };
 
@@ -46,13 +47,14 @@ export function mountToolbar({ root, map, ctx }) {
     if (saved.hillshade) map.setOverlayVisible('hillshade', true);
     if (saved.hydro) map.setOverlayVisible('hydro', true);
   }
-  const persist = () => { if (!ctx.embed) write(VIEW_KEY, { base: map.styleKey, ...map.getViewState().overlays }); };
+  const persist = () => { if (!ctx.embed && map.worldKey === 'street') write(VIEW_KEY, { base: map.styleKey, ...map.getViewState().overlays }); };
 
   const group = (label, ...kids) => { const g = document.createElement('div'); g.className = 'mapbar-group'; g.setAttribute('role', 'group'); g.setAttribute('aria-label', label); g.append(...kids.filter(Boolean)); return g; };
   const caption = text => { const c = document.createElement('div'); c.className = 'kit-filter-button__caption'; c.textContent = text; return c; };
 
   // ---- View ----
   const view = Kit.toolbarDropdown({ id: 'map-view', ariaLabel: 'Base map', icon: glyph.map, options: BASE_OPTIONS, value: map.styleKey, onChange: value => { map.setBase(value); sync(); } });
+  const worlds = mountWorldControls({ root, map, ctx });
 
   // ---- Go to ----
   const area = () => read(AREA_KEY);
@@ -175,7 +177,7 @@ export function mountToolbar({ root, map, ctx }) {
     });
   }
 
-  bar.append(group('Base map', view), group('Navigate', goTo), group('Layers', layers, hazards, zones, radar), group('Homes', power, water), group('Assistance', ask));
+  bar.append(group('Map view', worlds.select), group('Base map', view), group('Navigate', goTo), group('Layers', layers, hazards, zones, radar), group('Homes', power, water), group('Assistance', ask));
 
   // ---- state mirror ----
   function sync() {
@@ -194,11 +196,12 @@ export function mountToolbar({ root, map, ctx }) {
     power.kitSet(map.highlights.power); water.kitSet(map.highlights.water);
     zones.classList.toggle('is-on', !!document.querySelector('#overlay-panel.open'));
     refreshAsk();
+    worlds.sync();
     persist();
   }
   map.handlers.base = () => sync();
   sync();
 
   const setBusy = busy => { bar.setAttribute('aria-busy', String(!!busy)); };
-  return { destroy: () => { bar.remove(); delete map.handlers.base; }, sync, setBusy };
+  return { destroy: () => { worlds.destroy(); bar.remove(); delete map.handlers.base; }, sync, setBusy };
 }
