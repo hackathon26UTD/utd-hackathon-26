@@ -14,7 +14,7 @@ URL: `https://utd-hackathon-26.pages.dev/mcp`.
 
 Use a custom remote connection with OAuth and automatic client registration in ChatGPT or Claude. Availability depends on the host's plan/workspace configuration. The product is not listed in either provider's app directory. Official setup references: [ChatGPT custom MCP](https://developers.openai.com/api/docs/guides/custom-mcp-server), [Claude custom connectors](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
-The official MCP SDK provides stateless Streamable HTTP with JSON responses. Only bearer access tokens issued by HomeBeacon are accepted; customer/operator cookies and device/admin keys are not MCP credentials. GET streams are unsupported (405); POST handles initialization, notifications, tool discovery and calls. Origin is restricted when present. Responses are not cached.
+The official MCP SDK provides stateless Streamable HTTP with JSON responses. Only bearer access tokens issued by Safe Home are accepted; customer/operator cookies and device/admin keys are not MCP credentials. GET streams are unsupported (405); POST handles initialization, notifications, tool discovery and calls. Origin is restricted when present. Responses are not cached.
 
 Five read-only tools, including these three customer tools:
 

@@ -4,7 +4,7 @@ Current as of November 8, 2026. Owner: Ayan's workstream. Code: `ui/marketing.js
 
 ## Current flow
 
-The public root introduces HomeBeacon. The hero has one command-center action and a separate account link. Sign-in remains a separate route; `/portal` chooses the authenticated workspace or login. Customers create their profile before adding a device and its address.
+The public root introduces Safe Home. The hero has one command-center action and a separate account link. Sign-in remains a separate route; `/portal` chooses the authenticated workspace or login. Customers create their profile before adding a device and its address.
 
 The homepage map is a non-interactive simulated overview, not a second command center. The same-origin demo embed has inert keyboard/pointer access and disables MapLibre interaction and navigation controls. One caption identifies the simulation. Power, Wi-Fi and Conditions are the only three summaries beneath it. The normal example says “No disaster or disturbances detected.” That wording describes the example only, never missing live observations.
 

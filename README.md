@@ -1,66 +1,58 @@
-# HomeBeacon
+# Safe Home
 
-A prototype home disaster black box and neighborhood recovery command center.
+Safe Home combines unattended home sensor reports with nearby disaster context. Households can register a box and view its conditions. Operators can review many devices, inspect recorded events and send device messages for human follow-up.
 
-**Start here when switching agents:** [Ayan's full handoff](HANDOFF.md), [current context](docs/PROJECT_CONTEXT.md), [request history](docs/history/AYAN_REQUESTS_2026-11-07.md), and [documentation index](docs/README.md). Always cross-check current main and teammate work before edits.
+Built for HackUTD by the team in **hackathon26UTD**. Formerly **HomeBeacon**; existing URLs, device contracts and connection identifiers remain compatible. This is a prototype, not a certified alarm or an emergency dispatch service.
 
-Live site: https://utd-hackathon-26.pages.dev/ . Private team repo: https://github.com/hackathon26UTD/utd-hackathon-26 . The public homepage leads to `/portal`; visitors sign in and authenticated operators reach `/command-center`. `/demo` is a labeled fictional exercise.
+[Live website](https://utd-hackathon-26.pages.dev/) · [Simulations](https://utd-hackathon-26.pages.dev/simulations) · [Team documentation](docs/README.md) · [Current handoff](HANDOFF.md)
 
-## Current status
+## What works
 
-Marketing, command UI, operator profile/password recovery, essential-only cookie preferences, policy pages, Mongo-backed API and deployment are implemented. NVIDIA inference is prepared for a future key/model. Actual hardware operation, offline replay/idempotency, endurance and sensor calibration remain integration work. This is not a certified alarm or emergency dispatch service.
+- A complete public website, separate customer signup/sign-in and protected operator command center.
+- A lower-48 street map, state zoom, device conditions, official-source overlays and distinct map views for wind, sun, UV, flood, terrain, fire, air and other context.
+- Full device pages for conditions, sensors, logs, messages, customer linkage and a replayable workflow canvas.
+- Address-based device pairing, self-built box registration, profile photos and household sharing through private invitation links.
+- Five-step synthetic simulations, shared browser/HTTP/CLI/MCP simulation logic and customer-scoped assistant connections.
+- Recorded telemetry, retry receipts, latched incidents, device message queues and retained history/reference summaries.
 
-## Local development
+Live provider availability varies. Email delivery is disabled at Ayan's request. Physical sensor calibration, power endurance and outage/reconnect behavior still need board verification. Previously tested model connections do not prove a hosted model is running now. See the [capability guide](docs/PRODUCT_GUIDE.md).
+
+## Run locally
+
+Use Node 22 and the existing lockfile:
 
 ```sh
 npm ci
 npm run build
+npm run dev:local
+```
+
+The last command starts a disposable local MongoDB replica set and Pages runtime on port 8788. For an already configured private environment:
+
+```sh
 npm run dev -- --port 8792
 npm test
-npm run test:db
-TEST_BASE_URL=http://localhost:8792 node scripts/test-marketing.mjs
 ```
 
-Use ignored `.dev.vars` for Pages runtime secrets and `.env` for local service access. `.env.example` is the placeholder template; do not overwrite an existing secret file. The handoff records the approved private local paths. `npm run dev:local` is the throwaway-local-database alternative.
+Keep `.env` and `.dev.vars` private. Do not overwrite existing files or copy their contents into issues. Detailed setup, local credentials, test dependencies and troubleshooting are in [Development](docs/DEVELOPMENT.md).
 
-## Site management and next-agent brief
+## Find your workstream
 
-Use [AI_START_HERE.md](docs/AI_START_HERE.md) as the next model's copy-ready instructions. `npm run site -- status` links Cloudflare project metadata to MongoDB; `npm run site -- deployments` syncs deployment summaries. Management secrets stay private outside MongoDB. Explicit retry/rollback usage and limits: [site control](docs/SITE_CONTROL.md).
+| Work | Start here |
+| --- | --- |
+| Product, customers and operator journeys | [Product guide](docs/PRODUCT_GUIDE.md) |
+| System boundaries and source map | [Architecture](docs/ARCHITECTURE.md) |
+| Setup, build and verification | [Development](docs/DEVELOPMENT.md) |
+| Deployment, failures and credential handling | [Operations runbook](docs/OPERATIONS_RUNBOOK.md) |
+| Firmware and real device reports | [Hardware testing](firmware/TESTING.md), [ingest contract](clients/esp32/HOMEBEACON.md) |
+| API, risk, feeds and retained records | [Documentation index](docs/README.md) |
+| Contributions and coordination | [Team](docs/TEAM.md), [current context](docs/PROJECT_CONTEXT.md) |
+| Rename and compatibility | [Safe Home brand](docs/BRAND.md) |
 
-## Deploy
+## Shared implementation
 
-Cloudflare Pages project `utd-hackathon-26`, production branch `main`. Main CI tests, builds and deploys; live readiness is checked after upload. Authorized local deployment:
+Vanilla JavaScript/CSS and esbuild, the team's actual vendored Argus kit, MapLibre/OpenFreeMap, Cloudflare Pages/Functions and MongoDB Atlas. Public route shells live in `public/`; browser modules in `ui/`; API handlers in `functions/` and `src/`; shared models in `domain/`; box software in `firmware/` and `clients/`.
 
-```sh
-node --env-file=.env scripts/deploy.mjs --branch main --commit-dirty=false
-```
+Production remains the `main` branch of this private repository and the Cloudflare project `utd-hackathon-26`. Pull-request previews and production are tested and deployed through GitHub Actions. Deployment requires runtime checks after upload. Read [operations](docs/OPERATIONS_RUNBOOK.md) before changing infrastructure or credentials.
 
-See [Cloudflare](docs/CLOUDFLARE.md) and [architecture](docs/ARCHITECTURE.md). No secrets or private contacts belong in public bundles. Source is currently private/unlicensed; third-party map/font licenses are included separately.
-
-## Team API (ready to use)
-
-A product-agnostic REST API is in `src/app.js`: device registration with per-device keys, sensor ingest, latest/history/chart-series queries, threshold rules that open alerts, event logs, and a generic `/api/store/:collection` document store. Contract and deploy checklist: [docs/API.md](docs/API.md). Clients: `clients/esp32/` and `clients/python/`.
-
-```sh
-npm ci
-npm test            # end-to-end tests against an in-memory MongoDB
-npm run dev:local   # Cloudflare runtime + throwaway MongoDB at http://127.0.0.1:8788
-```
-
-## HomeBeacon database
-
-The additive HomeBeacon API supports homes, time-series telemetry, retry receipts,
-latched flood/power/temperature incidents, and geospatial home queries. Existing
-hardware ingestion and dashboard APIs remain available. Configure Atlas in ignored
-`.env`, then run `npm run db:setup`; `npm run db:seed` adds only fictional exercise
-data using a locally configured `BEACON_DEMO_DEVICE_KEY`. Local Pages runtime
-settings belong in `.dev.vars`. See [database architecture and Atlas verification](docs/mongodb-architecture.md)
-and [ESP32 contract and curl examples](clients/esp32/HOMEBEACON.md).
-
-## Credentials (hands-off)
-
-`cp .env.example .env`, fill in what you have, then run `npm run access` to see what works (it never prints values). Every script loads `.env` through `scripts/env.mjs`; your GitHub token comes from `gh auth login` automatically. `npm run atlas -- status | ip | ip-add-me | users` manages Atlas once a service account is in `.env`. `.env` stays on your machine; share secrets privately, never in git or chat. Data sources, keys and test status: [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md).
-
-## Hardware firmware
-
-`firmware/box_a` (XIAO ESP32S3 Sense gateway), `firmware/box_b` (ESP32 sensor box) and `firmware/hub` (Uno Q offline dashboard). Boxes form an AES-128 encrypted ESP-NOW mesh: messages hop box to box until any box with Internet (the gateway) uploads them, so data survives Wi-Fi and cellular outages. Uploads use verified HTTPS. Build, provision, flash and test: [firmware/TESTING.md](firmware/TESTING.md). Datasheets: [docs/DATASHEETS.md](docs/DATASHEETS.md). Encryption: [docs/ENCRYPTION.md](docs/ENCRYPTION.md).
+Missing reports mean unknown. Last-known critical evidence remains visible. No screen, model response or message establishes occupancy, damage, safe entry, insurance coverage or emergency dispatch. Source is private/unlicensed; included third-party licenses remain applicable.

@@ -1,44 +1,58 @@
-# HomeBeacon architecture
+# Safe Home architecture
 
-System intelligence adds `src/system-evidence.js` (existing document joins), `domain/system-policy.js` (conservative policy/runtime proposals), `src/system-agent.js` and `src/nemotron.js` (bounded tool workflow), and `src/system-api.js` (operator auth, scoped idempotent checkpoints). Pages endpoints are `/api/ops/system` and `/api/ops/agent`. The explicit simulator is exercise-only. No existing UI, ingestion schema or hardware actuation is replaced. See [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md).
+Current as of November 8, 2026. This is the current system map; previous implementation history remains in [WORKLOG.md](WORKLOG.md). [Brand compatibility](BRAND.md) explains retained HomeBeacon identifiers.
 
-Current as of November 7, 2026. See [full handoff](handovers/AYAN-2026-11-07.md) for ownership, verified state, operational traps and open work.
+## End-to-end flow
 
-## Browser and routing
+```mermaid
+flowchart LR
+  Box[Sensor box and local history] -->|Device key and measured reports| API[Pages device API]
+  API --> DB[(MongoDB Atlas)]
+  DB --> Ops[Operator map and workflow]
+  DB --> Home[Customer and household views]
+  Feeds[Official public feeds] --> Context[Bounded cache and source status]
+  Context --> Ops
+  Context --> Home
+  Ops -->|Human action| Queue[Device message queue]
+  Queue -->|Box polls and acknowledges| Box
+  Model[Optional hosted model] -->|Constrained suggestions| Ops
+  Sim[Pure simulation engine] --> Demo[Browser, CLI and MCP simulation]
+```
 
-Static HTML routes render vanilla JS/CSS modules bundled by esbuild. `ui/marketing.js` owns the public product experience; `ui/app.js` owns login/profile/legal and the command workspace. MapLibre is loaded dynamically for the workspace. Fonts, map worker and license notices are self-hosted. OpenFreeMap supplies actual street tiles with attribution. See [marketing](MARKETING.md) and [design](DESIGN.md).
+Synthetic frames are isolated from live telemetry. A diagram edge describes software integration, not proof that a physical device or third-party provider is operating.
 
-`/portal` redirects by session state. Marketing and exercise routes are public; command/profile routes require a valid session. API middleware separates operator access, exercise-only demo access and device/admin API credentials.
+## Browser and product surfaces
 
-## Server and MongoDB
+Static HTML in `public/` loads esbuild bundles from `ui/`. The stack is vanilla JS/CSS, not React or Next.js. `ui/marketing.js` renders the public site; `ui/app.js` boots authentication, account/legal routes and the command workspace; `ui/customer.js` owns the household experience. `ui/command/` contains map controls, detail pages, live state and source layers.
 
-Cloudflare Pages Functions route the API. Dhruv's `src/app.js` provides device enrollment, per-device keys, readings, threshold rules, alerts, events and store operations. `src/db.js` and `lib/mongodb.js` open/close per-request Mongo clients, avoiding reuse of request-bound sockets. The shared Atlas database is `utd_hackathon_26`; application credentials are DB-scoped and encrypted on Cloudflare.
+The actual Argus kit is vendored under `ui/kit/vendor/`. Product tokens and glue live outside the vendor directory. MapLibre renders OpenFreeMap streets, state boundaries, device points and bounded source overlays. Sources carry status, timestamps, coverage limits and attribution. See [UI kit](UI_KIT.md), [world views](MAP_WORLD_VIEWS.md) and [world feeds](WORLD_FEEDS.md).
 
-`domain/property.js` converts latest observations into review priority and freshness. Stale/missing values remain unknown unless last-known critical evidence requires review. `functions/api/command-center.js` returns bounded live snapshots. Follow-ups record human actions and explicit sourced evacuation reports; they do not dispatch teams. See [API](API.md), [MongoDB](MONGODB.md) and [concept](HOME_BLACK_BOX.md).
+The Workflow tab uses DOM checkpoint cards and SVG connectors. Its left history rail, top replay controls and below-node explanations share the existing timeline contract. It never calls a model to invent explanations. [Workflow canvas](WORKFLOW_CANVAS.md) covers playback, refresh and accessibility behavior.
 
-## Newly merged telemetry and incidents
+## API and storage boundaries
 
-The separate PR #14 database workstream adds `src/beacon.js`: homes/device association, `/api/beacon/ingest`, time-series records, ordinary unique retry receipts, latched incidents, audit and geospatial queries. It preserves legacy APIs and projects sensor records into readings. Explicit bootstrap/reconciliation requirements, partial-write semantics and Atlas verification are in [database architecture](mongodb-architecture.md) and the [hardware contract](../clients/esp32/HOMEBEACON.md). New schema bootstrap and full home/incident joins into the command UI remain unverified. Do not duplicate this work or confuse generic readiness with schema verification.
+Cloudflare Pages Functions route requests into the server modules. Dhruv's `src/app.js` exposes device enrollment, keys, legacy readings, rules, alerts, events and the document-store API. `src/beacon.js` adds home/device association, time-series telemetry, retry receipts, latched incidents, audit and geospatial queries. These are existing interoperating contracts, not interchangeable adapters. Read [API.md](API.md) and [mongodb-architecture.md](mongodb-architecture.md) before ingest changes.
 
-## Accounts
+The shared application database remains `utd_hackathon_26`. Connection helpers in `src/db.js` and `lib/mongodb.js` respect request-bound Cloudflare networking. Customer pairing and household sharing use ordinary-collection MongoDB transactions and require Atlas or a replica set. Time-series ingestion has separate retry/reconciliation semantics; ambiguous writes must use its documented paused-ingestion procedure.
 
-Salted PBKDF2 password verification, signed eight-hour secure HTTP-only sessions, same-origin state changes, throttling and database-backed session invalidation after password changes. Profile and single-use recovery code reset are implemented. Email reset, self-service registration, invitations, SSO/MFA and general multi-tenant permissions are not. Shared demo is restricted on the server to fictional records/read-only profile/preset views. See [account/accessibility implementation](ACCESSIBILITY_AND_ACCOUNT.md).
+Risk modules under `src/risk/` combine supported readings, duration thresholds and recorded context for review. Operator snapshots poll about every four seconds; customers about every ten seconds. These are targets, not delivery guarantees. Missing observations remain unknown and stale critical evidence is retained. [Risk](risk.md), [downlink](LIVE_DOWNLINK.md) and [data operations](DATA_OPERATIONS.md) define the contracts.
 
-## Public context and model views
+## Identities and authority
 
-Weather endpoint obtains bounded NWS, USGS and FEMA information with explicit source status and timeouts. NWS polygons can be mapped when geometry exists; these feeds do not establish damage to a home.
+Operator sessions, customer sessions, per-device keys, customer OAuth tokens and infrastructure credentials serve different purposes. Customer signup is implemented; public operator enrollment and general enterprise tenancy are not. Same-origin checks protect browser mutations. Password/account changes invalidate appropriate sessions or sharing bindings.
 
-NVIDIA-ready views use bounded sensor snapshots and a constrained declarative output. A model can suggest supported predicates; server-side code selects matching observations. It cannot issue arbitrary database commands or alter recorded priority. The connection is not configured yet. See [operator layers](OPERATOR_LAYERS.md).
+Customers claim a serial/code at an entered address, or register a self-built device after password confirmation. Household membership grants selected-device read access with revocation and account-generation checks. It does not grant operator actions or infrastructure access. See [customer](CUSTOMER.md), [households](HOUSEHOLDS.md) and [assistant connections](ASSISTANT_CONNECTIONS.md).
 
-## Delivery and verification
+## History, messages and assistants
 
-GitHub Actions on Node 22 run backend tests, a real MongoDB service/readiness check and builds, then deploy using a scoped Cloudflare token. Mongo service runs on Ubuntu 22.04 due to a verified kernel incompatibility on newer runners. Main deploys production; eligible same-repo PRs get previews. Live deployment helper checks the immutable URL's database readiness and home response. Browser accessibility/interaction tests currently run separately; add CI enforcement and UI path filters as follow-up. See [Cloudflare](CLOUDFLARE.md).
+Device reports, logs, retained local history and daily summaries have distinct retention and identity rules. Box-side reference learning continues offline; website history uses synchronized records. Learned references do not silently replace alarm limits. Firmware support exists, but board calibration, flash state, power endurance and replay must be verified physically. [Device history](DEVICE_HISTORY.md) is authoritative.
 
-## Hardware boundary
+Operators explicitly queue messages; boxes poll and acknowledge them. Queued, delivered, acknowledged, expired and cancelled are separate states. A help status is a human-entered record, not dispatch confirmation. Household email code and templates are prepared, but sending remains disabled.
 
-ESP32 boxes and Arduino Uno Q gateway are planned/current inventory, not proof of flashed or calibrated devices. Existing ingest/client contracts must be reconciled with actual sensors. Durable replay/idempotency, battery endurance, fallback networking, voltage/current limits and physical survivability require demonstration. Synthetic UI behavior is not hardware verification. See [hardware](HARDWARE.md).
+The bounded operator investigation uses `src/system-agent.js`, `src/system-evidence.js` and `src/nemotron.js`. Customer assistants use separate OAuth MCP scope or an encrypted account-owned NVIDIA key. Models cannot execute arbitrary database queries or mutate hazard observations. A prior successful integration test does not establish current model uptime.
 
+## Simulation and delivery
 
-## Live platform and real kit continuation
+`domain/simulation.js` is the shared deterministic engine for five-page browser setup, `/api/simulations`, CLI and MCP tools. The browser keeps configuration, seed, epoch and playback position; simulation imports regenerate frames rather than trusting supplied property records. [Simulations](SIMULATIONS.md) documents bounds and interfaces.
 
-The resumed Claude work adds polling cursors, device downlink/delivery acknowledgements, logs, deterministic device/region risk, cached overlays/operator zones and household pairing/accounts. Operator and household cookies/authority are separate. Product pages use the actual vendored owner Argus kit with dusk/paper themes. See [continuation evidence and limitations](CLAUDE_CONTINUATION.md), [system contract](SYSTEM_SPEC.md), [customer](CUSTOMER.md), [risk](risk.md), [feeds](FEEDS.md) and [downlink](LIVE_DOWNLINK.md). These supersede earlier sections stating the customer role or exact library are not implemented.
+GitHub Actions tests against MongoDB, builds with Node 22 and deploys same-repository previews or production `main`. A successful upload is followed by runtime readiness and browser/asset checks. See [Development](DEVELOPMENT.md) and [Operations](OPERATIONS_RUNBOOK.md). Automated checks do not substitute for full manual accessibility review or hardware testing.

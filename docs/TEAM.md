@@ -1,30 +1,24 @@
-# Four-person team
+# Safe Home team and contribution guide
 
-Assign these roles together. Each person owns a deliverable and backs up another workstream. Roles are suggestions, not assignments based on identity.
+Current as of November 8, 2026. The private project repository belongs to **hackathon26UTD**. This document records observed contributions, not exclusive ownership, current account permissions or unverified assignments.
 
-| Seat | Suggested ownership | First deliverable |
-| --- | --- | --- |
-| Repo owner / integrator | Scope, merges, deployment | Working shared development setup |
-| Collaborator 1 | Frontend | Main user journey with sample data |
-| Collaborator 2 | Backend / API | Agreed request and response contract |
-| Collaborator 3 | Data / core feature and QA | Working core capability and acceptance checklist |
+| Teammate | Observed contribution |
+| --- | --- |
+| Ayan Basheer | Assisted product direction, Argus-based design, account/customer experience, command workspace, infrastructure integration and release verification |
+| Dhruv | Core API, hardware clients/firmware, shared credential tooling, hardware/weather research and per-sensor duration thresholds |
+| Adyaan | Organization and shared database foundation |
+| Saif | Team collaborator; check current branch/task before assigning or duplicating work |
 
-The repository is owned by `hackathon26UTD`. `aa3264`, `dnpatel2311`, and `abasheer-rion` have active organization Owner access. `UhhSaif` was also visible in the organization; confirm current membership before sending another invitation. Private team contact details and identity confidence are recorded in [CONTACTS.md](CONTACTS.md), at Ayan's explicit request. Workstream ownership remains unassigned.
+The additive telemetry/latched-incident extension entered through PR #14 as a separate database workstream. Preserve its contract alongside the core hardware API. Credit actual contributions in PRs and docs; do not describe a whole shared subsystem as sole-authored by the latest editor.
 
-## First 20 minutes
+## Coordinate through current repository evidence
 
-Atlas Organization Owner invitations for `dnpatel2311` and `Abasheer-rion` are pending acceptance. GitHub organization access is already active. See [MongoDB setup](MONGODB.md) for the remaining application connection steps.
+Before editing, inspect local status, fetch origin and read relevant open PRs/branches. If two tasks touch the same files, isolate work and reconcile both intended behaviors. Do not merge the unrelated FutureYou application into Safe Home without explicit direction.
 
-- Confirm the event's actual team-size eligibility, deadline, timezone, judging rubric, tracks, and submission platform with organizers.
-- Choose one user problem and define the single demo journey.
-- Assign roles, record each GitHub handle, and accept repository invites.
-- Agree on a stack and API/data contract before splitting work.
-- Pick one communication channel and a backup deployment owner.
+A useful handoff includes the problem, changed behavior, touched contract, branch/commit, checks actually run, runtime evidence and remaining work. Put long details in the relevant subsystem doc and link them from the PR. Keep credentials, private invitation links and real addresses out of review examples.
 
-## Coordination
+## Team records
 
-At each check-in, share: done, next, blocked. Integrate small changes frequently. Track Ready / In progress / Review / Done in GitHub Issues or an optional GitHub Project. Keep one active task per person. Record integration decisions in ARCHITECTURE.md.
+[Architecture](ARCHITECTURE.md) describes shared boundaries. [Development](DEVELOPMENT.md) covers local work and checks. [Operations](OPERATIONS_RUNBOOK.md) covers release responsibility. [WORKLOG.md](WORKLOG.md) is the chronological evidence trail; [CHANGELOG.md](../CHANGELOG.md) is the short release history.
 
-## Observed workstream ownership, November 7
-
-Ayan owns this chat's product/design/infrastructure integration stream, including the marketing-to-portal experience. Dhruv authored the core API and clients, shared credential tooling, and is working hardware/weather research. Adyaan established the organization and shared MongoDB setup. Saif's current deliverable was not verified here. These are observed contributions, not permanent exclusive assignments. Always cross-check current branches and the full handoff before duplicating or replacing another person's work.
+Private contacts remain in the existing private contact document. Do not copy them into public pages or send messages simply because an address is available. Recheck current GitHub/Atlas roles before access changes; old invitation/membership observations are not proof of current status.
