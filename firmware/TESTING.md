@@ -1,6 +1,6 @@
 # HomeBeacon hardware: build, flash and test
 
-Boxes form an encrypted ESP-NOW **mesh**; any box with working Internet is the **gateway** and uploads for everyone. A message hops box to box (up to 5 hops) until a gateway acknowledges it; until then the box that created it keeps it and re-sends it, so nothing is lost while Wi-Fi and cellular are down.
+Boxes form an encrypted ESP-NOW **mesh**; any box with working Internet is the **gateway** and uploads for everyone. A message hops box to box (up to 5 hops) until a gateway acknowledges it; until then the box that created it keeps it and re-sends it, subject to finite queue capacity and power loss. A separate bounded local-history recorder preserves sampled readings and syncs them when its own Wi-Fi reconnects; see [DEVICE_HISTORY.md](../docs/DEVICE_HISTORY.md).
 
 ```
 House C ──► House B ──► House A (gateway: has Internet) ──HTTPS──► API ──► command center
@@ -62,11 +62,12 @@ Arduino IDE 2 users: install "esp32 by Espressif Systems" and the libraries **Ar
 
 Flash both boards once (they boot with placeholder secrets), open Serial Monitor at **115200**, type `mac` on each. Note box A's and box B's MAC.
 
-## 3. Provision (needs `API_ADMIN_KEY` from Ayan)
+## 3. Provision with the existing private admin key
 
-Add to `.env`: `API_ADMIN_KEY`, `WIFI_SSID`, `WIFI_PASS` (a **2.4 GHz** hotspot; iPhone: Personal Hotspot → Maximize Compatibility). Then:
+Settings load from environment, `.env`, then `.dev.vars`. Add privately: `API_ADMIN_KEY`, `WIFI_SSID`, `WIFI_PASS` (a **2.4 GHz** hotspot; iPhone: Personal Hotspot → Maximize Compatibility). Then:
 
 ```bash
+npm run provision -- --check  # read-only access check; no board details needed
 npm run provision -- --box A=<box A MAC> --box B=<box B MAC> [--box C=<MAC>] --lat 32.9857 --lon -96.7502
 ```
 

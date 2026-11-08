@@ -82,3 +82,13 @@ Update after Ayan's immediate-ship request: explicit Atlas schema bootstrap succ
 ## Radar playback (local branch)
 
 `work/weather-radar` adds optional NOAA MRMS observed radar playback to the command map. It is real historical radar for the contiguous U.S., separate from simulated hurricane scenarios and forecast precipitation; the user must enable it. Local browser verification passed; not deployed as of this entry. See WORKLOG for limitations.
+
+## November 8: simulations, profiles and retained box history
+
+The public simulations journey now has five Argus-tab setup pages, bounded event/world/device controls, advanced simulation-only thresholds, deterministic playback and config/run import/export. `/demo` and recognized preset links remain compatible; `/simulations` is the primary setup route. HTTP, CLI and MCP use the same pure engine. No simulation enters live device/history storage.
+
+Customer/operator profiles support private raster images, with owner-generation binding and password-confirmed email-change preservation. Three escaped HTML/text email previews are prepared; no email provider, recipient enrollment or automatic delivery is enabled.
+
+History combines existing 365-day canonical daily summaries with a separate authenticated channel for finite retained on-box snapshots and device-reported learned ranges. ESP32 sketches keep 64 own reading snapshots, sampled at five-minute intervals, with 15-minute NVS checkpoints. Fixed alarms never change. The separate sync preserves original/unknown time, uses immutable identities and exact acknowledgements, and pauses conflicting replay. Reprovisioning to a different device identity starts fresh local history. Host/API/browser tests and firmware compilation do not establish physical endurance, calibration, loss-free storage or real reconnection. See DEVICE_HISTORY.md for exact limits.
+
+`npm run provision -- --check` verifies the existing admin key without creating anything. Settings use environment, `.env`, then `.dev.vars`. Missing settings on one teammate laptop do not justify rotating the shared production key.
