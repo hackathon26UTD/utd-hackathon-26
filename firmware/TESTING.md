@@ -34,6 +34,10 @@ I2C saves pins: the clock, accelerometer and screen all share two wires. Everyth
 | Change one digit of `ESPNOW_LMK` on one board | No messages get through (encryption works). Put it back: works again |
 | `mesh` command | Role, peers, pending, rx / forwarded / acked / rejected counters |
 
+**Attach the antennas.** XIAO ESP32S3/C3 boards have a U.FL connector and barely transmit or receive without the antenna clicked on: our first test delivered 0-10% of frames without them and 100% with them. `mesh` shows `radio: sent ok / failed`; any failures on boards a metre apart mean an antenna problem.
+
+Easiest: plug both boards in and run `npm run mesh-test` (or `--no-flash --watch 60` to just watch). XIAO ESP32C3 boards need USB CDC on boot (the script sets it).
+
 If nothing arrives: MACs swapped or mistyped, the two boards have different keys, or they are on different Wi-Fi channels (wait 20 s; the non-gateway rescans for the hotspot's channel).
 
 ## Wiring rules (read before powering)
