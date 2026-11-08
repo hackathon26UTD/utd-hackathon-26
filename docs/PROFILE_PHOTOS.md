@@ -66,3 +66,7 @@ This module imports no server code. Existing esbuild entries will include it whe
 ## Verification
 
 `node --test test/profile-photo.test.js` uses disposable local MongoDB only, including a replica-set transaction test. Browser test uses installed Chrome/Chromium when available (otherwise explicitly skips). Tests cover the routes, existing auth/middleware boundaries, origin checks, binary roundtrip, limits/magic/dimensions, generation isolation, actual parent rename/reuse interleavings, blocked upload bodies, write-conflict retries, rename rollback, actual browser PNG/JPEG/WebP output and widget upload/remove/error/metadata stripping/cleanup. Deployed behavior and manual screen-reader review are not established here.
+
+## Homepage profile menu (November 8)
+
+The upper-right avatar opens View profile and Settings. The homepage checks the existing customer session first, then the operator session, without storing account details. Authenticated profile images come from `/api/customer/photo` or `/api/profile-photo` with no-store and same-origin credentials. A missing/unavailable image leaves a bundled cartoon avatar. Four default choices persist only on this browser under `homebeacon-default-avatar`; they do not overwrite an uploaded photo. Customer View profile opens `/customer#profile`, expanding the existing photo section. No new photo format, upload permission or account contract is introduced.

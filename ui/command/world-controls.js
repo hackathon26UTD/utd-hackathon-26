@@ -1,4 +1,5 @@
 import { WORLD_VIEWS, worldView, viewSourceState, viewSourceNeedsAttention, selectedSourceState, gridSummary } from './world-views.js';
+import { allowsMotion } from '../display-settings.js';
 import { OVERLAYS, ageText } from './core.js';
 import { setOverlay } from './overlays.js';
 
@@ -43,7 +44,7 @@ export function mountWorldControls({ root, map, ctx }) {
       // Focus the geography without hiding any device alerts.
       for (const layer of OVERLAYS) setOverlay(ctx,layer.id,false);
       setOverlay(ctx,'regions',false);
-      map.setVisible('exerciseWind',ctx.demo && next.id === 'wind');
+      map.setVisible('exerciseWind',false);
       map.setOverlayVisible('hillshade',!!next.hillshade);
       map.setOverlayVisible('hydro',!!next.hydro);
       map.setHighlight('power',!!next.power);
@@ -62,12 +63,18 @@ export function mountWorldControls({ root, map, ctx }) {
     legend.hidden = active.id === 'street' || !!ctx.embed;
     if (legend.hidden) return;
     const fragment = document.createDocumentFragment();
+    const restoreWindFocus=document.activeElement===legend.querySelector('.world-wind-playback');
     const restoreFocus = document.activeElement === legend.querySelector('summary');
     const focusedLink = legend.contains(document.activeElement) ? document.activeElement.getAttribute('href') : null;
     const heading = node('div','','world-legend-heading');
     heading.append(node('strong',active.label),node('span',active.unit || (ctx.demo ? 'Simulation' : 'Source layers')));
     fragment.append(heading);
-    const colors = active.stops?.map(([n,color]) => [color,String(n)]) || active.swatches || [];
+    if(active.id==='wind'){
+      const playback=node('button',map.windFlow.paused?'Play wind':'Pause wind','world-wind-playback');playback.type='button';
+      playback.disabled=!allowsMotion();if(playback.disabled)playback.textContent='Motion reduced';
+      playback.addEventListener('click',()=>{map.windFlow.setPaused(!map.windFlow.paused);playback.textContent=map.windFlow.paused?'Play wind':'Pause wind';});fragment.append(playback);
+    }
+    const colors = ctx.demo&&active.id==='wind'?[]:active.stops?.map(([n,color]) => [color,String(n)]) || active.swatches || [];
     if (colors.length) {
       const scale = node('div','','world-scale');
       for (const [color,label] of colors) {
@@ -76,7 +83,7 @@ export function mountWorldControls({ root, map, ctx }) {
       }
       fragment.append(scale);
     }
-    fragment.append(node('p',active.note,'world-note'));
+    fragment.append(node('p',ctx.demo&&active.id==='wind'?'Illustrated wind speeds and flow. Simulation only.':active.note,'world-note'));
     if (active.layers.length) {
       const sources = node('details','','world-sources');
       const summary = node('summary','Sources & coverage'); sources.append(summary);
@@ -107,7 +114,8 @@ export function mountWorldControls({ root, map, ctx }) {
       fragment.append(sources);
     }
     legend.replaceChildren(fragment);
-    if (restoreFocus) legend.querySelector('summary')?.focus({preventScroll:true});
+    if(restoreWindFocus)legend.querySelector('.world-wind-playback')?.focus({preventScroll:true});
+    else if (restoreFocus) legend.querySelector('summary')?.focus({preventScroll:true});
     else if (focusedLink) [...legend.querySelectorAll('a')].find(a => a.getAttribute('href') === focusedLink)?.focus({preventScroll:true});
   }
   // Toolbar is created before overlay handlers. Restore only once they exist.
@@ -125,5 +133,6 @@ export function mountWorldControls({ root, map, ctx }) {
     if (saved) choose(saved);
   });
   map.map.on('moveend',sync);
-  return { select, sync, choose, destroy:() => { map.map.off('moveend',sync); legend.remove(); } };
+  document.addEventListener('homebeacon:motion',sync);
+  return { select, sync, choose, destroy:() => { map.map.off('moveend',sync); document.removeEventListener('homebeacon:motion',sync); legend.remove(); } };
 }
