@@ -1,5 +1,6 @@
 import { api, exerciseMode } from './api.js';
 import { dateTimeText } from './dom.js';
+import { endDemoSession } from './demo-session.js';
 import './fleet-review.css';
 
 const rows = value => Array.isArray(value) ? value : [];
@@ -24,7 +25,8 @@ export function mountFleetReview(ctx, root) {
   let loaded = false, dead = false, loading = false, busy = false, snapshot = null, currentRun = null, engine = 'nemotron';
   let cfg = null, error = '', pending = null, controller = null, loadController = null, generation = 0;
   const lifetime = new AbortController();
-  const canUse = !ctx.demo && !!ctx.role;
+  const canUse = !ctx.demo && ctx.role === 'operator';
+  let leaving = false;
   const toolbar = node('div', null, 'rv-toolbar');
   const scope = node('span', exerciseMode ? 'Exercise records' : 'Live device records', 'rv-mode');
   const refreshButton = button('Refresh observations', 'refresh');
@@ -59,8 +61,20 @@ export function mountFleetReview(ctx, root) {
   columns.append(queueArea, agentArea);
   root.classList.add('rv'); root.replaceChildren(toolbar, status, errorBox, columns);
   if (!canUse) {
-    root.replaceChildren(node('h3', 'Review registered device records'), note('Fleet review is available to team operators. Public simulation frames are separate from registered exercise records.'));
-    const login = node('a', 'Operator sign-in', 'kit-btn'); login.href = '/login'; root.append(login);
+    root.replaceChildren(node('h3', 'Review registered device records'));
+    const entryActions = node('div', null, 'rv-actions');
+    if (ctx.role === 'operator') {
+      root.append(note('You are signed in. Leave the public simulation to review live device records, or open registered exercise records.'));
+      const enter = button('Open Review', 'open-live-review'); enter.classList.add('rv-primary');
+      entryActions.append(enter, button('Open exercise records', 'open-exercise-review'));
+    } else if (ctx.role === 'demo') {
+      root.append(note('You are signed in to the shared simulation account. Use your team operator account to review registered devices.'));
+      entryActions.append(button('Switch to operator account', 'open-live-review'));
+    } else {
+      root.append(note('Sign in with a team operator account to review registered devices. Public simulation frames are separate from registered exercise records.'));
+      entryActions.append(button('Operator sign-in', 'open-live-review'));
+    }
+    root.append(entryActions, errorBox);
   }
 
   function currentSnapshot() { return currentRun?.snapshot || snapshot; }
@@ -221,6 +235,21 @@ export function mountFleetReview(ctx, root) {
     if (target.dataset.review === 'refresh') void load();
     else if (target.dataset.review === 'run') void run();
     else if (target.dataset.review === 'stop') controller?.abort('user');
+    else if (target.dataset.review === 'open-live-review') void openRecords('live');
+    else if (target.dataset.review === 'open-exercise-review') void openRecords('exercise');
+  }
+  async function openRecords(targetMode) {
+    if (dead || leaving || canUse) return;
+    leaving = true; errorBox.hidden = true; root.setAttribute('aria-busy', 'true');
+    const entries = [...root.querySelectorAll('[data-review^="open-"]')];
+    entries.forEach(entry => { entry.disabled = true; });
+    try {
+      await endDemoSession(ctx.role, { view: 'review', mode: targetMode, navigate: url => { if (!dead) location.assign(url); } });
+    } catch {
+      if (dead) return;
+      errorBox.textContent = 'Could not open Review. Try again.'; errorBox.hidden = false;
+      leaving = false; root.setAttribute('aria-busy', 'false'); entries.forEach(entry => { entry.disabled = false; });
+    }
   }
   root.addEventListener('click', clicked); render();
   return { open() { if (!loaded && !loading) void load(); }, refresh: load, destroy() {
