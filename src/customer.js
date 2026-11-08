@@ -2,6 +2,8 @@
 // Credentials stay separate: customer cookie (src/operator-session.js), device keys, operator sessions.
 // Advisory only. Missing or stale data is shown as "no recent signal", never as safe.
 import { ObjectId } from 'mongodb';
+import { pairingDigest } from './pairing-code.js';
+import { fleetStatus } from './device-lifecycle.js';
 import { matchCustomerAddress } from './customer-location.js';
 import { withDatabase } from '../lib/mongodb.js';
 import { HttpError, badRequest, notFound } from './http.js';
@@ -40,8 +42,8 @@ export function normalizeSerial(value) {
 }
 export function normalizeCode(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const s = String(value).replace(/\s/g, '');
-  return /^\d{6}$/.test(s) ? s : null;
+  const s = String(value).replace(/[\s-]/g, '').toUpperCase();
+  return /^(?:\d{6}|[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8})$/.test(s) ? s : null;
 }
 export const makeSerial = () => 'HB-' + Array.from({ length: 8 }, () => SERIAL_ALPHABET[randomIndex(SERIAL_ALPHABET.length)]).join('').replace(/^(.{4})/, '$1-');
 export const makeCode = () => String(randomIndex(1000000)).padStart(6, '0');
@@ -91,6 +93,7 @@ const mail = (ctx, name, args) => { try { emailMod().then(m => m?.fire(ctx, (db,
 async function depsFor(ctx) {
   const d = ctx.deps || {};
   return {
+    env: ctx.env || {},
     fetcher: d.fetcher || ctx.fetcher,
     loadRisk: d.loadRisk || (await loadRiskMod())?.loadRisk,
     customerView: d.customerView || (await customerViewMod())?.customerView,
@@ -122,32 +125,26 @@ const tooMany = () => reply({ error: 'Too many attempts. Try again in 15 minutes
 // ---------- pairing (operator side) ----------
 export async function createPairing(db, { deviceId, origin, actor, now = new Date() }) {
   await ensureCustomerIndexes(db);
-  const _id = oid(deviceId);
-  const device = await db.collection('devices').findOne({ _id });
-  if (!device) throw notFound('Device not found.');
-  const id = String(_id);
-  if (await db.collection('customer_links').findOne({ deviceId: id, active: true })) throw new HttpError(409, 'This device is already linked to a customer. Unlink it first.');
-  const existing = await db.collection('device_pairing').findOne({ _id: id });
-  const code = makeCode();
-  const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
-  const expiresAt = new Date(now.getTime() + PAIRING_DAYS * 86400000);
-  const exercise = device.meta?.exercise === true;
-  let serial = existing?.serial;
-  for (let tries = 0; tries < 8; tries++) {
-    const candidate = serial || makeSerial();
-    const doc = { serial: candidate, salt, codeHash: await hashPairing(salt, candidate, code), claimed: false, failures: 0, createdAt: now, expiresAt, exercise };
-    try {
-      await db.collection('device_pairing').updateOne({ _id: id }, { $set: doc }, { upsert: true });
-      serial = candidate;
-      break;
-    } catch (e) {
-      if (e?.code !== 11000 || existing) throw e;
-      serial = undefined; // serial collision with another device, draw again
-    }
-  }
-  if (!serial) throw new HttpError(503, 'Could not create a pairing serial. Try again.');
-  await audit(actor.deps, db, { actor: actor.actor, action: 'pairing.issue', deviceId: id, details: { serial }, exercise });
-  return { serial, pairingCode: code, qrPayload: `${origin}/customer#claim=${serial}.${code}`, expiresAt: expiresAt.toISOString(), exercise };
+  const _id = oid(deviceId), id = String(_id), session = db.client.startSession();
+  let result;
+  try {
+    await session.withTransaction(async () => {
+      const options = { session };
+      const device = await db.collection('devices').findOne({ _id }, options);
+      if (!device) throw notFound('Device not found.');
+      if (await db.collection('customer_links').findOne({ deviceId: id, active: true }, options)) throw new HttpError(409, 'This device is already linked to a customer. Unlink it first.');
+      const existing = await db.collection('device_pairing').findOne({ _id: id }, options);
+      const serial = existing?.serial || device.serial || makeSerial(), code = makeCode();
+      const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+      const expiresAt = new Date(now.getTime() + PAIRING_DAYS * 86400000), exercise = device.meta?.exercise === true;
+      const doc = { serial, version: 1, salt, codeHash: await hashPairing(salt, serial, code), claimed: false, failures: 0, createdAt: now, expiresAt, exercise };
+      await db.collection('device_pairing').updateOne({ _id: id }, { $set: doc, $unset: { claimedAt: '' } }, { ...options, upsert: true });
+      await db.collection('devices').updateOne({ _id }, { $set: { serial }, $inc: { ownershipRevision: 1 } }, options);
+      await db.collection('audit_log').insertOne({ at: now, actor: actor.actor, action: 'pairing.issue', deviceId: id, details: { serial }, exercise }, options);
+      result = { serial, pairingCode: code, qrPayload: `${origin}/customer#claim=${serial}.${code}`, expiresAt: expiresAt.toISOString(), exercise };
+    });
+  } finally { await session.endSession(); }
+  return result;
 }
 
 function oid(id) {
@@ -163,13 +160,13 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
   const s = normalizeSerial(serial), c = normalizeCode(code);
   if (!s || !c) throw new ClaimFailed();
   const pairing = await db.collection('device_pairing').findOne({ serial: s });
-  if (!pairing || pairing.claimed || !pairing.codeHash || (pairing.failures || 0) >= MAX_CODE_FAILURES || new Date(pairing.expiresAt) <= now) throw new ClaimFailed();
-  if (!equal(await hashPairing(pairing.salt, s, c), pairing.codeHash)) {
+  if (!pairing || pairing.claimed || !pairing.codeHash || (pairing.failures || 0) >= MAX_CODE_FAILURES || (pairing.expiresAt != null && new Date(pairing.expiresAt) <= now)) throw new ClaimFailed();
+  if (!equal(await pairingDigest(pairing, c, deps.env), pairing.codeHash)) {
     await db.collection('device_pairing').updateOne({ _id: pairing._id }, { $inc: { failures: 1 } });
     throw new ClaimFailed();
   }
   const matched = address === undefined ? null : await matchCustomerAddress(address, deps.fetcher);
-  const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName, nickname: nickname || 'My Safe Home', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
+  const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName: consent ? contactName : null, nickname: nickname || 'My Safe Home', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
   const actor = await customerActor(email);
   const session = db.client.startSession();
   try {
@@ -178,7 +175,7 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
       const device = await db.collection('devices').findOne({ _id: new ObjectId(pairing._id) }, options);
       if (!device || device.disabled) throw new ClaimFailed();
       const won = await db.collection('device_pairing').updateOne(
-        { _id: pairing._id, claimed: false, codeHash: pairing.codeHash, expiresAt: { $gt: now } },
+        { _id: pairing._id, claimed: false, codeHash: pairing.codeHash, failures: { $lt: MAX_CODE_FAILURES }, $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
         { $set: { claimed: true, claimedAt: now }, $unset: { codeHash: '', salt: '' } }, options);
       if (!won.modifiedCount) throw new ClaimFailed();
       if (matched) {
@@ -187,14 +184,21 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
           // An ingest home is a stable history identity. Never silently rebind it.
           const home = await db.collection('homes').findOne({ _id: homeId }, options);
           const old = home?.location?.coordinates, next = matched.location.coordinates;
-          const distance = old?.length === 2 ? Math.hypot((old[0]-next[0])*Math.cos(next[1]*Math.PI/180),old[1]-next[1])*111320 : Infinity;
+          const distance = old?.length === 2 ? Math.hypot((old[0]-next[0])*Math.cos(next[1]*Math.PI/180),old[1]-next[1])*111320 : 0;
           if (distance > 250) throw new HttpError(409, 'This device already has a different registered location. Contact your installer.');
+          if (!old && home) await db.collection('homes').updateOne({ _id: homeId }, { $set: { ...matched, updatedAt: now } }, options);
+          if (!home) throw new HttpError(409, 'This box needs its registered home repaired by an operator.');
         } else {
-          const home = await db.collection('homes').insertOne({ label: matched.address.slice(0,80), ...matched, createdAt: now, updatedAt: now }, options);
+          const home = await db.collection('homes').insertOne({ label: matched.address.slice(0,80), ...matched, exercise: link.exercise, createdAt: now, updatedAt: now }, options);
           homeId = home.insertedId;
         }
         await db.collection('devices').updateOne({ _id: device._id }, { $set: { homeId, 'meta.address': matched.address, 'meta.locationSource': matched.locationSource, updatedAt: now } }, options);
       }
+      if (!matched && !device.homeId) {
+        const home = await db.collection('homes').insertOne({ label: nickname || 'Unlocated home', locationSource: 'not_registered', exercise: link.exercise, createdAt: now, updatedAt: now }, options);
+        await db.collection('devices').updateOne({ _id: device._id }, { $set: { homeId: home.insertedId, updatedAt: now } }, options);
+      }
+      await db.collection('devices').updateOne({ _id: device._id }, { $inc: { ownershipRevision: 1 }, $unset: { unlinkedAt: '' } }, options);
       await db.collection('customer_links').insertOne(link, options);
       await db.collection('audit_log').insertOne({ at: now, actor, action: 'customer.claim', deviceId: pairing._id, details: { consent }, exercise: link.exercise }, options);
     }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, maxCommitTimeMS: 4000 });
@@ -205,15 +209,41 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
   return link;
 }
 
-export async function unlinkDevice(db, { email, linkId, now = new Date() }, deps = {}) {
-  const link = await db.collection('customer_links').findOneAndUpdate(
-    { _id: String(linkId), customerEmail: email, active: true },
-    { $set: { active: false, unlinkedAt: now, consent: false }, $unset: { contactName: '', nickname: '' } },
-    { returnDocument: 'before' });
-  const doc = link?.value !== undefined ? link.value : link; // driver versions differ
-  if (!doc) throw notFound('Device not found.');
-  await audit(deps, db, { actor: await customerActor(email), action: 'customer.unlink', deviceId: doc.deviceId, details: {}, exercise: doc.exercise === true });
+export async function unlinkDevice(db, { email, linkId, now = new Date(), actor: by, action = 'customer.unlink' }, deps = {}) {
+  const session = db.client.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const options = { session };
+      const link = await db.collection('customer_links').findOne({ _id: String(linkId), customerEmail: email, active: true }, options);
+      if (!link) throw notFound('Device not found.');
+      await db.collection('customer_links').updateOne({ _id: link._id }, { $set: { active: false, unlinkedAt: now, consent: false }, $unset: { contactName: '', nickname: '', room: '' } }, options);
+      await db.collection('device_pairing').updateOne({ _id: link.deviceId }, { $set: { claimed: true }, $unset: { codeHash: '', salt: '' } }, options);
+      await db.collection('devices').updateOne({ _id: new ObjectId(link.deviceId) }, { $set: { unlinkedAt: now }, $inc: { ownershipRevision: 1 } }, options);
+      await db.collection('audit_log').insertOne({ at: now, actor: by || await customerActor(email), action, deviceId: link.deviceId, details: {}, exercise: link.exercise === true }, options);
+    });
+  } finally { await session.endSession(); }
   return true;
+}
+
+export async function updateCustomerDevice(db, { email, linkId, body, now = new Date() }) {
+  const allowed = ['nickname', 'room', 'notificationsPausedUntil'];
+  if (!body || Object.keys(body).some(k => !allowed.includes(k)) || !Object.keys(body).length) throw badRequest('Choose a device setting to change.');
+  const set = { updatedAt: now };
+  for (const key of ['nickname', 'room']) if (Object.hasOwn(body, key)) {
+    const value = plain(body[key], 40, { min: key === 'nickname' ? 1 : 0 });
+    if (value === null || looksSecret(value)) throw badRequest('Use a short name without credentials.');
+    set[key] = value;
+  }
+  if (Object.hasOwn(body, 'notificationsPausedUntil')) {
+    const raw = body.notificationsPausedUntil;
+    const date = raw === null ? null : new Date(raw);
+    if (raw !== null && (typeof raw !== 'string' || !Number.isFinite(date.getTime()) || date <= now || date - now > 30 * 86400000)) throw badRequest('Pause alerts for up to 30 days.');
+    set.notificationsPausedUntil = date;
+  }
+  const result = await db.collection('customer_links').updateOne({ _id: String(linkId), customerEmail: email, active: true }, { $set: set });
+  if (!result.matchedCount) throw notFound('Device not found.');
+  await db.collection('audit_log').insertOne({ at: now, actor: await customerActor(email), action: 'customer.device_settings', details: { fields: Object.keys(body) } });
+  return { updated: true };
 }
 
 // ---------- customer view ----------
@@ -245,7 +275,8 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
   if (!links.length) return [];
   const ids = links.map(l => l.deviceId);
   const objectIds = ids.filter(i => ObjectId.isValid(i) && i.length === 24).map(i => new ObjectId(i));
-  const devices = await db.collection('devices').find({ _id: { $in: objectIds } }, { projection: { lastSeen: 1 } }).toArray();
+  const devices = await db.collection('devices').find({ _id: { $in: objectIds } }, { projection: { keyHash: 0 } }).toArray();
+  const pairs = await db.collection('device_pairing').find({ _id: { $in: ids } }, { projection: { serial: 1 } }).toArray();
   const lastSeenOf = new Map(devices.map(d => [String(d._id), d.lastSeen]));
   const helpDocs = await db.collection('device_help').find({ _id: { $in: ids } }).toArray();
   const helpOf = new Map(helpDocs.map(h => [h._id, h]));
@@ -262,6 +293,7 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
   }
   const out = [];
   for (const link of links) {
+    const device = devices.find(d => String(d._id) === link.deviceId) || {};
     const assessment = assessments.get(link.deviceId);
     let view = null;
     try { view = assessment && deps.customerView ? deps.customerView(assessment) : null; } catch { view = null; }
@@ -272,6 +304,9 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
     const help = helpOf.get(link.deviceId);
     out.push({
       id: link._id, nickname: link.nickname || 'My Safe Home', exercise: link.exercise === true,
+      serial: pairs.find(p => p._id === link.deviceId)?.serial || device.serial || null,
+      fleetStatus: fleetStatus(device, link, now), room: link.room || '', consent: link.consent === true, notificationsPausedUntil: link.notificationsPausedUntil || null,
+      linkedAt: link.linkedAt || null, firstReportAt: device.firstReportAt || null, lastSeenAt: lastSeen,
       ...base, lastSeen: lastSeen ? new Date(lastSeen).toISOString() : null,
       messages: (messages || []).slice(0, 5).map(m => ({ id: String(m.id), title: String(m.title ?? '').slice(0, 20), body: String(m.body ?? '').slice(0, 80), severity: m.severity, expiresAt: m.expiresAt })),
       help: { status: help?.status || 'none', text: HELP_TEXT[help?.status || 'none'], note: help?.note || '', updatedAt: help?.updatedAt ? new Date(help.updatedAt).toISOString() : null },
@@ -303,7 +338,7 @@ const routes = {
     const password = typeof body.password === 'string' ? body.password : '';
     if (!email) return reply({ error: 'Enter a valid email address.' }, 400);
     if (password.length < 10 || password.length > 512) return reply({ error: 'Use a password of at least 10 characters.' }, 400);
-    if (!contactName) return reply({ error: 'Enter a contact name of up to 60 characters.' }, 400);
+    if (body.consent && !contactName) return reply({ error: 'Enter a contact name of up to 60 characters.' }, 400);
     if (typeof body.consent !== 'boolean') return reply({ error: 'Choose whether the response team may contact you.' }, 400);
     if (body.acceptTerms !== true) return reply({ error: 'Please agree to the prototype terms before creating your account.' }, 400);
     const nickname = body.nickname === undefined ? null : plain(body.nickname, 40, { min: 1 });
@@ -384,7 +419,7 @@ const routes = {
       const email = await signedIn(ctx, db);
       if (!email) return unauth();
       const contactName = plain(body.contactName, 60, { min: 1 });
-      if (!contactName) return reply({ error: 'Enter a contact name of up to 60 characters.' }, 400);
+      if (body.consent && !contactName) return reply({ error: 'Enter a contact name of up to 60 characters.' }, 400);
       if (typeof body.consent !== 'boolean') return reply({ error: 'Choose whether the response team may contact you.' }, 400);
       const nickname = body.nickname === undefined ? null : plain(body.nickname, 40, { min: 1 });
       if (body.nickname !== undefined && !nickname) return reply({ error: 'Use a device name of up to 40 characters.' }, 400);
@@ -402,14 +437,15 @@ const routes = {
 
   async devices(ctx) {
     const method = ctx.request.method;
-    if (!['GET', 'DELETE'].includes(method)) return reply({ error: 'Method not allowed.' }, 405);
-    if (method === 'DELETE' && !originOk(ctx.request)) return originError();
+    if (!['GET', 'DELETE', 'PATCH'].includes(method)) return reply({ error: 'Method not allowed.' }, 405);
+    if (method !== 'GET' && !originOk(ctx.request)) return originError();
     return run(ctx, async db => {
       const email = await signedIn(ctx, db);
       if (!email) return unauth();
-      if (method === 'DELETE') {
-        const id = new URL(ctx.request.url).searchParams.get('id');
+      if (method === 'DELETE' || method === 'PATCH') {
+        const id = ctx.params?.id || new URL(ctx.request.url).searchParams.get('id');
         if (!id || !/^[0-9a-f]{24}$/.test(id)) return reply({ error: 'Device not found.' }, 404);
+        if (method === 'PATCH') return reply(await updateCustomerDevice(db, { email, linkId: id, body: await readBody(ctx.request) }));
         await unlinkDevice(db, { email, linkId: id }, await depsFor(ctx));
         return reply({ unlinked: true });
       }
@@ -483,13 +519,12 @@ export async function pairingHandler(ctx) {
       if (method === 'GET') {
         const pairing = await db.collection('device_pairing').findOne({ _id: deviceId }, { projection: { codeHash: 0, salt: 0 } });
         const link = await db.collection('customer_links').findOne({ deviceId, active: true });
-        return reply({ issued: !!pairing, serial: pairing?.serial || null, claimed: pairing?.claimed === true, expiresAt: pairing?.expiresAt || null, linked: !!link, contactName: link?.contactName || null, consent: link ? link.consent === true : null });
+        return reply({ issued: !!pairing, serial: pairing?.serial || null, claimed: pairing?.claimed === true, expiresAt: pairing?.expiresAt || null, linked: !!link, contactName: link?.consent ? link.contactName || null : null, consent: link ? link.consent === true : null });
       }
       if (method === 'DELETE') { // operator releases a device from its customer
-        const link = await db.collection('customer_links').findOneAndUpdate({ deviceId, active: true }, { $set: { active: false, unlinkedAt: new Date(), consent: false }, $unset: { contactName: '', nickname: '' } }, { returnDocument: 'before' });
-        const doc = link?.value !== undefined ? link.value : link;
-        if (!doc) return reply({ error: 'Device is not linked.' }, 404);
-        await audit(deps, db, { actor: actorOf(ctx, deps).actor, action: 'link.release', deviceId, details: {}, exercise: doc.exercise === true });
+        const link = await db.collection('customer_links').findOne({ deviceId, active: true });
+        if (!link) return reply({ error: 'Device is not linked.' }, 404);
+        await unlinkDevice(db, { email: link.customerEmail, linkId: link._id, actor: actorOf(ctx, deps).actor, action: 'link.release' }, deps);
         return reply({ unlinked: true });
       }
       return reply({ error: 'Method not allowed.' }, 405);

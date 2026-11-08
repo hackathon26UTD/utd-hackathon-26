@@ -1,6 +1,6 @@
 // Explicit public design preview only. Never read from or written to the live device API.
 export const previewDevice = {
-  id: 'preview-box', nickname: 'Living room', exercise: true, status: 'normal',
+  fleetStatus:{state:'active',reason:null}, id: 'preview-box', nickname: 'Living room', exercise: true, status: 'normal',
   statusText: 'Sample device reporting normally. These readings are fictional.',
   lastSeen: '2026-11-08T15:00:00Z',
   conditions: [
