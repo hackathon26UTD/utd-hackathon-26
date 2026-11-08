@@ -1,3 +1,4 @@
+import {backupRuntime} from './backup-runtime.js';
 import {previewDevice} from './customer-preview.js';
 import {emailConfirmation} from './household-email-confirm.js';
 import {householdUI} from './households.js';
@@ -16,10 +17,10 @@ const POLL_MS = 10000;
 const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
 
 function h(tag, attrs, ...kids) {
-  const el = document.createElement(tag);
+  const el = tag === 'svg' ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === false || v == null) continue;
-    if (k === 'class') el.className = v; else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
+    if (k === 'class') el.setAttribute('class', v); else if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else el.setAttribute(k, v === true ? '' : v);
   }
   for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
   return el;
@@ -123,30 +124,51 @@ function addView() {
     if (!r.ok) return say('add', r.data.error || 'Something went wrong. Try again.');
     state.prefill = null; say('add', 'Device linked.', 'ok'); e.target.reset(); await refresh();
   }); } }, ...deviceFields(), field('Device address', 'address', { auto:'street-address', max:300, hint:'Street, city, state and ZIP. Sent to the U.S. Census address service to place your device on the map.' }), h('button', { class: 'primary', type: 'submit' }, 'Link device'), msgEl('add'));
-  return h('details', { class: 'card', open: !!state.prefill || state.devices?.length === 0 }, h('summary', null, 'Add device'), form);
+  return h('details', { class: 'card', id:'add-device', open: !!state.prefill || state.devices?.length === 0 }, h('summary', null, 'Add device'), form);
 }
 function boxOverview() {
+  const icons={Power:'ϟ','Wi-Fi':'⌁',Conditions:'◉'};
   return h('section', {class:'box-overview', 'aria-label':'Your box overview'},
-    h('div', {class:'box-visual'},
-      h('div', {class:'box-visual-head'}, h('span',{class:'box-kicker'},'SAFE HOME / YOUR BOX'), h('span',{class:'box-edition'},'Enclosure 01')),
-      h('div',{id:'enclosure-view',class:'enclosure-stage'}),
-      h('div',{class:'box-visual-foot'}, h('p',{'data-model-status':'',class:'fine'},'Loading your enclosure…'),
-        h('div',{class:'box-model-actions'},h('button',{type:'button','data-rotation':'','aria-pressed':'true'},'Pause rotation'), h('button',{type:'button','data-reset':''},'Reset view'))),
-      h('p',{class:'box-model-note'},'Lid shown slightly open to reveal the design. This is not a lid-position sensor.')),
-    h('div',{id:'box-summary',class:'box-summary'},h('p',{class:'muted'},'Loading your device reports…')));
+    h('div',{id:'box-summary',class:'box-summary'}),
+    h('div', {class:'box-visual'},h('div',{id:'enclosure-view',class:'enclosure-stage'}),h('p',{'data-model-status':'',class:'model-status'},'Loading enclosure…')),
+    h('div',{class:'vital-shortcuts','aria-label':'Device vitals'},Object.entries(icons).map(([name,icon])=>h('button',{type:'button',class:'vital-shortcut','data-vital':name,'aria-expanded':'false',onclick:e=>{
+      const detail=document.getElementById('vital-detail');const was=e.currentTarget.getAttribute('aria-expanded')==='true';
+      root.querySelectorAll('.vital-shortcut').forEach(b=>b.setAttribute('aria-expanded','false'));
+      e.currentTarget.setAttribute('aria-expanded',String(!was));detail.hidden=was;if(!was)showVitalDetail(e.currentTarget);
+    }},h('span',{class:'vital-circle','aria-hidden':'true'},icon),h('strong',null,name),h('small',{'data-vital-value':name},'Not reported')))),
+    h('section',{id:'vital-detail',class:'vital-detail',role:'region','aria-label':'Selected device report','aria-live':'polite',hidden:true}),
+    backupRuntime(h),
+    h('nav',{class:'customer-quicklinks','aria-label':'Quick links'},[
+      ['Add household member','household-tools','♧'],['Add device','add-device','+'],['Device history','devices','↗'],['Account settings','account-settings','⚙']
+    ].map(([name,id,icon])=>h('a',{href:preview?'/customer?mode=signin#'+id:'#'+id,onclick:e=>{if(preview)return;
+      const target=document.getElementById(id);if(target){e.preventDefault();if(target.tagName==='DETAILS')target.open=true;target.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
+    }},h('span',{'aria-hidden':'true'},icon),h('strong',null,name),h('span',{class:'quick-arrow','aria-hidden':'true'},'›')))));
+}
+function showVitalDetail(button) {
+  const detail=document.getElementById('vital-detail'); if(!detail)return;
+  const name=button.dataset.vital, rows=JSON.parse(button.dataset.readings || '[]');
+  detail.dataset.kind=name.toLowerCase().replace(/[^a-z]/g,'');
+  detail.replaceChildren(h('div',{class:'vital-detail-heading'},h('span',{class:'detail-symbol','aria-hidden':'true'},name==='Power'?'ϟ':name==='Wi-Fi'?'⌁':'◉'),h('div',null,h('h3',null,name+' report'),h('p',null,preview?'Fictional sample readings':'Last reported by your device'))),
+    h('dl',{class:'vital-detail-readings'},rows.length?rows.map(c=>h('div',null,h('dt',null,c.label),h('dd',null,c.text))):h('div',null,h('dt',null,name),h('dd',null,'Not reported'))));
 }
 function updateOverview() {
   const el = document.getElementById('box-summary'); if (!el) return;
   const devices = state.devices || [];
   const d = devices.find(d=>d.id===selectedDevice) || devices[0]; selectedDevice = d?.id;
-  if (!d) { el.replaceChildren(h('p',{class:'box-kicker'},'YOUR HOME, AT A GLANCE'),h('h2',null,'A place for your box'),h('p',{class:'muted'},'Link a device below to see its latest reports here.')); return; }
-  const select = devices.length > 1 ? h('label',null,'Choose your box', h('select',{'aria-label':'Choose your box',onchange:e=>{selectedDevice=e.target.value;updateOverview();}},devices.map(item=>h('option',{value:item.id,selected:item.id===d.id},item.nickname)))) : null;
-  el.replaceChildren(h('p',{class:'box-kicker'},preview?'DESIGN PREVIEW / FICTIONAL DATA':'YOUR HOME, AT A GLANCE'), select || '',
-    h('h2',null,d.nickname),h('span',{class:'pill '+d.status},STATUS[d.status] || STATUS.no_recent_signal),
-    h('p',{class:'box-status-text'},d.statusText),
-    h('div',{class:'box-reported'},h('span',null,'LAST DEVICE REPORT'),h('strong',null,d.lastSeen ? new Date(d.lastSeen).toLocaleString() : 'Not reported'),h('small',null,preview?'Fixed sample timestamp':ago(d.lastSeen))),
-    state.failures > 0 ? h('p',{class:'banner',role:'status'},'Refresh unavailable. Showing previously received reports.') : '',
-    h('div',{class:'box-readings'},d.conditions?.length ? d.conditions.map(c=>h('div',{class:'box-reading'},h('span',null,c.label),h('strong',null,c.text))) : h('p',{class:'muted'},'No sensor conditions reported yet. Unknown does not mean normal.')));
+  if (!d) { el.replaceChildren(h('h2',null,'Your Safe Home'),h('p',{class:'muted'},'Add a device to see its reports.')); return; }
+  const select = devices.length > 1 ? h('label',null,'Your box', h('select',{'aria-label':'Your box',onchange:e=>{selectedDevice=e.target.value;updateOverview();}},devices.map(item=>h('option',{value:item.id,selected:item.id===d.id},item.nickname)))) : '';
+  el.replaceChildren(h('div',null,h('p',{class:'box-kicker'},preview?'PREVIEW · SAMPLE DATA':'YOUR BOX'),h('h2',null,d.nickname),select),
+    h('div',{class:'device-health'},h('span',{class:'pill '+d.status},STATUS[d.status] || STATUS.no_recent_signal),h('small',null,'Last report: '+(d.lastSeen ? new Date(d.lastSeen).toLocaleString() : 'Not reported')),
+    state.failures > 0 ? h('p',{role:'status'},'Refresh unavailable.') : ''));
+  const groups={Power:/power|mains|battery/i,'Wi-Fi':/connect|internet|wi-fi|network/i,Conditions:/water|flood|temp|air|smoke|humid/i};
+  for(const [name,pattern] of Object.entries(groups)){
+    const rows=(d.conditions||[]).filter(c=>pattern.test(c.label));
+    const button=root.querySelector('[data-vital="'+name+'"]');if(!button)continue;
+    const primary=rows[0]?.text || 'Not reported';
+    button.querySelector('small').textContent=primary;
+    button.dataset.readings=JSON.stringify(rows);button.setAttribute('aria-controls','vital-detail');button.setAttribute('aria-label',name+': '+primary);
+    if(button.getAttribute('aria-expanded')==='true')showVitalDetail(button);
+  }
 }
 async function startBox() {
   const host = document.getElementById('enclosure-view'); if (!host) return;
@@ -159,7 +181,7 @@ async function startBox() {
 function appView() {
   const settings = customerSettings({h,api,state,refresh,enter});
   const connecting = new URLSearchParams(location.search).has('connect');
-  return [h('div',{class:'portal-heading'},h('p',{class:'box-kicker'},'CUSTOMER PORTAL'),h('h1', null, connecting ? 'Connect your assistant' : 'Your home. In view.'),h('p',{class:'muted'},'Your box, its latest observations, and updates from your team.')), boxOverview(), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), households.node(), ...(!connecting ? [settings] : [])];
+  return [h('div',{class:'portal-heading'},h('p',{class:'box-kicker'},'CUSTOMER PORTAL'),h('h1', null, connecting ? 'Connect your assistant' : 'Your home. In view.'),h('p',{class:'muted'},'Your box, its latest observations, and updates from your team.')), boxOverview(), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), h('div',{id:'household-tools'},households.node()), ...(!connecting ? [settings] : [])];
 }
 
 // ---------- actions ----------
@@ -201,7 +223,7 @@ function render() {
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'Safe Home shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
     h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
-  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), ...(preview ? [h('div',{class:'banner'},'Design preview · fictional device data. ',h('a',{href:'/customer?mode=signin'},'Sign in to see your own box')), h('h1',null,'Your home. In view.'),boxOverview()] : state.user ? appView() : guestView())), foot));
+  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), ...(preview ? [h('div',{class:'banner'},'Design preview · fictional device data. ',h('a',{href:'/customer?mode=signin'},'Sign in to see your own box')), boxOverview()] : state.user ? appView() : guestView())), foot));
   if (state.user || preview) { startBox(); updateOverview(); }
   if (!preview) households.sync();
   if(state.user){const photo=h('details',{class:'card',id:'profile',open:location.hash==='#profile'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
