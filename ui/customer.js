@@ -3,7 +3,7 @@ startProductKit();
 // Customer side of HomeBeacon. All text is set with textContent; the server returns an allowlisted view only.
 const root = document.getElementById('customer');
 const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
-const POLL_MS = 20000;
+const POLL_MS = 10000;
 const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
 
 function h(tag, attrs, ...kids) {
@@ -54,20 +54,20 @@ function deviceFields(prefix) {
     field('Device serial', 'serial', { mono: true, hint: 'On the label, like HB-7K3Q-9XMD', value: state.prefill?.serial, max: 16 }),
     field('Pairing code', 'code', { mono: true, mode: 'numeric', hint: '6 digits from the label or your installer', value: state.prefill?.code, max: 8 }),
     field('Device name', 'nickname', { optional: true, hint: 'Optional, like Garage', max: 40 }),
-    field('Your name', 'contactName', { auto: 'name', hint: 'Shown to the response team', max: 60 }),
+    field('Your name', 'contactName', { auto: 'name', value: state.user?.contactName, hint: 'Shown to the response team', max: 60 }),
     h('label', { class: 'check', for: 'f-consent' }, h('input', { type: 'checkbox', id: 'f-consent', name: 'consent' }), h('span', null, 'The response team may use my name and email to contact me about this device. I can unlink it at any time.')),
   ];
 }
 function guestView() {
   const link = state.tab === 'link';
   const regForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'reg', async f => {
-    const r = await api('/api/customer/register', 'POST', { email: f.email, password: f.password, serial: f.serial, code: f.code, contactName: f.contactName, consent: !!f.consent, acceptTerms: !!f.acceptTerms, ...(f.nickname ? { nickname: f.nickname } : {}) });
+    const r = await api('/api/customer/register', 'POST', { email: f.email, password: f.password, contactName: f.contactName, consent: !!f.consent, acceptTerms: !!f.acceptTerms, ...(f.nickname ? { nickname: f.nickname } : {}) });
     if (!r.ok) return say('reg', r.data.error || 'Something went wrong. Try again.');
-    state.prefill = null; say('reg', ''); await enter();
+    say('reg', ''); await enter();
   }); } },
-  ...deviceFields(), field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Choose a password', 'password', { type: 'password', auto: 'new-password', hint: 'At least 10 characters', max: 512 }),
+  field('Your name', 'contactName', { auto: 'name', max: 60 }), field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Choose a password', 'password', { type: 'password', auto: 'new-password', hint: 'At least 10 characters', max: 512 }),
   h('label', { class: 'check', for: 'f-terms' }, h('input', { type: 'checkbox', id: 'f-terms', name: 'acceptTerms', required: true }), h('span', null, 'I agree to the ', h('a', { href: '/terms', target: '_blank', rel: 'noopener' }, 'prototype terms'), ' and have read the ', h('a', { href: '/privacy', target: '_blank', rel: 'noopener' }, 'privacy policy'), '.')),
-  h('button', { class: 'primary', type: 'submit' }, 'Create account and link device'), msgEl('reg'));
+  h('button', { class: 'primary', type: 'submit' }, 'Create account'), msgEl('reg'));
   const inForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'login', async f => {
     const r = await api('/api/customer/login', 'POST', { email: f.email, password: f.password });
     if (!r.ok) return say('login', r.data.error || 'Something went wrong. Try again.');
@@ -78,7 +78,7 @@ function guestView() {
     h('h1', null, link ? 'Create your HomeBeacon account' : 'Sign in'),
     h('p', { class: 'muted' }, 'See your device reports and updates from the response team.'),
     h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Sign up'), tab('signin', 'Sign in')),
-    link && h('p', { class: 'fine' }, 'Have your device serial and 6-digit pairing code ready, or scan its QR code. Your account links you to that device.'),
+    link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add device to connect your HomeBeacon.'),
     h('section', { class: 'card' }, link ? regForm : inForm),
     link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/demo' }, 'Explore the demo'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
   ];
@@ -107,11 +107,11 @@ function devicesView() {
 }
 function addView() {
   const form = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'add', async f => {
-    const r = await api('/api/customer/claim', 'POST', { serial: f.serial, code: f.code, contactName: f.contactName, consent: !!f.consent, ...(f.nickname ? { nickname: f.nickname } : {}) });
+    const r = await api('/api/customer/claim', 'POST', { serial: f.serial, code: f.code, address:f.address, contactName: f.contactName, consent: !!f.consent, ...(f.nickname ? { nickname: f.nickname } : {}) });
     if (!r.ok) return say('add', r.data.error || 'Something went wrong. Try again.');
     state.prefill = null; say('add', 'Device linked.', 'ok'); e.target.reset(); await refresh();
-  }); } }, ...deviceFields(), h('button', { class: 'primary', type: 'submit' }, 'Link device'), msgEl('add'));
-  return h('details', { class: 'card', open: !!state.prefill }, h('summary', null, 'Link another device'), form);
+  }); } }, ...deviceFields(), field('Device address', 'address', { auto:'street-address', max:300, hint:'Street, city, state and ZIP. Sent to the U.S. Census address service to place your device on the map.' }), h('button', { class: 'primary', type: 'submit' }, 'Link device'), msgEl('add'));
+  return h('details', { class: 'card', open: !!state.prefill || state.devices?.length === 0 }, h('summary', null, 'Add device'), form);
 }
 function appView() {
   return [h('h1', null, 'Your devices'), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView()];

@@ -1,0 +1,7 @@
+# Address anchors for the public exercise
+
+The 95 synthetic devices use 32 mapped building centers around Richardson and 63 around Tampa instead of an arbitrary grid. No device is asserted to be installed at those buildings. All sensor readings, customer identities and disaster scenarios remain fictional and isolated from production data. The device page explicitly labels a fictional device at a mapped address.
+
+Source: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL 1.0. Retrieved November 8, 2026 through `https://overpass-api.de/api/interpreter`. Queries selected building ways with `addr:housenumber` and `addr:street`, requested centers, and spatially distributed a subset. Bounds (south,west,north,east): Richardson area `(32.94,-96.79,33.015,-96.70)`; Tampa area `(27.92,-82.52,28.06,-82.40)`. The fixture retains OSM way IDs for traceability. State labels are provided; city limits and rooftop precision have not been independently verified. Existing map attribution credits OpenStreetMap.
+
+Live customer locations use a different path: the customer's submitted address is matched by the [Census Geocoder](https://www.census.gov/programs-surveys/geography/technical-documentation/complete-technical-documentation/census-geocoder.html). Census coordinates are approximated along an address range, not verified rooftop coordinates. A match neither verifies residence nor confirms occupancy.
