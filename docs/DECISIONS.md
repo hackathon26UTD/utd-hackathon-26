@@ -1,5 +1,13 @@
 # Decision register
 
+## November 7, 2026 — system intelligence and actual pickup
+
+- User requested Nemotron beyond chat, related sensor evidence, black-box checkpoints, power/Wi-Fi behavior and battery goals. Built additive operator APIs and a bounded tool workflow on the existing MongoDB model, preserving teammate UI/firmware.
+- User explicitly chose a **labeled simulator for now**. Missing NVIDIA credentials must never silently yield simulated success. Real sponsor integration remains to be verified.
+- Cloud inference proposes a review checkpoint; local deterministic code owns essential sensing/alarms/recording. Hardware application is not implemented by this backend branch.
+- 24-hour endurance is a design goal, not a measurement. Runtime remains unknown without explicit energy/current assumptions; one battery budget is assigned to one box.
+- The supplied HARP screenshot verifies pickup of visible items including one AA holder. Earlier draft quantities/status are historical. Model of the power module, cell capacity and safe seamless switchover remain unverified.
+
 Updated November 7, 2026. Proposed items are not commitments.
 
 | Topic | Current position | Status / history |

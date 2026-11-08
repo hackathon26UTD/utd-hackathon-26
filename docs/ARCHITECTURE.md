@@ -1,5 +1,7 @@
 # HomeBeacon architecture
 
+System intelligence adds `src/system-evidence.js` (existing document joins), `domain/system-policy.js` (conservative policy/runtime proposals), `src/system-agent.js` and `src/nemotron.js` (bounded tool workflow), and `src/system-api.js` (operator auth, scoped idempotent checkpoints). Pages endpoints are `/api/ops/system` and `/api/ops/agent`. The explicit simulator is exercise-only. No existing UI, ingestion schema or hardware actuation is replaced. See [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md).
+
 Current as of November 7, 2026. See [full handoff](handovers/AYAN-2026-11-07.md) for ownership, verified state, operational traps and open work.
 
 ## Browser and routing
