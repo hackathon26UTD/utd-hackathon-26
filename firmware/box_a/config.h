@@ -14,8 +14,14 @@
 #define PIN_SD_CS       21   // microSD chip select on the Sense board
 
 // ── Feature switches: set to 0 for anything not wired, so it is reported as "not measured". ──
-#define USE_MAINS_SENSE  1
-#define USE_SOUND        1
+// 1 = sensors live on the Arduino Uno Q (firmware/uno_q_sensors), which sends one JSON line per second
+//     into D7 (Uno Q D1 TX -> XIAO D7, GND -> GND). Local water/sound/buzzer pins are then unused.
+#define USE_UNOQ         1
+#define UNOQ_RX_PIN     44   // D7
+#define UNOQ_STALE_MS  5000  // Uno Q readings older than this are reported as "not measured"
+
+#define USE_MAINS_SENSE  0   // set 1 once the Power MB 3.3 V rail is wired to D3
+#define USE_SOUND        0
 #define USE_CAMERA       0   // off: privacy, power and demo risk outweigh a photo nobody sees (set 1 to re-enable)
 
 // ── Thresholds (calibrate with the `water` and `mains` serial commands) ──
