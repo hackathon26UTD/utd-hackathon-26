@@ -62,7 +62,7 @@
 .wf-s-critical{--st:var(--kit-bad,#b4232c);--st-bg:var(--kit-bad-tint,#fbe8e6)}
 .wf-s-unknown,.wf-s-not_reported{--st:var(--kit-ink-3,#52605b);--st-bg:var(--kit-surface-2,#f0f3f1)}
 
-/* Model help */
+/* Bounded Nemotron investigation */
 .dr-explain{margin-top:14px}
 .ex{padding:14px 16px;border:1px solid var(--kit-line,#dce2df);border-radius:8px;background:var(--kit-surface,#fff)}
 .ex-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -71,8 +71,8 @@
 .ex-chip.is-warn{background:var(--kit-warn-tint,#f7efc9);border-color:var(--kit-draft-line,#d9c88a);color:var(--kit-warn,#6b5600)}
 .ex-chip.is-off{border-style:dashed}
 .ex-note{margin:6px 0 10px;color:var(--kit-ink-3,#52605b);font-size:12px}
-.ex-actions{display:flex;gap:8px;flex-wrap:wrap}
-.ex-actions button{min-height:38px;font-size:12px}
+.ex-actions{display:flex;gap:8px;flex-wrap:wrap;min-width:0;max-width:100%}
+.hb-product .kit .ex .ex-actions>button.kit-btn{box-sizing:border-box;min-width:0;max-width:100%;min-height:44px;margin:0;font-size:12px;white-space:normal;overflow-wrap:anywhere}
 .ex-result:empty{display:none}
 .ex-result{margin-top:12px}
 .ex-card{padding:14px 16px;border:1px solid var(--kit-draft-line,#d9c88a);border-radius:8px;background:var(--kit-draft-bg,#fffdf6)}
@@ -88,6 +88,36 @@
 .ex-review{margin:0;font-size:12px}
 .ex-error,.ex-busy{margin:0;font-size:12px}
 .ex-error{color:var(--kit-bad,#b4232c)}
+.ex [hidden]{display:none!important}
+.ex-engine{margin:12px 0;max-width:560px}
+.kit .ex .ex-engine{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kit .ex .ex-engine .kit-pick-one__opt{min-height:52px;padding:9px 12px;border-radius:7px}
+.ex-status:not(:empty),.ex-error:not(:empty){margin:12px 0 0;font-size:12px;line-height:1.6}
+.ex-meta>div{min-width:0}.ex-meta dd{overflow-wrap:anywhere;font-size:12px;line-height:1.6}
+.ex-meta code{display:inline-block;margin:2px 4px 2px 0;max-width:100%}
+.ex-run-meta{grid-template-columns:repeat(2,minmax(0,1fr));padding-top:12px;border-top:1px solid var(--kit-line);gap:8px 18px}
+.ex-details{padding:0;border-bottom:1px solid var(--kit-line)}
+.ex-details>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 0;font-size:12px;font-weight:550;cursor:pointer}
+.ex-details>summary::before{content:'+';width:14px;flex:none;color:var(--kit-ink-3);font-weight:400}
+.ex-details[open]>summary::before{content:'−'}
+.ex-details>summary::-webkit-details-marker{display:none}
+.ex-details>summary::marker{content:''}
+.ex-details>div,.ex-details>ul,.ex-details>ol{padding-bottom:14px}
+.ex-trace{margin:0;padding-left:23px;font-size:12px}
+.ex-trace li{padding:6px 0 6px 4px;line-height:1.6}
+.ex-trace strong{font-weight:500}.ex-trace span,.ex-trace time{display:block;color:var(--kit-ink-3);font-size:11px}
+.ex-evidence{list-style:none;margin:0;padding:0}
+.ex-evidence>li{padding:12px 0;border-top:1px solid var(--kit-line)}
+.ex-evidence>li:first-child{border-top:0}
+.ex-evidence>li>strong{display:block;margin:7px 0;font-size:12px}
+.ex-evidence>li>code{display:inline-block;max-width:100%;word-break:break-word}
+.ex-evidence .ex-meta{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:0}
+.ex-policy{padding-top:12px;margin-top:12px;border-top:1px solid var(--kit-line)}
+.ex-policy h4{font-size:12px;margin:0 0 6px}.ex-policy>code{word-break:break-word}
+.ex-budget,.ex-policy-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 20px}
+.ex-policy .ex-note{font-size:11px}
+@media(max-width:500px){.ex{padding:12px}.ex-card{padding:12px}.ex-head h3{font-size:13px}.kit .ex .ex-engine{grid-template-columns:1fr}.ex-run-meta,.ex-evidence .ex-meta,.ex-policy-grid{grid-template-columns:1fr}.ex-actions{flex-direction:column}.ex-actions button{width:100%}}
+
 
 /* Workflow */
 .wf{display:block}
