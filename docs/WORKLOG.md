@@ -726,3 +726,13 @@ Preserved the subsequent PR #62 Review navigation release, fast-forwarded to `23
 Teammate PR #64 adds a second summary heading for a linked box. Scoped one customer browser assertion to the device management area; all nine browser cases passed again. This follow-up changes only the test selector and release documentation, not runtime application code.
 
 The Q's host bridge stopped after its last acknowledged report at 09:54:57 CST on an unconfirmed response; the old script did not retain the HTTP status. Inspected stored readings before resuming and did not replay the ambiguous request. A newly sampled observation returned 202 at 09:56:48, then the restarted uploader repeatedly received 202 at roughly eleven-second intervals. Canonical hub remains enabled and not linked to a customer. Its private pairing card is local only. CPU/memory/load/uptime/Wi-Fi are real controller observations; environmental sensors, standalone Wi-Fi uplink, system-service startup and battery endurance are not verified. No production test customer, synthetic telemetry, outgoing email, hardware command or key rotation was introduced.
+
+## November 8, 2026 — Box B ported to XIAO ESP32-C3 (mesh-only demo box)
+
+Request: port `firmware/box_b` from a classic ESP32 dev board to the team's Seeed XIAO ESP32-C3. User decision: box B carries no sensors and exists to demo the mesh; it relays through box A, which uploads.
+
+Changes: `config.h` uses the C3 pin map (D0–D10, analog only on D0–D2) with every sensor switch at 0 (new `USE_MPU`), `PIN_LED -1` (no user LED), and new `CAN_BE_GATEWAY 0`. In relay-only mode `box_b.ino` skips the uplink and history sync and never joins Wi-Fi. It scans for the hotspot only to share box A's channel, re-scanning every 30 s while no gateway is heard. It still sends `box.boot`, a 10 s heartbeat reading and `ping`. `scripts/firmware.mjs` FQBN is now `esp32:esp32:XIAO_ESP32C3:PartitionScheme=huge_app`. In core 3.3.12, CDC On Boot defaults to Enabled and the `CDCOnBoot=cdc` option means Disabled, so it is not set. TESTING.md has a new section 0b for build, upload and checks.
+
+Verification: arduino-cli compile with the real git-ignored secrets passed (1,203,017 bytes, 38% of Huge APP; 14% RAM). Not yet flashed or tested on hardware; `common/*` and box A untouched.
+
+Next: user uploads `firmware/.build/box_b_c3` (or `box_b.ino.merged.bin` at 0x0, which contains secrets: keep private) and checks `ping` → `PASS: acknowledged by gateway A`.
