@@ -11,11 +11,11 @@ node docs/design/prototype/build.mjs
 python3 -m http.server 8797 --directory work/map-review
 ```
 
-Open http://localhost:8797. Imagery requires an internet connection. No account or credentials are required. This is a dated alert snapshot and three fictional devices, not a production feed.
+Open http://localhost:8797. Imagery requires an internet connection. No account or credentials are required. This is a dated alert snapshot and three snapshot fixtures plus 63 fictional hurricane-exercise devices, not a production feed.
 
 ## Review
 
-- Start on the U.S. imagery overview. No KPI cards, side rail, queue or selected device.
+- Start on the U.S. imagery overview. No KPI cards, full-height dashboard rail, queue or selected device. Direct overlay controls and a compact floating tab island are present per Ayan’s latest refinement.
 - Select Florida's grouped alert label, then inspect either actual alert boundary. Region selection zooms and opens an anchored summary.
 - Tools > Find an area or home provides the keyboard/list path and searches this small sample only.
 - Select HB-1003 to zoom into a fictional house location. View evidence expands the card at its geographic anchor. Close preserves camera context.
@@ -55,3 +55,14 @@ Detailed implementation review; national source/zone resolution; Alaska/Hawaii n
 Desktop/mobile captures cover national, region, compact house, expanded house and layers. Automated checks on these ten states reported no page errors, accessibility violations, horizontal overflow or card bounds violations. A separate 1920×1080 interaction check measured 97.7% unobstructed by app chrome at rest; the map canvas fills the viewport. Search selection, layer toggling, Escape closure and camera preservation during a requested exercise report were exercised with normal and reduced motion. These checks do not replace human design acceptance or complete accessibility certification.
 
 Rendered critique caught overlapping alert labels and mobile map controls behind a region card. The prototype groups alert labels at national zoom and moves mobile zoom controls clear of an open card. Remaining critiques: national labels/state boundaries need treatment over imagery; dense regions and long summaries need larger fixtures; Alaska/Hawaii navigation remains absent. Review those before production adoption.
+
+
+## Latest refinement
+
+Open `http://localhost:8797/?scenario=hurricane` for the multi-layer hurricane exercise. Top controls toggle wind exposure, power-loss highlights and water reports; the official-alert control is disabled in the fictional storm scenario. Choose the official snapshot to return to the separate dated alert evidence.
+
+The small floating island opens Devices, Priorities and Activity. Devices can be searched, filtered to power loss, and sorted by assigned priority, power loss, battery or observation age. Priority selects change P1/P2/P3 assignments in this browser session only. They do not change sensor severity, dispatch help or write to production. Production needs authenticated persistence and an audit trail.
+
+The exercise contains 63 fictional devices, a fictional track, and elevated/high/severe exposure circles (180/95/38 km). These are not official storm radii or hurricane categories. Device dots appear at neighborhood zoom and remain reachable through the accessible list. Mobile places the island at the bottom and keeps scrolling inside the open view.
+
+Run `node docs/design/prototype/check.mjs` while the review server is running to reproduce the refinement interaction checks and screenshots. `REVIEW_BASE_URL` can override the default local address. The ten hurricane desktop/mobile states passed automated accessibility/page-error/overflow checks. Actual clicks exercised scenario selection, power/water overlays, power-loss filtering/sorting, P3 assignment with stored-state confirmation, zoom-revealed dots and evidence expansion. The refined default layout leaves 93.0% unobstructed by app chrome at 1440×960. Earlier 97.7% figures describe the initial proposal before Ayan requested direct overlay buttons and the floating tab island.
