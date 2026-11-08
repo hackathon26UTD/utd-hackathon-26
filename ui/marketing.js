@@ -102,7 +102,7 @@ export function mountMarketing({brand,footer}){
   app.innerHTML=`<div class="marketing mk">
 <header class="hdr"><div class="wrap hdr-in"><a href="/" class="mk-brand" aria-label="HomeBeacon home">${brand}</a>
 <nav class="seg" aria-label="Sections" id="sec-nav">${TABS.map(([id,l])=>`<a href="#${id}" data-s="${id}">${l}</a>`).join('')}</nav>
-<div class="hdr-act"><a class="mb mb-outline" href="/demo">Exercise</a><a class="mb mb-primary" href="/portal">Portal ${arrow}</a></div></div></header>
+<div class="hdr-act"><a class="mb mb-outline" href="/customer">My device</a><a class="mb mb-outline" href="/demo">Exercise</a><a class="mb mb-primary" href="/portal">Portal ${arrow}</a></div></div></header>
 <main id="main">
 <section class="hero" id="top" aria-labelledby="hero-h"><div class="wrap">
 <div class="hero-head"><div><p class="kicker">${pill('plain','Exercise scene')} Made-up homes. No live data.</p><h1 id="hero-h">When the grid drops, the house <em>keeps notes</em>.</h1></div>

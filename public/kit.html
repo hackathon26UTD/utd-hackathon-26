@@ -6,17 +6,7 @@
 <meta name="robots" content="noindex">
 <title>HomeBeacon UI kit</title>
 <meta name="description" content="Every part of the vendored UI kit, in every state, in dusk and paper themes.">
-<script>
-/* Paint the saved theme before first paint so the page never flashes the wrong one.
-   kit.js (shims.js) takes over once it loads. Light = body.light-mode. */
-(function () {
-  var t = 'dark';
-  try { t = localStorage.getItem('hbkit-theme') || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); } catch (e) {}
-  document.documentElement.setAttribute('data-hbkit-theme', t);
-  document.documentElement.style.colorScheme = t;
-  document.documentElement.style.background = t === 'light' ? '#f5efe3' : '#14121c';
-})();
-</script>
+<script src="/theme-init.js"></script><link rel="stylesheet" href="/theme-boot.css"><link rel="icon" href="/favicon.svg">
 <link rel="stylesheet" href="/assets/kit.css">
 <link rel="stylesheet" href="/assets/kit-reference.css">
 <link rel="stylesheet" href="/assets/kit-gallery.css">

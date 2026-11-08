@@ -20,7 +20,7 @@ const watch = (page, tag) => { page.on('console', (m) => { if (m.type() === 'err
 
 // ---- command center, desktop, street zoom
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
-await ctx.addCookies([{ name: COOKIE, value: token, url: base, httpOnly: true, secure: true, sameSite: 'Lax' }]);
+await ctx.addCookies([{ name: COOKIE, value: token, domain: new URL(base).hostname, path: '/', httpOnly: true, secure: true, sameSite: 'Lax' }]);
 const page = await ctx.newPage(); watch(page, 'command');
 await page.goto(`${base}/command-center?mode=exercise`, { waitUntil: 'domcontentloaded' });
 await page.waitForSelector('#live-pill', { timeout: 20000 });

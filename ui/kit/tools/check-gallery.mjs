@@ -15,7 +15,7 @@ try {
     const d = fs.readdirSync(cache).filter((x) => x.startsWith('chromium_headless_shell-')).sort().pop();
     if (d) executablePath = `${cache}/${d}/chrome-headless-shell-mac-arm64/chrome-headless-shell`;
 } catch (e) { /* default */ }
-const browser = await chromium.launch(executablePath && fs.existsSync(executablePath) ? { executablePath } : {});
+const browser = await chromium.launch(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:executablePath && fs.existsSync(executablePath) ? { executablePath } : {channel:'chrome'});
 let bad = 0;
 for (const theme of ['dark', 'light']) {
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: theme });

@@ -1,0 +1,50 @@
+[
+  {
+    "theme": "dark",
+    "path": "/",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "dark",
+    "path": "/demo",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "dark",
+    "path": "/login",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "dark",
+    "path": "/customer",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "light",
+    "path": "/",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "light",
+    "path": "/demo",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "light",
+    "path": "/login",
+    "issues": [],
+    "errors": []
+  },
+  {
+    "theme": "light",
+    "path": "/customer",
+    "issues": [],
+    "errors": []
+  }
+]

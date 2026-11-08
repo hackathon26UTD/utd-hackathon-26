@@ -149,7 +149,7 @@ export function mountOverlays(ctx) {
   async function removeZone(id) {
     const f = S.zones.find(z => z.properties.id === id);
     if (!f || !canWrite) return;
-    if (!confirm(`Delete the zone "${f.properties.name}"? It will be hidden from the map and the change is recorded.`)) return;
+    if (!await window.Kit.confirm({title:'Delete zone?',message:'The zone '+f.properties.name+' will be hidden from the map and the change is recorded.',confirmText:'Delete zone',danger:true})) return;
     const r = await api(`/api/overlays?layer=zones&id=${encodeURIComponent(id)}`, { method: 'DELETE', body: { version: f.properties.version } });
     toast(r.ok ? 'Zone deleted.' : r.status === 409 ? 'Someone else changed this zone. Reloaded.' : failText(r.status, 'Zones', r.error), { error: !r.ok });
     loadZones();

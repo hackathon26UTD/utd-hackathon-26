@@ -111,3 +111,8 @@ See PROVENANCE.md. In short: the theme switch, the ARGUS logo images swapped for
 - The 7 reference standards (charts, split bar, main menu) are gallery-only. Pages that need a chart use the kit's own `Kit.chart` and `Kit.balance`.
 - The reference main menu still uses ARGUS module names as its sample items.
 - Fonts: Young Serif has one weight, so display text never goes bold.
+
+
+## Product runtime integration
+
+Product pages now import `ui/kit/runtime.js` and load the actual generated `kit.css`, with compatibility layout in `ui/product-kit.css`. `ui/product-kit.js` applies real component classes and Kit.select factories to existing form-backed controls, and command actions use Kit.confirm. The library's original twelve core CSS/JS files were compared byte-for-byte against the recorded source commit. Legacy template/layout glue is retained and explicitly not represented as a complete rewrite into factories. Gallery hostname adaptation lives in `gallery/host.js`; CSP uses external theme initialization, not unsafe inline scripts.

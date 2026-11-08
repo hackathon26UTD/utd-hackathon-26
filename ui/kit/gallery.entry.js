@@ -3,6 +3,7 @@
 // The three vendored library scripts are plain IIFEs that write to
 // window.ArgusUILibrary; bundling them keeps them byte-identical in source.
 import './vendor/gallery/guard.js';
+import './gallery/host.js';
 import './vendor/gallery/render.js';
 import './vendor/gallery/frame.js';
 import './vendor/gallery/ui-library.css';
