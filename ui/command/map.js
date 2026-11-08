@@ -280,10 +280,10 @@ export class MapView {
     m.setPaintProperty('ov-atmosphere-pt', 'circle-color', metricColor(view));
     m.setPaintProperty('ov-atmosphere-pt', 'circle-radius', ['interpolate',['linear'],['zoom'],3,view.id === 'wind' ? 10 : 7,8,12,12,14]);
     m.setFilter('ov-atmosphere-label', valid);
-    m.setLayerZoomRange?.('ov-atmosphere-label',view.id==='wind'?2:5,24);
+    m.setLayerZoomRange?.('ov-atmosphere-label',['wind','rain'].includes(view.id)?2:5,24);
     m.setPaintProperty('ov-atmosphere-label','text-color',view.id==='wind'?'#ffffff':'#253f50');
     m.setPaintProperty('ov-atmosphere-label','text-halo-color',view.id==='wind'?'#123e6e':'#ffffff');
-    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', ['round', ['get', field]]], view.unit === '°C' ? '°' : view.id === 'wind' ? ' km/h' : '']);
+    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', view.id==='rain'?['/', ['round',['*',['get',field],10]],10]:['round', ['get', field]]], view.unit === '°C' ? '°' : view.id === 'wind' ? ' km/h' : view.id==='rain'?' mm':'']);
     m.setFilter('ov-atmosphere-arrow', ['all', ...valid.slice(1), ['!=',['get','wind_direction'],null], ['>', ['get','wind_kph'],0]]);
     this.applyVisibility('atmosphere');
   }
