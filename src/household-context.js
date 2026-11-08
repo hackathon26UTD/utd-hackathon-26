@@ -7,7 +7,8 @@ const MINUTE = 60000;
 const text = (s, n = 180) => typeof s === 'string' ? s.replace(/<[^>]*>/g, '').replace(/[\x00-\x1f\x7f]/g, ' ').trim().slice(0, n) : '';
 const iso = v => Number.isFinite(Date.parse(v)) ? new Date(v).toISOString() : null;
 export const NEWS_SOURCES = [
-  {id:'kera',name:'KERA News',url:'https://www.keranews.org/news.rss',site:'https://www.keranews.org',scope:'North Texas regional headlines',bounds:[-98,32,-95.5,34]},
+  {id:'fortworth',name:'Fort Worth Report',url:'https://fortworthreport.org/feed/',site:'https://fortworthreport.org',scope:'Fort Worth and Tarrant County headlines',bounds:[-98,32,-97,34]},
+  {id:'dallas',name:'Dallas Free Press',url:'https://dallasfreepress.com/feed/',site:'https://dallasfreepress.com',scope:'Dallas headlines, focused on South and West Dallas',bounds:[-97,32,-95.5,34]},
   {id:'kut',name:'KUT News',url:'https://www.kut.org/news.rss',site:'https://www.kut.org',scope:'Austin and Central Texas headlines',bounds:[-98.3,29.8,-97,31]},
   {id:'wusf',name:'WUSF',url:'https://www.wusf.org/local-state.rss',site:'https://www.wusf.org',scope:'Tampa Bay and Florida headlines',bounds:[-83,26.8,-81.5,29]},
   {id:'kpbs',name:'KPBS',url:'https://www.kpbs.org/index.rss',site:'https://www.kpbs.org',scope:'San Diego regional headlines',bounds:[-117.7,32.5,-116,33.6]},
@@ -16,16 +17,18 @@ function safeUrl(value, host, pattern) {
   try { const u = new URL(value); return u.protocol === 'https:' && u.hostname === host && !u.port && !u.username && !u.password && (!pattern || pattern.test(u.pathname)) ? u.href : null; } catch { return null; }
 }
 async function fetchText(url, fetcher, max = 1500000) {
-  const r = await fetcher(url, {headers:{'User-Agent':'HomeBeacon/1.0 (https://utd-hackathon-26.pages.dev)','Accept':'application/geo+json, application/json, application/rss+xml;q=0.8'},signal:AbortSignal.timeout(7000),redirect:'error'});
-  if (!r.ok) throw new Error('Source unavailable');
-  return bodyText(r, max);
+  let r;
+  try {r = await fetcher(url, {headers:{'User-Agent':'HomeBeacon/1.0 (https://utd-hackathon-26.pages.dev)','Accept':'application/geo+json, application/json, application/rss+xml;q=0.8'},signal:AbortSignal.timeout(7000),redirect:'manual'});}
+  catch{throw Object.assign(new Error('Source request failed'),{sourceStatus:'network'});}
+  if (!r.ok) throw Object.assign(new Error('Source unavailable'),{sourceStatus:r.status});
+  try{return await bodyText(r, max);}catch{throw Object.assign(new Error('Source response unavailable'),{sourceStatus:'response_body'});}
 }
-async function json(url, fetcher) { return JSON.parse(await fetchText(url, fetcher)); }
+async function json(url, fetcher) { const value=await fetchText(url,fetcher);try{return JSON.parse(value);}catch{throw Object.assign(new Error('Invalid source data'),{sourceStatus:'invalid_data'});} }
 
 export function parseHomeAlerts(data, now) {
   return (Array.isArray(data.features) ? data.features : []).slice(0,100).flatMap(f => {
     const p = f.properties || {}, sent = iso(p.sent), expires = iso(p.expires);
-    if (p.status !== 'Actual' || !sent || !expires || new Date(sent)>now || new Date(expires)<=now || p.messageType==='Cancel' || (p.effective && new Date(p.effective)>now)) return [];
+    if (p.status !== 'Actual' || !sent || !expires || new Date(sent)>new Date(+now+2*MINUTE) || new Date(expires)<=now || p.messageType==='Cancel' || (p.effective && new Date(p.effective)>new Date(+now+2*MINUTE))) return [];
     const id = text(p.id || f.id,300); if (!id) return [];
     return [{id,title:text(p.event)||'Weather alert',headline:text(p.headline),severity:text(p.severity,30),sent,expires,url:safeUrl(p.web,'www.weather.gov') || 'https://www.weather.gov/alerts'}];
   }).slice(0,20);
@@ -46,10 +49,13 @@ export async function loadHomeWeather(coordinates, {fetcher=fetch,now=new Date()
   if(attempts[0].status==='fulfilled' && Array.isArray(attempts[0].value.features)) {
     result.alerts=parseHomeAlerts(attempts[0].value,now);result.alertsStatus='ok';
   }
+  if(attempts[0].status==='rejected')result.alertsError=attempts[0].reason?.sourceStatus||'request_failed';
+  if(attempts[1].status==='rejected')result.forecastError=attempts[1].reason?.sourceStatus||'request_failed';
   if(attempts[1].status==='fulfilled') {
     const p=attempts[1].value.properties||{}, issued=iso(p.generatedAt||p.updateTime);
     result.forecastIssuedAt=issued;
-    result.forecastStatus=issued && new Date(issued)<=now && now-new Date(issued)<=6*60*MINUTE?'ok':'stale';
+    // A forecast can be generated while this request is in flight. Bound clock skew to two minutes.
+    result.forecastStatus=issued && new Date(issued)<=new Date(+now+2*MINUTE) && now-new Date(issued)<=6*60*MINUTE?'ok':'stale';
     result.forecast=(Array.isArray(p.periods)?p.periods:[]).filter(v=>iso(v.startTime)&&iso(v.endTime)&&new Date(v.endTime)>now&&new Date(v.startTime)<new Date(+now+12*60*MINUTE)).slice(0,12).map(v=>({
       startTime:iso(v.startTime),summary:text(v.shortForecast),temperature:Number.isFinite(v.temperature)?v.temperature:null,temperatureUnit:['F','C'].includes(v.temperatureUnit)?v.temperatureUnit:null,windSpeed:text(v.windSpeed,35),rainChance:Number.isFinite(v.probabilityOfPrecipitation?.value)?v.probabilityOfPrecipitation.value:null,
     }));
@@ -77,8 +83,8 @@ async function cached(db,key,ttl,loader,now) {
     const value=await loader();
     await db.collection('household_context_cache').updateOne({_id:key},{$set:{value,nextAttemptAt:new Date(+now+ttl),expiresAt:new Date(+now+86400000)}},{upsert:true});
     return value;
-  } catch {
-    const value=old?.value ? {...old.value,status:'stale'} : {status:'unavailable',checkedAt:now.toISOString(),items:[]};
+  } catch (error) {
+    const value=old?.value ? {...old.value,status:'stale'} : {status:'unavailable',checkedAt:now.toISOString(),items:[],sourceError:error?.sourceStatus||'request_failed'};
     await db.collection('household_context_cache').updateOne({_id:key},{$set:{value,nextAttemptAt:new Date(+now+5*MINUTE),expiresAt:new Date(+now+86400000)}},{upsert:true});
     return value;
   }
