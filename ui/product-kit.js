@@ -22,8 +22,21 @@ function dress(root){
 export function startProductKit(){
  document.body.classList.add('kit-body','hb-product');
  for(const id of ['app','customer'])document.getElementById(id)?.classList.add('kit');
- let scheduled=false;const refresh=()=>{if(scheduled)return;scheduled=true;queueMicrotask(()=>{scheduled=false;dress(document.body);});};
- const observer=new MutationObserver(refresh);observer.observe(document.body,{childList:true,subtree:true});refresh();
+ const options={childList:true,subtree:true};
+ const pending=new Set();let scheduled=false;
+ const refresh=(root=document.body)=>{pending.add(root);if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{
+  scheduled=false;observer.disconnect();
+  const roots=[...pending].filter(n=>n.isConnected);pending.clear();
+  roots.filter(n=>!roots.some(other=>other!==n&&other.contains(n))).forEach(dress);
+  observer.observe(document.body,options);
+ });};
+ const observer=new MutationObserver(records=>{
+  for(const record of records){
+   const target=record.target;
+   if(!(target instanceof Element)||target.closest('.maplibregl-map,.kit-select'))continue;
+   if([...record.addedNodes].some(n=>n.nodeType===1)||target.matches('select'))refresh(target);
+  }
+ });observer.observe(document.body,options);refresh();
  const top=document.createElement('button');top.className='kit-btn hb-theme-toggle';top.type='button';top.setAttribute('aria-label','Switch color theme');top.textContent='◐';top.onclick=()=>window.HomeBeaconKit.toggleTheme();document.body.append(top);
  return {refresh,stop:()=>observer.disconnect()};
 }

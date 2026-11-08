@@ -76,3 +76,16 @@ body.hb-product.light-mode{--hb-ground:#f5efe3;color:#1d1a26}
 .hb-product .kit .mk .chain li[data-now=true] .badge{color:var(--kit-hero-fg)}
 .hb-product .kit .mk :where(.wrap,.data-wrap,.tbl-wrap,.hdr-in){min-width:0;max-width:100%}
 @media(max-width:700px){.hb-product .kit .mk .hdr-act a[href='/demo']{display:none}.hb-product .kit .mk .hdr .seg{min-width:0;max-width:100%;overflow-x:auto}.hb-product .kit .mk .hdr-in{grid-template-columns:minmax(0,1fr) auto}.hb-product .kit .mk .hdr-act{min-width:0}}
+
+/* Keep the page canvas continuous at scroll boundaries, including touch overscroll. */
+html{overscroll-behavior:none;background:#14121c}
+html[data-hbkit-theme=light]{background:#f5efe3}
+body.hb-product{overscroll-behavior:none;min-height:100dvh}
+.command-page{height:100dvh;overflow:hidden}
+html:has(.command-page){height:100%;overflow:hidden}
+.command-page #app,.command-page .shell.cc{height:100%;min-height:0}
+.command-page .workspace{height:100%;overflow:auto;overscroll-behavior:contain}
+.command-page .rail{overflow:auto;overscroll-behavior:contain}
+.command-page .properties,.command-page .detail,.command-page .bottom-body{overscroll-behavior:contain}
+.command-page .consent.kit{position:fixed;top:12px;left:92px;right:12px;width:auto;z-index:40;border:1px solid var(--kit-line-2);border-radius:12px;box-shadow:0 8px 30px #0003}
+@media(max-width:700px){.command-page .shell.cc{grid-template-rows:auto minmax(0,1fr)}.command-page .consent.kit{left:12px}}
