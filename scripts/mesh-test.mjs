@@ -28,7 +28,7 @@ function findEsptool() {
   return 'esptool';
 }
 const ESPTOOL = findEsptool();
-const FQBN = { 'ESP32-S3': 'esp32:esp32:XIAO_ESP32S3', 'ESP32': 'esp32:esp32:esp32', 'ESP32-C3': 'esp32:esp32:esp32c3', 'ESP32-C6': 'esp32:esp32:esp32c6', 'ESP32-S2': 'esp32:esp32:esp32s2' };
+const FQBN = { 'ESP32-S3': 'esp32:esp32:XIAO_ESP32S3', 'ESP32': 'esp32:esp32:esp32', 'ESP32-C3': 'esp32:esp32:esp32c3:CDCOnBoot=cdc', 'ESP32-C6': 'esp32:esp32:esp32c6', 'ESP32-S2': 'esp32:esp32:esp32s2:CDCOnBoot=cdc' };
 
 const run = (cmd, a, opts = {}) => spawnSync(cmd, a, { encoding: 'utf8', ...opts });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -85,7 +85,10 @@ function watch(boards, seconds) {
     const stats = { A: { gotFromB: 0, acks: 0, waiting: 0, gateway: false, lines: 0 }, B: { gotFromA: 0, acks: 0, waiting: 0, gateway: false, lines: 0 } };
     const procs = boards.map((b, i) => {
       const id = i === 0 ? 'A' : 'B', other = id === 'A' ? 'B' : 'A', s = stats[id];
-      const p = spawn(CLI, ['monitor', '-p', b.port, '-c', 'baudrate=115200', '--quiet']);
+      // On Windows, `arduino-cli monitor` buffers when piped, so read the port with .NET directly.
+      const p = process.platform === 'win32'
+        ? spawn('powershell', ['-NoProfile', '-Command', `$p=New-Object System.IO.Ports.SerialPort '${b.port}',115200;$p.DtrEnable=$true;$p.Open();while($true){$l=$p.ReadExisting();if($l){[Console]::Out.Write($l)};Start-Sleep -Milliseconds 100}`])
+        : spawn(CLI, ['monitor', '-p', b.port, '-c', 'baudrate=115200', '--quiet']);
       let buf = '';
       p.stdout.on('data', (d) => {
         buf += d.toString();
