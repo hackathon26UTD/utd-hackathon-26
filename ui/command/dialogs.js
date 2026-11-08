@@ -106,8 +106,8 @@ export function mountDialogs(ctx) {
       return;
     }
     out.textContent = 'Loading source status.';
-    const [w, f] = await Promise.all([api('/api/weather'), api('/api/feeds')]);
-    let html = '';
+    const [w, f, catalog] = await Promise.all([api('/api/weather'), api('/api/feeds'),api('/api/ops/data-catalog')]);
+    let html = catalog.ok?'<details><summary>Data history and coverage</summary><p>'+esc(catalog.data.history)+'</p>'+catalog.data.datasets.map(d=>'<p><strong>'+esc(d.label)+'</strong><br>'+esc(d.description)+'</p>').join('')+'</details>':'';
     if (f.ok) {
       S.feeds = new Map((f.data?.sources || []).map(s => [s.id, s]));
       const weatherArea = S.feeds.get('nws')?.coverage?.area;
@@ -117,7 +117,7 @@ export function mountDialogs(ctx) {
     if (w.ok) {
       const d = w.data;
       if (!f.ok) html += (d.sources || []).map(s => `<p><strong>${esc(s.name)}</strong><br>${esc(s.status)}${s.fetchedAt ? ' · Updated ' + esc(new Date(s.fetchedAt).toLocaleTimeString()) : ''}</p>`).join('');
-      html += `<p>${d.weather?.features?.length || 0} active Texas weather alerts · ${d.earthquakes?.features?.length || 0} regional earthquakes · ${d.declarations?.length || 0} recent declarations</p>`;
+      if(!f.ok)html += '<p>Legacy regional context. Coverage may differ from the source-specific layers above.</p>';
     }
     if (!f.ok && !w.ok) html = '<p>Public feeds are currently unavailable.</p>';
     out.innerHTML = html + '<p>Source availability is checked live. Regional events do not establish individual property damage.</p>';

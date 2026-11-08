@@ -1,0 +1,6 @@
+import {env} from './env.mjs';
+import {MongoClient} from 'mongodb';
+import {ensureDataStore} from '../src/data-store.js';
+import {ensureSourceRegistry,refreshData} from '../src/data-jobs.js';
+const command=process.argv[2]||'status';const client=new MongoClient(env.MONGODB_URI,{serverSelectionTimeoutMS:8000});
+try{await client.connect();const db=client.db(env.MONGODB_DB);if(command==='setup'){await ensureDataStore(db);await ensureSourceRegistry(db,env);console.log('Data catalog and additive indexes ready; existing collections preserved.');}else if(command==='refresh')console.log(JSON.stringify(await refreshData(db,env,{limit:5}),null,2));else if(command==='status'){const sources=await db.collection('source_registry').find({},{projection:{_id:1,status:1,lastSuccessAt:1,nextDueAt:1,configured:1}}).toArray();console.log(JSON.stringify({datasets:await db.collection('dataset_catalog').countDocuments(),snapshots:await db.collection('source_snapshots').countDocuments(),liveDevices:await db.collection('devices').countDocuments({'meta.exercise':{$ne:true}}),sources},null,2));}else throw new Error('Use setup, refresh or status');}catch(e){console.error('Data administration failed ('+e.name+'). No credentials printed.');process.exitCode=1;}finally{await client.close();}
