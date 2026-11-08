@@ -10,7 +10,7 @@
 // Every file has the same MESH_NODES table (each box can upload for the others); only MY_NODE_ID differs.
 // Created ids are remembered in firmware/.provisioned.json; device keys are written only to the
 // secrets files and never printed. --force registers new devices.
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, chmodSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -89,9 +89,11 @@ const file = (id) => [
 
 for (const b of parsed) {
   const out = b.id === 'A' ? 'firmware/box_a/secrets.h' : b.id === 'B' ? 'firmware/box_b/secrets.h' : `firmware/box_b/secrets.${b.id}.h`;
-  writeFileSync(join(ROOT, out), file(b.id));
+  writeFileSync(join(ROOT, out), file(b.id), {mode:0o600});
+  chmodSync(join(ROOT, out),0o600);
   console.log(`wrote ${out}`);
 }
 writeFileSync(STATE, JSON.stringify(state, null, 2));
-writeFileSync(KEYS, JSON.stringify(keys, null, 2));
+writeFileSync(KEYS, JSON.stringify(keys, null, 2), {mode:0o600});
+chmodSync(KEYS,0o600);
 console.log('Flash every box now. Extra boxes: copy firmware/box_b/secrets.<ID>.h over secrets.h before flashing the box_b sketch.');
