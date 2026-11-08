@@ -83,7 +83,7 @@ export async function mountCommand(env) {
   let studio = null;
   $('#end-demo')?.addEventListener('click', async () => {
     const button=$('#end-demo');button.disabled=true;studio?.pause();
-    try { await endDemoSession(role); }
+    try { await endDemoSession(role, { view: S.workspaceView }); }
     catch { $('#demo-exit-error').textContent=demo ? 'Could not end demo. Try again.' : 'Could not return to live data. Try again.';button.disabled=false; }
   });
   ctx.renderAll = () => renderAll();
@@ -227,7 +227,7 @@ export async function mountCommand(env) {
     const previous = S.workspaceView;
     return transitionWorkspace(null, { animate, focusTarget: focus ? $('[data-view="' + (previous || 'map') + '"]') : null });
   };
-  ctx.openWorkspace = view => {
+  ctx.openWorkspace = (view, { animate = true } = {}) => {
     ctx.closeViewBuilder?.({ focus: false });
     if (view === 'demo' && !demo) { location.href = '/simulations'; return; }
     if (view === 'priorities') view = 'homes';
@@ -239,7 +239,7 @@ export async function mountCommand(env) {
     else if(view==='news')news.refresh();
     else if (view === 'overview') renderOverview();
     else if (view === 'demo') { studio?.pause(); renderDemo(); }
-    return transitionWorkspace(view, { focusTarget: viewFocus(view) });
+    return transitionWorkspace(view, { animate, focusTarget: viewFocus(view) });
   };
   setWorkspaceView(null);
   ctx.positionDetail = () => {
@@ -629,7 +629,7 @@ export async function mountCommand(env) {
   if (S.selectedId) detailPanel.loadDetail(S.selectedId);
   if(!S.embed)news.start();
   if (!studio) overlays.loadZones();
-  if (!S.embed && route.get('view') === 'review') ctx.openWorkspace('review');
+  if (!S.embed && route.get('view') === 'review') ctx.openWorkspace('review', { animate: false });
   else if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
   mv.map.once('load', () => loadRegions());
   setInterval(renderPill, 1000);
