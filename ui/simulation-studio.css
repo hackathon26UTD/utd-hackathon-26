@@ -2,3 +2,5 @@
 @media(max-width:700px){.simulation-fields,.simulation-review{grid-template-columns:1fr}.simulation-step{padding-top:20px}.simulation-transport{left:8px;right:8px;bottom:70px;transform:none;width:auto;padding:8px;gap:8px}.simulation-transport output{flex-basis:100%;text-align:center}.simulation-transport label{display:none}.demo-view .full-view-body{padding:16px}.simulation-actions{gap:10px}}
 
 .demo-view .kit-main-tabs{overflow-x:auto;flex-wrap:nowrap}.demo-view .kit-main-tabs__tab{white-space:nowrap;flex-shrink:0}.kit .simulation-actions .kit-btn,.kit .simulation-transport .kit-btn{border-radius:999px}.simulation-advanced>p{margin:14px 0 20px}
+
+.hb-product .kit .simulation-actions button.kit-btn,.hb-product .kit .simulation-transport button.kit-btn{border-radius:999px}.simulation-review{padding-bottom:24px}

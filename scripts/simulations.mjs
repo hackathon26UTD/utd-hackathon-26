@@ -1,5 +1,5 @@
 import {readFile,writeFile} from 'node:fs/promises';
-import {simulationFrame,simulationSchema} from '../domain/simulation.js';
+import {simulationFrame,simulationSchema,simulationImport} from '../domain/simulation.js';
 const args=process.argv.slice(2);
 if(args.includes('--mcp')){
  const {McpServer}=await import('@modelcontextprotocol/sdk/server/mcp.js');const {StdioServerTransport}=await import('@modelcontextprotocol/sdk/server/stdio.js');const {z}=await import('zod');
@@ -14,8 +14,8 @@ if(args.includes('--mcp')){
 }else{
  try{const flags=new Set(['--schema','--config','--minute','--output']);for(let i=0;i<args.length;i++){if(!flags.has(args[i]))throw Error('Unknown option: '+args[i]);if(args[i]!=='--schema'&&(!args[++i]||args[i].startsWith('--')))throw Error('Missing option value.');}
  const value=flag=>{const i=args.indexOf(flag);return i<0?undefined:args[i+1];};
- const path=value('--config');const config=path?JSON.parse(await readFile(path,'utf8')):{};
- const data=args.includes('--schema')?simulationSchema():simulationFrame(config,Number(value('--minute')??0));const json=JSON.stringify(data,null,2)+'\n';
+ const path=value('--config');const imported=simulationImport(path?JSON.parse(await readFile(path,'utf8')):{});const config=imported.config;
+ const data=args.includes('--schema')?simulationSchema():simulationFrame(config,Number(value('--minute')??imported.minute));const json=JSON.stringify(data,null,2)+'\n';
  if(value('--output'))await writeFile(value('--output'),json);else process.stdout.write(json);
  }catch(e){console.error(e.message);process.exitCode=1;}
 }
