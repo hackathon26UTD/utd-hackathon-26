@@ -38,3 +38,12 @@ The compact legend gives the scale, units and a short interpretation. Sources & 
 - An operator browser fixture exercised source data, valid time, null UV, permission failure, stale data and focus preservation. It is browser integration coverage, not a claim of production authentication or household telemetry verification.
 
 Final isolated release/production evidence is recorded in the worklog. Manual accessibility and physical device tests are separate from these checks.
+
+
+### Review captures
+
+These are browser verification captures, not a live service. The wind screen uses captured public-source forecast points with a browser-only operator fixture and no household records. The phone screen is a simulation and explicitly does not load live weather.
+
+![Wind view with sampled forecasts](design/screenshots/world-wind.png)
+
+![UV simulation view on a phone](design/screenshots/world-uv-mobile.png)
