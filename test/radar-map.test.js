@@ -20,21 +20,29 @@ function fixture() {
 }
 test('radar holds current image while next frame loads, then crossfades', async () => {
   const f = fixture();
-  const first = f.view.setRadar('2026-11-08T03:00:00Z'); f.ready('weather-radar-a'); await first;
+  const first = f.view.setRadar('2026-11-08T03:00:00Z'); f.ready('weather-radar-'+Date.parse('2026-11-08T03:00:00Z')); await first;
   const next = f.view.setRadar('2026-11-08T03:02:00Z');
-  assert.equal(f.layers.get('weather-radar-a').paint['raster-opacity'], 0.68);
-  assert.equal(f.layers.get('weather-radar-b').paint['raster-opacity'], 0);
-  f.ready('weather-radar-b'); await next;
-  assert.equal(f.layers.has('weather-radar-a'), false);
-  assert.equal(f.layers.get('weather-radar-b').paint['raster-opacity'], 0.68);
+  assert.equal(f.layers.get('weather-radar-'+Date.parse('2026-11-08T03:00:00Z')).paint['raster-opacity'], 0.68);
+  assert.equal(f.layers.get('weather-radar-'+Date.parse('2026-11-08T03:02:00Z')).paint['raster-opacity'], 0);
+  f.ready('weather-radar-'+Date.parse('2026-11-08T03:02:00Z')); await next;
+  assert.equal(f.layers.get('weather-radar-'+Date.parse('2026-11-08T03:00:00Z')).paint['raster-opacity'], 0);
+  assert.equal(f.layers.get('weather-radar-'+Date.parse('2026-11-08T03:02:00Z')).paint['raster-opacity'], 0.68);
 });
 test('failed frame preserves current radar; disabling cancels loading and removes both buffers', async () => {
   const f = fixture();
-  const first = f.view.setRadar('2026-11-08T03:00:00Z'); f.ready('weather-radar-a'); await first;
-  const failed = f.view.setRadar('2026-11-08T03:02:00Z'); f.emit('error', { sourceId: 'weather-radar-b' });
+  const first = f.view.setRadar('2026-11-08T03:00:00Z'); f.ready('weather-radar-'+Date.parse('2026-11-08T03:00:00Z')); await first;
+  const failed = f.view.setRadar('2026-11-08T03:02:00Z'); f.emit('error', { sourceId: 'weather-radar-'+Date.parse('2026-11-08T03:02:00Z') });
   assert.equal(await failed, false);
-  assert.equal(f.layers.get('weather-radar-a').paint['raster-opacity'], 0.68);
+  assert.equal(f.layers.get('weather-radar-'+Date.parse('2026-11-08T03:00:00Z')).paint['raster-opacity'], 0.68);
   const pending = f.view.setRadar('2026-11-08T03:04:00Z'); await f.view.setRadar(null);
   assert.equal(await pending, false);
-  assert.equal(f.layers.has('weather-radar-a'), false); assert.equal(f.layers.has('weather-radar-b'), false);
+  assert.equal(f.layers.has('weather-radar-'+Date.parse('2026-11-08T03:00:00Z')), false); assert.equal(f.layers.has('weather-radar-'+Date.parse('2026-11-08T03:02:00Z')), false);
+});
+
+test('prefetch keeps the visible frame and cache stays bounded', async () => {
+ const f=fixture(),stamp=i=>new Date(Date.parse('2026-11-08T03:00:00Z')+i*120000).toISOString(),id=i=>'weather-radar-'+Date.parse(stamp(i));
+ const first=f.view.setRadar(stamp(0));f.ready(id(0));await first;
+ for(let i=1;i<10;i++){const pending=f.view.prepareRadar(stamp(i));f.ready(id(i));assert.equal(await pending,true);}
+ assert.equal(f.view.radarCache.size,6);assert.equal(f.layers.get(id(0)).paint['raster-opacity'],.68);
+ await f.view.setRadar(null);assert.equal(f.view.radarCache.size,0);
 });

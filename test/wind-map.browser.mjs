@@ -17,6 +17,8 @@ try{
  const page=await browser.newPage({viewport:{width:1200,height:800},reducedMotion:'no-preference'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(`http://127.0.0.1:${server.address().port}`);
  await page.waitForFunction(()=>window.view?.map.getLayer('ov-atmosphere-label'),{},{timeout:20000});
+ for(const width of [1200,390]){await page.setViewportSize({width,height:800});await page.evaluate(()=>{view.map.resize();view.map.jumpTo({zoom:0,center:[30,60]});});const c=await page.evaluate(()=>({zoom:view.zoom,min:view.homeMinZoom,center:view.map.getCenter()}));if(c.zoom<c.min-.001||c.center.lng< -127||c.center.lng> -65)throw Error('Mainland constraint failed');}
+ await page.setViewportSize({width:1200,height:800});
  await page.evaluate(()=>{
   view.setExt('atmosphere',{type:'FeatureCollection',features:[[-96,33,32,270],[-94,34,0,0],[-98,32,null,90]].map(([lng,lat,wind_kph,wind_direction])=>({type:'Feature',geometry:{type:'Point',coordinates:[lng,lat]},properties:{wind_kph,wind_direction}}))});
   view.setWorldView('wind');view.setVisible('atmosphere',true);view.map.jumpTo({center:[-96,33],zoom:5});
