@@ -44,8 +44,8 @@ try{
  await page.setViewportSize({width:1440,height:960});await page.emulateMedia({reducedMotion:'no-preference'});
  await page.goto(origin+'/demo?scenario=water-hurricane');
  await page.getByRole('button',{name:/^Map view:/}).click();await page.getByRole('option',{name:'Wind',exact:true}).click();
- await expect(page.locator('.wind-flow')).toHaveAttribute('data-running','true');
- await expect(page.locator('.world-note')).toContainText('Simulation only');
+ await expect(page.locator('.wind-flow')).toHaveAttribute('data-running',remote?'true':'false');
+ await expect(page.locator('.world-note')).toContainText('Forecast wind speeds');
  await page.getByRole('button',{name:'Pause wind',exact:true}).click();await expect(page.locator('.wind-flow')).toHaveAttribute('data-running','false');
  await page.screenshot({path:'work/wind-simulation.png',fullPage:false});
  await page.getByRole('button',{name:/^Map view:/}).click();await page.getByRole('option',{name:'Overview',exact:true}).click();

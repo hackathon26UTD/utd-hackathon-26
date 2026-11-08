@@ -204,5 +204,5 @@ export function mountToolbar({ root, map, ctx }) {
   sync();
 
   const setBusy = busy => { bar.setAttribute('aria-busy', String(!!busy)); };
-  return { destroy: () => { worlds.destroy(); bar.remove(); delete map.handlers.base; }, sync, setBusy };
+  return {setWorld:id=>worlds.choose(id), destroy: () => { worlds.destroy(); bar.remove(); delete map.handlers.base; }, sync, setBusy };
 }
