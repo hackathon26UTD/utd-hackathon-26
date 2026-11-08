@@ -59,7 +59,7 @@ export async function readCustomerSession(request,env,db) {
   const token=(request.headers.get('Cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(CUSTOMER_COOKIE+'='))?.slice(CUSTOMER_COOKIE.length+1);
   if(!token)return null;
   try {const [payload,sig,...rest]=token.split('.');if(rest.length||!payload||!sig)return null;const okay=await crypto.subtle.verify('HMAC',await customerKey(env.SESSION_SECRET),unb64(sig),encoder.encode(payload));if(!okay)return null;const data=JSON.parse(new TextDecoder().decode(unb64(payload)));if(!(data.exp>Date.now()/1000&&data.role==='customer'&&typeof data.email==='string'))return null;
-    const check=async d=>{const account=await d.collection('customer_accounts').findOne({_id:data.email});if(!account)return false;return !(account.passwordChangedAt&&(!data.iat||data.iat<new Date(account.passwordChangedAt).getTime()));};
+    const check=async d=>{const account=await d.collection('customer_accounts').findOne({_id:data.email});if(!account||!data.iat||(account.createdAt&&data.iat<new Date(account.createdAt).getTime()))return false;return !(account.passwordChangedAt&&(!data.iat||data.iat<new Date(account.passwordChangedAt).getTime()));};
     if(db)return await check(db)?data:null;
     if(env.MONGODB_URI)return await withDatabase(env,check)?data:null;
     return data;} catch {return null;}

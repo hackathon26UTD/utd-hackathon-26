@@ -31,3 +31,9 @@ Add device asks for a full lower-48 street address. After verifying the code, th
 For an unbound device, registration creates its first home association. An existing home ID is preserved to retain ingestion/incident history. A supplied address over 250 meters from that home's coordinate is rejected for installer review; this tolerance accommodates approximate geocoding and is not an address verification claim. Shared homes are never moved by a customer claim.
 
 Registered addresses are protected operator data. Google Street View is requested through the authenticated server image endpoint only when a Google key is configured. The nearby photo can be old or show another building; it never proves present conditions. Existing static-map operation tooling is preserved. No Google key was available during this work, so photo requests were tested with a provider stub, not live imagery. [Google Street View documentation](https://developers.google.com/maps/documentation/streetview/metadata).
+
+## Personal assistants and self-built devices (November 8)
+
+Customers can register up to five self-built boxes from the account page, using their address and current password. Registration issues a private hardware key once, adds an ordinary device/home/link transaction, and leaves readings unknown until measured telemetry arrives. Operator detail labels these boxes as self-built and unverified. The original pairing flow remains available.
+
+The same page has personal OAuth MCP connections, optional encrypted NVIDIA key storage/questions, key replacement and email changes. New endpoints are `/api/customer/build`, `/api/customer/connections`, `/api/customer/assistant` and `/api/customer/account`. Existing cookie isolation and same-origin writes still apply. MCP is outside the customer-cookie API and uses its own scoped bearer tokens. See [ASSISTANT_CONNECTIONS.md](ASSISTANT_CONNECTIONS.md) for contracts, access boundaries and tests. The public guide is `/build`.
