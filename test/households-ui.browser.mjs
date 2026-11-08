@@ -21,16 +21,18 @@ before(async () => {
   browser = await chromium.launch({ headless: true, ...(existsSync(chromium.executablePath()) ? {} : { executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' }) });
 });
 after(async () => { await browser?.close(); await new Promise(r => server?.close(r)); });
-async function setup({ signed = true, role = 'owner', width = 1280, fragment = '', empty = false } = {}) {
+async function setup({ signed = true, role = 'owner', width = 1280, fragment = '', empty = false, failList = false, failDetail = false, name = 'Family home', clock = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage(), errors = [], calls = [];
-  let loggedIn = signed, items = empty ? [] : [{ id: 'home', name: 'Family home', linkIds: ['owned-link'], member: { id: 'member', email: 'owner@example.test', role, status: 'active', preferences: { device: false, weather: false } } }];
+  if(clock)await page.clock.install();
+  let listAttempts=0,detailAttempts=0;
+  let loggedIn = signed, items = empty ? [] : [{ id: 'home', name, linkIds: ['owned-link'], member: { id: 'member', email: 'owner@example.test', role, status: 'active', preferences: { device: false, weather: false } } }];
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/*', async route => {
     const url = new URL(route.request().url());
     if (url.origin !== origin) return route.abort();
     if (!url.pathname.startsWith('/api/')) return route.continue();
-    const request = route.request(); const body = request.postDataJSON(); calls.push({ path: url.pathname, method: request.method(), body });
+    const request = route.request(); const body = request.postDataJSON(); calls.push({ path: url.pathname, method: request.method(), body, detail:url.searchParams.has('id') });
     let status = 200, data = {};
     if (url.pathname === '/api/customer/me') { status = loggedIn ? 200 : 401; data = loggedIn ? { email: 'owner@example.test', contactName: 'Owner' } : { error: 'Sign in' }; }
     else if (url.pathname === '/api/customer/login' || url.pathname === '/api/customer/register') { loggedIn = true; data = { ok: true }; }
@@ -39,6 +41,7 @@ async function setup({ signed = true, role = 'owner', width = 1280, fragment = '
     else if (url.pathname === '/api/customer/household-email') data = { memberId: 'member', configured: false, verified: false, suppressed: false, preferences: { device: false, weather: false } };
     else if (url.pathname === '/api/customer/household-context') data = { truncated: true, checkedAt: '2026-11-08T12:00:00Z', locations: [{ label: 'North Texas', weather: { status: 'partial', alertsStatus: 'stale', forecastStatus: 'unavailable', checkedAt: '2026-11-08T11:00:00Z', forecastIssuedAt: '2026-11-08T09:00:00Z', alerts: [{ title: '<script>Bad</script>', severity: 'Severe', sent: '2026-11-08T10:00:00Z', expires: '2026-11-08T13:00:00Z', url: 'javascript:alert(1)' }], forecast: [], url: 'https://weather.gov' }, news: { status: 'stale', source: 'KERA', scope: 'North Texas', items: [{ title: 'Regional headline', url: 'https://www.keranews.org/local', publishedAt: '2026-11-08T08:00:00Z' }] } }] };
     else if (url.pathname === '/api/customer/households') {
+      if(request.method()==='GET'&&((url.searchParams.has('id')&&++detailAttempts===1&&failDetail)||(!url.searchParams.has('id')&&++listAttempts===1&&failList)))return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Temporary household outage'})});
       if (request.method() === 'GET') data = url.searchParams.has('id') ? { household: items[0], ...(role !== 'alerts' ? { devices: [device] } : {}), ...(role === 'owner' ? { members: [items[0].member] } : {}) } : { households: items };
       else if (body.action === 'create') { const household = { id: 'created', name: body.name, linkIds: body.linkIds, member: { id: 'new-member', email: 'owner@example.test', role: 'owner', status: 'active' } }; items = [household]; data = { household }; }
       else if (body.action === 'invite') data = { token, delivery: 'not_emailed', member: { id: 'invited' } };
@@ -144,4 +147,27 @@ test('claim fragment remains supported', async () => {
     await expect(page.getByLabel('Pairing code')).toHaveValue('482913');
     assert.equal(new URL(page.url()).hash, ''); assert.deepEqual(errors, []);
   } finally { await context.close(); }
+});
+test('first household-list failure retries without reloading the page',async()=>{
+  const {context,page,errors,calls}=await setup({failList:true,clock:true});
+  try{
+    await expect(page.getByText('Temporary household outage')).toBeVisible();
+    await page.clock.fastForward(11000);
+    await expect(page.getByRole('heading',{name:'Shared device reports'})).toBeVisible();
+    assert.ok(calls.filter(c=>c.path==='/api/customer/households'&&!c.detail).length>=2);assert.deepEqual(errors,[]);
+  }finally{await context.close();}
+});
+test('first household-detail failure mounts on recovery and keeps polling',async()=>{
+  const {context,page,errors,calls}=await setup({failDetail:true,clock:true});
+  try{
+    await expect(page.getByText('Temporary household outage')).toBeVisible();await page.clock.fastForward(11000);
+    await expect(page.getByRole('heading',{name:'Nearby weather and news'})).toBeVisible();
+    await page.clock.fastForward(11000);
+    await expect.poll(()=>calls.filter(c=>c.path==='/api/customer/households'&&c.detail).length).toBeGreaterThanOrEqual(3);
+    assert.deepEqual(errors,[]);
+  }finally{await context.close();}
+});
+test('maximum unbroken household names fit a narrow phone',async()=>{
+  const {context,page,errors}=await setup({width:390,name:'W'.repeat(60)});
+  try{await expect(page.getByRole('heading',{name:'W'.repeat(60),exact:true})).toBeVisible();assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);assert.deepEqual(errors,[]);}finally{await context.close();}
 });
