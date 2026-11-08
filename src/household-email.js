@@ -43,7 +43,7 @@ export function householdEmailHandler(ctx) {return guarded(()=>run(ctx,async db=
   const now=ctx.now||new Date();
   let body;
   if(ctx.request.method==='POST') {
-    if(!sameOrigin(ctx.request))fail(403,'Use this setting on HomeBeacon.');
+    if(!sameOrigin(ctx.request))fail(403,'Use this setting on Safe Home.');
     body=await bodyJson(ctx.request);
     if(body.action==='unsubscribe')return reply(await unsubscribeHousehold(db,body.token,now));
   }
@@ -81,7 +81,7 @@ export function householdEmailHandler(ctx) {return guarded(()=>run(ctx,async db=
   await limit(db,ctx.env,'household-verify-email',email,3,86400000);
   const token=random(),id=await sha256Hex(token);
   await db.collection('household_email_tokens').insertOne({_id:id,purpose:'verify',memberId:m._id,email,generation:m.accountGeneration,createdAt:now,expiresAt:new Date(+now+HOUR)});
-  const payload=plainEmail('Verify your household email',['Open this link while signed in to HomeBeacon. It expires in one hour.','Verifying your address does not turn on alerts. You choose those next.'],[{label:'Verify email',url:CUSTOMER_URL+'#household-email='+token}]);
+  const payload=plainEmail('Verify your household email',['Open this link while signed in to Safe Home. It expires in one hour.','Verifying your address does not turn on alerts. You choose those next.'],[{label:'Verify email',url:CUSTOMER_URL+'#household-email='+token}]);
   await db.collection('household_mail_outbox').insertOne({_id:'verify-'+id,kind:'verification',memberId:m._id,email:m.email,generation:m.accountGeneration,status:'sending',createdAt:now,expiresAt:new Date(+now+30*24*HOUR)});
   const sent=await sendHouseholdEmail(ctx.env,{to:email,id:'verify-'+id,payload},{fetcher:ctx.fetcher});
   if(sent.status!=='accepted') {

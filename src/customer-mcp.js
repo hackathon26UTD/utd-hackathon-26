@@ -29,7 +29,7 @@ export function mcpHandler(ctx) {
       const grant = await authenticateMcp(db, ctx.request);
       if (!grant)
         return reply(
-          { error: "Connect your HomeBeacon customer account." },
+          { error: "Connect your Safe Home customer account." },
           401,
           {
             "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", scope="${SCOPE}"`,
@@ -80,7 +80,7 @@ export function mcpHandler(ctx) {
         {
           title: "Build and register a box",
           description:
-            "Get the supported hardware API, private registration link and safe setup steps. Register on HomeBeacon so credentials never enter chat.",
+            "Get the supported hardware API, private registration link and safe setup steps. Register on Safe Home so credentials never enter chat.",
           inputSchema: {},
           annotations,
         },

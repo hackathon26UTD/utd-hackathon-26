@@ -1,5 +1,5 @@
 /* ===========================================================================
- * HomeBeacon shims for the vendored ARGUS UI kit. This is the ONLY place a
+ * Safe Home shims for the vendored ARGUS UI kit. This is the ONLY place a
  * missing portal dependency is papered over; the vendored files stay as they
  * were in the source repo. See ui/kit/PROVENANCE.md for the audit.
  *
@@ -81,7 +81,7 @@
  * Brand art. Kit.standaloneMark and Kit.logoLockup (vendor/js/kit/components.js
  * 2786-2823) hard-code the ARGUS artwork as relative URLs under assets/logo/.
  * Those files are not ours. Image sources that name them are pointed at the
- * HomeBeacon marks instead, before the request is made. Only <img> src
+ * Safe Home marks instead, before the request is made. Only <img> src
  * attributes matching that exact pattern are touched.
  * Art: ui/kit/brand/*.svg, copied to public/assets/logo/ by scripts/build-ui.mjs.
  * ------------------------------------------------------------------------- */

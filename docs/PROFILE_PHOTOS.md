@@ -1,6 +1,6 @@
 # Private profile photos
 
-Implemented groundwork for Ayan's HomeBeacon workstream (November 8, 2026). Parent owns placement in existing customer/operator screens. No household/public image endpoint is introduced.
+Implemented groundwork for Ayan's Safe Home workstream (November 8, 2026). Parent owns placement in existing customer/operator screens. No household/public image endpoint is introduced.
 
 ## API
 
