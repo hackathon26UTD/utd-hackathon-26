@@ -54,7 +54,7 @@ curl -X POST $B/ingest  -H "X-Device-Key: $DEVICE_KEY" -H 'Content-Type: applica
 curl "$B/alerts?status=open"
 ```
 
-Clients: `clients/esp32/esp32_client.ino` (WiFi + reed switch + temp), `clients/python/hack_api.py` (Pi/laptop; `demo` mode streams synthetic anomalies).
+Device firmware: [`firmware/`](../firmware/TESTING.md) (box A gateway, box B, Uno Q hub; supersedes the early `clients/esp32/esp32_client.ino` example). Other clients: `clients/python/hack_api.py` (Pi/laptop; `demo` mode streams synthetic anomalies).
 
 ## Running it
 
