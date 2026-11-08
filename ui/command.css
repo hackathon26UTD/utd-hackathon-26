@@ -345,3 +345,14 @@ fieldset{border:1px solid var(--line);border-radius:4px;padding:10px 14px}.pair{
 .hb-product .kit .cc.map-only .cc-more-menu{width:280px;min-width:0;max-width:calc(100vw - 24px);padding:12px;border-radius:12px}
 .hb-product .kit .cc.map-only .cc-more-menu .display-options{min-width:0}
 .hb-product .kit .cc.map-only .cc-more-menu .display-options .kit-select{min-width:0;max-width:100%}
+
+/* Keep workspace utilities in the sidebar, leaving the map header clear. */
+.cc.vertical-shell .workspace-sidebar{display:flex;flex-direction:column}
+.cc.vertical-shell #workspace-menu{flex:1;min-height:0;overflow:auto}
+.cc.vertical-shell .sidebar-settings{flex:none;margin:8px 12px 12px}
+.cc.vertical-shell .sidebar-settings>summary{display:flex;align-items:center;gap:12px;min-height:44px;padding:10px;border:0;border-radius:10px;background:transparent;list-style:none}
+.cc.vertical-shell .sidebar-settings>summary::-webkit-details-marker{display:none}
+.cc.vertical-shell .sidebar-settings>summary svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;flex:none}
+.cc.vertical-shell .sidebar-settings .cc-more-menu{left:0;right:auto;top:auto;bottom:calc(100% + 8px);width:240px;max-width:calc(100vw - 104px);max-height:calc(100dvh - 150px);overflow:auto;border-radius:12px}
+.cc.vertical-shell.sidebar-collapsed .settings-label{display:none}
+.cc.vertical-shell.sidebar-collapsed .sidebar-settings{margin-inline:8px}
