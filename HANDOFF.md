@@ -1,4 +1,4 @@
-November 8 device onboarding (branch `feat/device-onboarding`, release verification pending): interrupted inventory/customer/fleet job resumed. Read [ONBOARDING.md](docs/ONBOARDING.md), CLI-ONBOARDING.md and latest WORKLOG. The pre-registered Uno Q hub now receives actual USB-assisted controller reports; no customer is auto-linked. Root agent startup remains blocked by sudo password; Wi-Fi is down.
+November 8 device onboarding (PR #63 merged; production verified through main `23e3522`, CI run `42497040807`): interrupted inventory/customer/fleet job resumed. Read [ONBOARDING.md](docs/ONBOARDING.md), CLI-ONBOARDING.md and latest WORKLOG. The pre-registered Uno Q hub now receives actual USB-assisted controller reports; no customer is auto-linked. Root agent startup remains blocked by sudo password; Wi-Fi is down.
 
 November 8 workflow cleanup (PR #59, merged 48a55f2, production verified): latest request removes replay controls/animation and redundant simulation history text. The workflow now uses native scrolling, and unsupported device/area send actions are removed. Read [WORKFLOW_CANVAS.md](docs/WORKFLOW_CANVAS.md) and the latest WORKLOG.
 
