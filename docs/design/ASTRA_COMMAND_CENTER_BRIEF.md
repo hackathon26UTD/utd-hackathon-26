@@ -6,6 +6,8 @@ You are helping Ayan's workstream redesign an existing operational map. Start wi
 
 **Locked interaction:** a compact house card expands in place at the geographic anchor. Compose Kit.sectionBox/Kit.details/Kit.foldOpen content inside the MapLibre anchor; do not substitute a right-hand drawer or invent a Kit.mapCard component.
 
+**Region selection:** zoom into the selected disaster region and open a compact summary anchored to that area.
+
 **Compact card:** status, why attention is needed, last report time. Everything else expands on demand.
 
 **Geography:** U.S. overview, then regions and neighborhoods, then individual houses. National source discovery/aggregation is required; existing Texas-only data is not national coverage. Exact visual/motion treatment still needs review. The source brief separates Ayan's decisions from proposals.
@@ -19,3 +21,5 @@ Propose coordinated, modern motion tied to real events. No fake liveness, endles
 Review the cookie experience honestly: current choices are identical, no optional tracking is installed, the panel consumes map space and dismissal jumps toward the footer. Propose privacy/settings access without an unnecessary consent-style interruption to operations. This is a UX proposal, not legal certification.
 
 Deliver the component bill of materials, annotated compositions, motion demonstration and open decisions. Compare rendered results with the source brief. Do not treat imported styles, a passing gallery, a green build or an axe result as design acceptance. Keep adding accepted decisions to the living brief. Do not deploy another redesign until the design is reviewed with Ayan.
+
+Keep the outer command canvas anchored without blank scroll space. Avoid expensive whole-page rescans or unnecessary font/module downloads. Public website, operator login and household access must remain discoverable. PR #25 repairs the current layout performance and scrolling; it does not replace this redesign.

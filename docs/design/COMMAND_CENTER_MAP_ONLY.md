@@ -270,7 +270,10 @@ Required implementation verification when that phase starts:
 - Ayan chose compact-card status, attention reason and last report time.
 - Ayan chose disaster regions first, with individual devices appearing on zoom.
 - Ayan chose a U.S. disaster overview, then regional and neighborhood zoom. This supersedes the Texas/DFW default.
-- Design review next: exact visual composition; whether selected areas use the same anchored pattern; source/layer defaults within the chosen national overview; event attention/coalescing; mobile tool fit. The five foundational user choices above are already answered.
+- Ayan chose region selection to zoom into the region and open a compact anchored area summary.
+- Ayan reports heavy loading and blank space at scroll boundaries. Keep the command canvas anchored, prevent page overscroll, and keep marketing, operator and household access discoverable.
+- Performance repair shipped separately in PR #25: scoped component updates, smaller runtime/font payload, contained page scrolling and cookie focus repair. This does not implement the map-only redesign.
+- Design review next: exact visual composition; source/layer defaults within the chosen national overview; event attention/coalescing; mobile tool fit. The five foundational user choices above are already answered.
 
 This document remains a draft until the pending decisions and visual review are resolved. No production UI change is claimed by writing it.
 
