@@ -1,6 +1,7 @@
 // HTTP glue for module C. Each file under functions/api/ is a one-line wrapper around a function here,
 // so tests can call them with an injected database. Auth: operators arrive with the admin key injected by
 // the middleware, demo sessions are marked in context.data, devices send X-Device-Key.
+import { recordAcceptedReport } from './device-lifecycle.js';
 import { HttpError, badRequest, json, readJson, intParam, dateParam, unauthorized } from './http.js';
 import { isAdmin, requireDevice, sha256Hex } from './auth.js';
 import { withDb } from './db.js';
@@ -146,6 +147,7 @@ export async function ingestWithDownlink(ctx) {
       if (res.status !== 202 || !pre) return res;
       try {
         const now = ctx.now || new Date();
+        await recordAcceptedReport(db, pre.device, now, request.headers.get('X-Firmware-Version'));
         const id = String(pre.device._id);
         const exercise = pre.device.meta?.exercise === true;
         const last = pre.device.lastSeen ? new Date(pre.device.lastSeen) : null;

@@ -1,0 +1,30 @@
+.kit.fleet-view .fleet-body { display: flex; flex-direction: column; gap: 18px; }
+.kit .fleet-note, .kit .fleet-status, .kit .fleet-reasons { color: var(--kit-ink-3); font-size: 12px; line-height: 1.6; margin: 0; }
+.kit .fleet-summary { display: flex; flex-wrap: wrap; gap: 16px 36px; border-block: 1px solid var(--kit-line); padding-block: 18px; }
+.kit .fleet-count { display: flex; flex-direction: column; gap: 4px; }
+.kit .fleet-count strong { font-size: 28px; font-weight: 500; color: var(--kit-ink); }
+.kit .fleet-count span { color: var(--kit-ink-3); font-size: 12px; }
+.kit .fleet-reasons { flex-basis: 100%; }
+.kit .fleet-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.kit .fleet-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 12px; color: var(--kit-ink); }
+.kit .fleet-tools > .fleet-field { flex: 1 1 150px; }
+.kit .fleet-tools > .fleet-field:first-child { flex-basis: 240px; }
+.kit .fleet-field :is(input, textarea) { width: 100%; box-sizing: border-box; }
+.kit .fleet-field textarea { min-height: 96px; resize: vertical; }
+.kit .fleet-results { min-width: 0; }
+.kit .fleet-results > p { margin-bottom: 12px; }
+.kit .fleet-results table { min-width: 1120px; width: 100%; border-collapse: collapse; text-align: left; }
+.kit .fleet-results :is(td, th) { padding: 14px 12px; vertical-align: top; border-bottom: 1px solid var(--kit-line); font-size: 12px; overflow-wrap: anywhere; max-width: 250px; }
+.kit .fleet-results thead th { color: var(--kit-ink-3); font-weight: 500; }
+.kit .fleet-results tbody th { font-weight: 400; }
+.kit .fleet-results small { display: block; color: var(--kit-ink-3); margin-top: 6px; font-size: 11px; line-height: 1.5; }
+.kit .fleet-serial { font-family: var(--font-mono); font-weight: 500; white-space: nowrap; }
+.kit :is(.fleet-manage, .fleet-confirm, .fleet-key) { display: flex; flex-direction: column; gap: 16px; }
+.kit :is(.fleet-manage, .fleet-confirm, .fleet-key) p { margin: 0; line-height: 1.6; }
+.kit .fleet-error { color: var(--kit-ink); font-size: 12px; }
+.kit .fleet-key input { font-family: var(--font-mono); }
+@media (max-width: 700px) {
+  .kit.fleet-view .fleet-body { gap: 14px; }
+  .kit .fleet-tools > .fleet-field { flex-basis: 100%; }
+  .kit .fleet-summary { gap: 12px 24px; }
+}
