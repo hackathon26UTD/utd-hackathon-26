@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {endDemoSession} from '../ui/command/demo-session.js';
+import {endDemoSession,operatorLoginDestination} from '../ui/command/demo-session.js';
 import {readingSummary} from '../ui/command/reading-summary.js';
 import {parseUnoReport,unoReadings} from '../scripts/lib/uno-sensor-input.mjs';
 
@@ -22,8 +22,15 @@ test('operator leaving public or registered exercise Review stays in live Review
 test('operator can explicitly enter registered exercise Review',async()=>{
  let target;await endDemoSession('operator',{view:'review',mode:'exercise',request:()=>{throw Error('must not sign operator out');},navigate:p=>target=p});assert.equal(target,'/command-center?mode=exercise&view=review');
 });
-test('shared demo Review exit removes the demo session before preserving its destination',async()=>{
- const calls=[];await endDemoSession('demo',{view:'review',request:async(p,o)=>{calls.push([p,o.method]);return {ok:true};},navigate:p=>calls.push(p)});assert.deepEqual(calls,[['/api/session','DELETE'],'/command-center?view=review']);
+test('shared demo Review exit removes the demo session before operator sign-in, preserving its destination',async()=>{
+ const calls=[];await endDemoSession('demo',{view:'review',request:async(p,o)=>{calls.push([p,o.method]);return {ok:true};},navigate:p=>calls.push(p)});assert.deepEqual(calls,[['/api/session','DELETE'],'/login?role=operator&next=review']);
+});
+test('anonymous Review entry requires operator sign-in without creating or deleting a session',async()=>{
+ let target;await endDemoSession(null,{view:'review',request:()=>{throw Error('unexpected auth mutation');},navigate:p=>target=p});assert.equal(target,'/login?role=operator&next=review');
+});
+test('successful login return target permits only the Review view',()=>{
+ assert.equal(operatorLoginDestination('review'),'/command-center?view=review');
+ for(const next of [null,undefined,'','map','Review','/command-center?mode=exercise','https://example.com','//example.com','review&mode=exercise'])assert.equal(operatorLoginDestination(next),'/command-center');
 });
 test('failed shared demo Review exit cannot navigate to registered records',async()=>{
  let navigated=false;await assert.rejects(endDemoSession('demo',{view:'review',request:async()=>({ok:false}),navigate:()=>{navigated=true;}}));assert.equal(navigated,false);

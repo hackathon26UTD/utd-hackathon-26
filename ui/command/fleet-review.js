@@ -67,6 +67,9 @@ export function mountFleetReview(ctx, root) {
       root.append(note('You are signed in. Leave the public simulation to review live device records, or open registered exercise records.'));
       const enter = button('Open Review', 'open-live-review'); enter.classList.add('rv-primary');
       entryActions.append(enter, button('Open exercise records', 'open-exercise-review'));
+    } else if (ctx.role === 'demo') {
+      root.append(note('You are signed in to the shared simulation account. Use your team operator account to review registered devices.'));
+      entryActions.append(button('Switch to operator account', 'open-live-review'));
     } else {
       root.append(note('Sign in with a team operator account to review registered devices. Public simulation frames are separate from registered exercise records.'));
       entryActions.append(button('Operator sign-in', 'open-live-review'));
