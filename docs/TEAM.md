@@ -21,7 +21,7 @@ A useful handoff includes the problem, changed behavior, touched contract, branc
 
 ### November 8 history update
 
-The GitHub branch histories were rewritten on November 8 to remove development-tool co-author trailers. Human authors, timestamps, file snapshots and merge relationships were preserved. Historical commit IDs changed; signatures attached to rewritten commits cannot remain valid. Old PR records may retain earlier commit copies.
+The GitHub branch histories were rewritten on November 8 to remove development-tool co-author trailers, branch-name prefixes, commit-description mentions and handoff provenance. Human authors, timestamps, merge relationships, application code, configuration and required license files were preserved; historical handoff prose was normalized. Sixteen branches were renamed under `work/`. Historical commit IDs changed; signatures attached to rewritten commits cannot remain valid. Old PR records may retain earlier commit copies.
 
 If your clone predates this update, save any uncommitted work and use a fresh clone before pushing. Bring over only your new work. Do not merge an old local branch into the rewritten history, which would reintroduce the removed trailers. The owner retained a local pre-rewrite bundle and old-to-new commit map for recovery; these are not published to GitHub.
 
