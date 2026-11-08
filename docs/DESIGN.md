@@ -1,5 +1,7 @@
 # HomeBeacon design contract
 
+> November 8 correction: the current map direction is the lower-48 near-white street map, with an in-map Argus kit control bar, optional topography and water layers, hover evidence that clears, and a wide device drawer. [MAP_V2_SPEC.md](MAP_V2_SPEC.md) supersedes the satellite direction below.
+
 > November 7 simplification request: one clear action per screen, short concrete copy, neutral surfaces, green actions and self-hosted Geist. Homepage uses a compact interactive record rather than an animated scene. Login/household pages keep direct forms. The full satellite map follows the accepted floating-tools direction; the older style descriptions below are historical. Essential-only storage no longer creates an automatic consent interruption.
 
 > Current command-center direction: [map-only design contract](design/COMMAND_CENTER_MAP_ONLY.md). Ayan rejected the deployed command layout. Ayan approved the rendered satellite-map direction for Astra. Map only, tools on demand, no KPI row or persistent side rail. Prior layout descriptions below are historical and do not constitute acceptance.

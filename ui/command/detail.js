@@ -193,7 +193,7 @@ export function mountDetail(ctx) {
       fold.id = 'detail-expand';
       footer.append(label, fold);
       body.append(tone, reason, age, footer, panel);
-      const close = document.createElement('button'); close.id = 'detail-close'; close.className = 'small'; close.type = 'button'; close.textContent = 'Close'; close.setAttribute('aria-label', 'Close selected details');
+      const close = document.createElement('button'); close.id = 'region-detail-close'; close.className = 'small'; close.type = 'button'; close.textContent = 'Close'; close.setAttribute('aria-label', 'Close selected details');
       el.replaceChildren(K.sectionBox({ title: r ? 'Area overview' : 'Home details', desc: ctx.demo ? 'Fictional exercise observation' : 'Connected device observation', actions: close, body }));
       el.dataset.selection = key;
     }
@@ -299,7 +299,7 @@ ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slic
     const t = e.target.closest('button');
     if (!t) return;
     if (t.dataset.dataTool) { const p = S.props.find(p => p.id === S.selectedId); if (p) return showDataTool(ctx, t.dataset.dataTool, p); return; }
-    if (t.id === 'detail-close') return ctx.closeDetail();
+    if (t.id === 'detail-close' || t.id === 'region-detail-close') return ctx.closeDetail();
     if (t.dataset.tab) return setTab(t.dataset.tab);
     if (t.dataset.tabgo) return setTab(t.dataset.tabgo);
     if (t.dataset.wf) { S.detailTab = 'workflow'; render(); DR.wf?.selectNode(t.dataset.wf); drawer.querySelector('#tab-workflow')?.focus({ preventScroll: true }); return; }

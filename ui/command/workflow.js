@@ -63,6 +63,7 @@ export function mountWorkflow({ root, ctx }) {
 <div class="wf-state" role="status" hidden></div>
 <div class="wf-body">
 <div class="wf-canvas-wrap">
+<p class="wf-pan-tip">Drag to explore checkpoints. Use Fit to see the whole path.</p>
 <div class="wf-viewport" tabindex="0" role="application" aria-roledescription="workflow canvas" aria-label="Checkpoints for this device. Arrow keys move the view. Plus and minus zoom. Zero fits the view. Tab to a checkpoint to read it.">
 <div class="wf-world"><svg class="wf-edges" aria-hidden="true"></svg><div class="wf-nodes"></div><svg class="wf-ports" aria-hidden="true"></svg></div>
 </div>
@@ -85,7 +86,13 @@ export function mountWorkflow({ root, ctx }) {
   const layout = () => layoutNodes(NODE_IDS, M.perRow);
   const apply = () => { world.style.transform = `translate(${M.view.x}px, ${M.view.y}px) scale(${M.view.s})`; };
   const size = () => ({ w: viewport.clientWidth || 600, h: viewport.clientHeight || 340 });
-  function fit() { const { w, h } = size(); M.view = fitTransform(w, h, layout()); M.userMoved = false; apply(); }
+  function fitAll() { const { w, h } = size(); M.view = fitTransform(w, h, layout()); M.userMoved = true; apply(); }
+  function fit() {
+    const { w, h } = size();
+    // On phones, an all-nodes fit shrinks labels below readable size. Start at the first checkpoint.
+    M.view = w < 640 ? { s: 0.82, x: 8, y: 8 } : fitTransform(w, h, layout());
+    M.userMoved = false; apply();
+  }
   function zoomAt(f, cx, cy) {
     const s = clampScale(M.view.s * f), k = s / M.view.s;
     M.view = { s, x: cx - (cx - M.view.x) * k, y: cy - (cy - M.view.y) * k }; M.userMoved = true; apply();
@@ -259,7 +266,7 @@ export function mountWorkflow({ root, ctx }) {
   root.addEventListener('click', e => {
     const t = e.target.closest('button,[data-id]'); if (!t || !root.contains(t)) return;
     if (M.suppressClick) { M.suppressClick = false; return; }
-    if (t.dataset.z) { const [cx, cy] = center(); if (t.dataset.z === 'fit') fit(); else zoomAt(t.dataset.z === 'in' ? 1.25 : 0.8, cx, cy); return; }
+    if (t.dataset.z) { const [cx, cy] = center(); if (t.dataset.z === 'fit') fitAll(); else zoomAt(t.dataset.z === 'in' ? 1.25 : 0.8, cx, cy); return; }
     if (t.dataset.p) { const a = t.dataset.p; if (a === 'play') return M.playing ? stop() : play(); stop(); if (a === 'live') setCursor(M.events.length, { announce: true }); else if (a === 'back') setCursor(M.cursor - 1, { announce: true }); else if (a === 'fwd') setCursor(M.cursor + 1, { announce: true }); return; }
     if (t.dataset.clear !== undefined) { M.selected = null; return paint(); }
     if (t.dataset.go) { stop(); return setCursor(Number(t.dataset.go), { announce: true }); }

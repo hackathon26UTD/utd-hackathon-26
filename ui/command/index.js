@@ -260,7 +260,7 @@ export async function mountCommand(env) {
     requestAnimationFrame(() => {
       if (!S.detailOpen || S.workspaceView) return;
       const active = document.activeElement;
-      if (active === document.body || active === S.detailReturnFocus || active === $('[data-view="map"]') || active?.closest('#device-panel,#overview-panel')) $('#detail-close')?.focus({ preventScroll: true });
+      if (active === document.body || active === S.detailReturnFocus || active === $('[data-view="map"]') || active?.closest('#device-panel,#overview-panel')) (document.querySelector('#device-drawer:not([hidden]) #detail-close') || document.querySelector('#detail:not([hidden]) #region-detail-close'))?.focus({ preventScroll: true });
     });
   }
   ctx.closeDetail = ({ restoreFocus = true } = {}) => {

@@ -55,7 +55,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
   card.append(live, body);
   mapEl.append(card);
 
-  let pinned = false, visible = false, hideTimer = 0, showTimer = 0, abort = null, token = 0, target = null, overCard = false;
+  let pinned = false, clickedMouse = false, visible = false, hideTimer = 0, showTimer = 0, abort = null, token = 0, target = null, overCard = false;
   const cache = new Map();
 
   const clearTimers = () => { clearTimeout(hideTimer); clearTimeout(showTimer); hideTimer = showTimer = 0; };
@@ -74,7 +74,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
   function hide({ restoreFocus = false } = {}) {
     clearTimers(); abort?.abort(); abort = null; token++;
     const had = visible;
-    visible = pinned = false; target = null;
+    visible = pinned = clickedMouse = false; target = null;
     card.hidden = true; card.classList.remove('is-pinned');
     if (had && restoreFocus) map.map.getCanvas().focus({ preventScroll: true });
   }
@@ -232,11 +232,11 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
     place(point);
   }
 
-  function show(lngLat, { pinned: pin = false, point, hit = null, focus = false } = {}) {
+  function show(lngLat, { pinned: pin = false, mouseClick = false, point, hit = null, focus = false } = {}) {
     clearTimers();
     const pt = point || map.projectToScreen(lngLat);
     target = { lngLat, point: pt };
-    visible = true; pinned = pin;
+    visible = true; pinned = pin; clickedMouse = mouseClick;
     card.hidden = false; card.classList.toggle('is-pinned', pin);
     load(lngLat, hit, pt);
     if (pin && focus !== false) requestAnimationFrame(() => card.focus({ preventScroll: true }));
@@ -246,6 +246,12 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
 
   map.onPlaceHover(({ lngLat, point, hit }) => {
     if (pinned) return;
+    if (clickedMouse) {
+      if (target && Math.hypot(point.x - target.point.x, point.y - target.point.y) > 24) hide();
+      return;
+    }
+    // Bare map points load on click. Hovering across streets should not flood public data sources.
+    if (!hit || hit.kind === 'device' || hit.kind === 'group') return;
     clearTimeout(hideTimer);
     clearTimeout(showTimer);
     showTimer = setTimeout(() => { if (!pinned) show(lngLat, { point, hit }); }, SHOW_DELAY_MS);
@@ -260,7 +266,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
     const own = !hit || hit.kind.startsWith('overlay:');
     if (!own) { hide(); return; }
     if (touch && pinned) { hide(); return; }
-    show(lngLat, { pinned: true, point, hit, focus: true });
+    show(lngLat, { pinned: !!(touch || keyboard), mouseClick: !touch && !keyboard, point, hit, focus: !!keyboard });
     if (keyboard) card.setAttribute('aria-describedby', 'pc-title');
   });
   map.onMoveStart(() => { if (visible) hide(); });

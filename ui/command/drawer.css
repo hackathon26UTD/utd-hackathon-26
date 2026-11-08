@@ -99,6 +99,7 @@
 .wf-body.is-loading .wf-canvas-wrap,.wf-body.is-loading .wf-play,.wf-body.is-loading .wf-lower{display:none}
 .wf-canvas-wrap{position:relative;border:1px solid var(--kit-line,#dce2df);border-radius:10px;overflow:hidden;background:var(--kit-surface-2,#f0f3f1)}
 .wf-viewport{position:relative;height:clamp(300px,42vh,400px);overflow:hidden;cursor:grab;touch-action:none;user-select:none;background-image:radial-gradient(circle,var(--kit-line-2,#b8c5bf) 1px,transparent 1.4px);background-size:22px 22px}
+.wf-pan-tip{margin:0;padding:6px 10px;font-size:11px;color:var(--kit-ink-3,#52605b)}
 .wf-viewport.is-panning{cursor:grabbing}
 .wf-viewport:focus-visible{outline:3px solid #2185c5;outline-offset:-3px}
 .wf-world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
