@@ -1,4 +1,4 @@
-import { WORLD_VIEWS, worldView, viewSourceState, viewSourceNeedsAttention } from './world-views.js';
+import { WORLD_VIEWS, worldView, viewSourceState, viewSourceNeedsAttention, selectedSourceState, gridSummary } from './world-views.js';
 import { OVERLAYS, ageText } from './core.js';
 import { setOverlay } from './overlays.js';
 
@@ -83,7 +83,7 @@ export function mountWorldControls({ root, map, ctx }) {
       const states = [];
       for (const id of active.layers) {
         const def = OVERLAYS.find(v => v.id === id), state = ctx.S.ov?.[id], feed = ctx.S.feeds?.get(id);
-        const metricState = id === 'atmosphere' && active.field && state?.metrics ? { ...state, count:state.metrics[active.field] } : state;
+        const metricState = selectedSourceState(id,state,active.field);
         const input = { demo:ctx.demo,view:active,id,state:metricState,feed,zoom:map.zoom,minZoom:def?.minZoom,enabled:ctx.S.ovOn?.has(id) };
         const status = viewSourceState(input);
         states.push({text:status,attention:viewSourceNeedsAttention(input)});
@@ -96,8 +96,8 @@ export function mountWorldControls({ root, map, ctx }) {
         if (!ctx.demo && state?.hb?.fetchedAt) row.append(node('p',`Retrieved ${ageText(state.hb.fetchedAt)}`));
         if (!ctx.demo && state?.validAt) row.append(node('p',`Forecast valid ${new Date(state.validAt).toLocaleString()}`));
         if (!ctx.demo && state?.hb?.coverage?.area) row.append(node('p',`Coverage: ${state.hb.coverage.area}`));
-        const series = state?.extra?.series;
-        if (!ctx.demo && Array.isArray(series) && series[0]?.value != null) row.append(node('p',`${series[0].region || 'Regional demand'}: ${series[0].value} ${series[0].unit || ''} (${series[0].period || 'time unavailable'})`));
+        const reading = gridSummary(id,state);
+        if (!ctx.demo && reading) row.append(node('p',reading));
         sources.append(row);
       }
       const problem = states.find(s => s.attention);

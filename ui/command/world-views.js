@@ -30,6 +30,30 @@ export const WORLD_PALETTES = {
 };
 
 export const worldView = id => WORLD_VIEWS.find(v => v.id === id) || WORLD_VIEWS[0];
+const gridNumber = value => (typeof value === 'number' || typeof value === 'string' && value.trim() !== '') && Number.isFinite(Number(value));
+export function gridRows(id,state) {
+  const keys = id === 'ercot' ? ['demand','capacity','forecast'] : id === 'eia' ? ['value'] : [];
+  return Array.isArray(state?.extra?.series) ? state.extra.series.filter(row => row && keys.some(key => gridNumber(row[key]))) : [];
+}
+export function selectedSourceState(id,state,field) {
+  if (!state) return state;
+  if (id === 'atmosphere' && field && state.metrics) {
+    const count = state.metrics[field] || 0;
+    return {...state,count,hb:state.hb ? {...state.hb,truncated:!!state.hb.truncated || count < state.count} : state.hb};
+  }
+  if (id === 'eia' || id === 'ercot') return {...state,count:gridRows(id,state).length,sourceKind:'series'};
+  return state;
+}
+export function gridSummary(id,state) {
+  const rows = gridRows(id,state);
+  if (!rows.length) return null;
+  if (id === 'eia') {
+    const row=rows[0]; return `${row.region || 'Regional'} demand: ${row.value} ${row.unit || 'units unavailable'} (${row.period || 'time unavailable'})`;
+  }
+  const row=rows.findLast(row=>gridNumber(row.demand)) || rows.at(-1);
+  const readings = [['Demand','demand'],['Capacity','capacity'],['Forecast demand','forecast']].filter(([,key])=>gridNumber(row[key])).map(([label,key])=>`${label}: ${row[key]} ${row.unit || 'units unavailable'}`);
+  return `${readings.join(' · ')} (${row.at || 'time unavailable'})`;
+}
 export function metricColor(view) {
   if (!view.field || !view.stops) return '#147d92';
   const value = ['get', view.field];
@@ -57,9 +81,9 @@ export function viewSourceState({ demo, view, id, state, feed, zoom, minZoom = 0
   if (state?.loading) return 'Loading…';
   if (state?.error) return state.error;
   if (!state?.hb) return 'Waiting for data';
-  const parts = [state.hb.stale ? 'Out of date' : state.hb.refreshStatus === 'error' ? 'Refresh failed; showing saved data' : 'Cached source', `${state.count ?? 0} mapped features`];
+  const parts = [state.hb.stale ? 'Out of date' : state.hb.refreshStatus === 'error' ? 'Refresh failed; showing saved data' : 'Cached source', `${state.count ?? 0} ${state.sourceKind === 'series' ? 'regional readings' : 'mapped features'}`];
   if (state.hb.truncated) parts.push('Partial coverage');
-  if (state.count === 0) parts.push('No mapped coverage here');
+  if (state.count === 0) parts.push(state.sourceKind === 'series' ? 'No regional readings available' : 'No mapped coverage here');
   return parts.join(' · ');
 }
 

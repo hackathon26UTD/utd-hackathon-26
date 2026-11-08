@@ -385,8 +385,9 @@ export class MapView {
 
   // Topmost feature under the pointer, in priority order.
   hit(point) {
-    const order = [['device', 'dev-circle'], ['group', 'dev-groups'], ['zone', 'zones-pt'], ['zone', 'zones-fill'], ['region', 'risk-fill'], ...Object.keys(EXT_STYLE).flatMap(id => [['overlay:' + id, `ov-${id}-pt`], ['overlay:' + id, `ov-${id}-fill`], ...(id === 'faults' ? [['overlay:faults','ov-faults-line']] : [])])];
-    if (this.map.getZoom() < 5.5) order.splice(1,0,['state','state-fill']);
+    const order = [['device', 'dev-circle'], ['group', 'dev-groups'], ['zone', 'zones-pt'], ...Object.keys(EXT_STYLE).map(id => ['overlay:' + id, `ov-${id}-pt`])];
+    if (this.map.getZoom() < 5.5) order.push(['state','state-fill']);
+    order.push(['zone', 'zones-fill'], ['region', 'risk-fill'], ...Object.keys(EXT_STYLE).map(id => ['overlay:' + id, `ov-${id}-fill`]), ['overlay:faults','ov-faults-line']);
     for (const [kind, layer] of order) {
       if (!this.map.getLayer(layer)) continue;
       const hits = this.map.queryRenderedFeatures(point, { layers: [layer] });
