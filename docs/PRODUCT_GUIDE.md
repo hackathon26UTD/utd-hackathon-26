@@ -49,3 +49,7 @@ Customer MCP connections require OAuth scope and can read the account's supporte
 The box-side recorder keeps bounded local samples and reference statistics while disconnected, then uses the retained-history contract on reconnect. Website history also uses daily archives. Historical averages describe the available sample quality; they are not automatic replacements for calibrated alarm thresholds. See [device history](DEVICE_HISTORY.md).
 
 Email invitation/alert implementation and HTML templates exist, but actual email delivery is disabled. Manual invitation links work without email sending. Regional news is available only for supported publishers and never changes hazard risk. Physical battery endurance, sensor calibration, mesh fallback and reconnect replay require board tests. Complete manual accessibility and legal/privacy review remain separate from automated software checks.
+
+### Demonstrating connected Wi-Fi
+
+In the operator workspace, open a registered box → Conditions → Simulate connected Wi-Fi. The tile shows Connected · Simulated beside the actual reported Wi-Fi state. This display preference survives refresh in the same browser tab and applies only to that device and data mode. Turn the switch off to restore the ordinary tile. Sensor history, risk, Nemotron Review and customer views continue to use recorded readings.
