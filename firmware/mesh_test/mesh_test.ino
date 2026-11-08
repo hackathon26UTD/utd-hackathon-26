@@ -15,15 +15,40 @@
 //  4. Watch both serial monitors. Commands: help | mac | mesh | ping | wifi
 // Works on ESP32 Dev Module and XIAO ESP32S3 (any ESP32 board).
 
-// ───────── edit these ─────────
+// Automatic: `npm run mesh-test` detects the plugged-in boards, writes mesh_test_config.h for each
+// (git-ignored) and flashes them, so you do not need to edit anything below.
+
+#if __has_include("mesh_test_config.h")
+#include "mesh_test_config.h"
+#endif
+
+// ───────── edit these (manual use) ─────────
+#ifndef MY_NODE_ID
 #define MY_NODE_ID   "A"          // "A" on one board, "B" on the other
+#endif
+#ifndef WIFI_SSID
 #define WIFI_SSID    ""           // hotspot name (2.4 GHz) on BOTH boards
+#endif
+#ifndef WIFI_PASS
 #define WIFI_PASS    ""           // only on the gateway board; "" on the other
+#endif
+#ifndef MAC_A
 #define MAC_A        "AA:BB:CC:DD:EE:01"   // from `mac` on board A
+#endif
+#ifndef MAC_B
 #define MAC_B        "AA:BB:CC:DD:EE:02"   // from `mac` on board B
+#endif
+// 1 = act as gateway without Wi-Fi (tests the mesh alone, no hotspot needed)
+#ifndef FORCE_GATEWAY
+#define FORCE_GATEWAY 0
+#endif
 // Test keys: identical on both boards. Change one digit on one board to prove encryption (no ACKs).
+#ifndef ESPNOW_PMK
 #define ESPNOW_PMK   "00112233445566778899aabbccddeeff"
+#endif
+#ifndef ESPNOW_LMK
 #define ESPNOW_LMK   "0f1e2d3c4b5a69788796a5b4c3d2e1f0"
+#endif
 #define FALLBACK_CHANNEL 1
 #define HELLO_MS     3000
 // ──────────────────────────────
@@ -61,6 +86,10 @@ void manageWifi() {
     WiFi.disconnect(false, false);
   }
   uint8_t ch = FALLBACK_CHANNEL;
+  if (!strlen(WIFI_SSID)) {  // no hotspot configured: everyone meets on the fallback channel
+    static bool set = false; if (!set) { setChannel(ch); set = true; Serial.printf("[wifi] no hotspot configured; mesh on channel %u\n", ch); }
+    return;
+  }
   int n = WiFi.scanNetworks(false, false, false, 120);
   for (int i = 0; i < n; i++) if (strlen(WIFI_SSID) && WiFi.SSID(i) == WIFI_SSID) { ch = WiFi.channel(i); break; }
   WiFi.scanDelete(); setChannel(ch);
@@ -81,7 +110,7 @@ void setup() {
 void loop() {
   mesh::loop();
   manageWifi();
-  mesh::setOnline(WiFi.status() == WL_CONNECTED);  // in the test, Wi-Fi = gateway (no cloud upload)
+  mesh::setOnline(FORCE_GATEWAY || WiFi.status() == WL_CONNECTED);  // in the test, Wi-Fi = gateway (no cloud upload)
 
   if (millis() - lastHello > HELLO_MS) {
     lastHello = millis();
