@@ -1,8 +1,12 @@
 # HomeBeacon current project context
 
+> November 7 evening NVIDIA update: the user's $60 Brev credits now fund a Crusoe L40S running pinned Nemotron Nano 9B v2. Real authenticated tool calls and the complete four-tool investigation passed with synthetic sensor records in disposable local MongoDB. Adyaan's explicitly requested operator account is now provisioned, and the deployed PR #26 preview passed password sign-in, operator session validation and a real NVIDIA layer request (HTTP 200, power loss AND water, zero matching connected homes). This was an authenticated API check; the browser form was not used. Production, physical sensing and firmware load shedding are not established by these model checks. See [BREV.md](BREV.md) for the fixed shutdown deadline and temporary endpoint limitations.
+
 > November 7 interface update: the user requested a simple, direct website and integration of the newly pushed map. The redesign branch uses a full-viewport satellite canvas with floating tools and on-demand evidence, separate full Overview/Devices/Activity/Demo workspaces, an interactive homepage hurricane preview, homeowner/operator entry paths, explicit registration terms, and unified neutral/green Geist styling. This supersedes older dusk/paper and decorative-homepage notes below. Public demo scenarios use a separate read-only API. Live hazard coverage remains source-dependent; NWS national scope is optional and nationwide imagery is context only.
 
-> System integration: [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md) defines the additive evidence/Nemotron backend and power-policy reference. The user chose a labeled simulator for now; actual NVIDIA inference and automatic firmware load shedding remain unverified. A November 7 6:53 PM screenshot confirms pickup, including **one** AA holder (not the earlier draft's two).
+> Latest navigation refinement: the user supplied an ARGUS reference and requested a slim top bar, collapsible vertical sidebar, more map space and fade transitions between workspaces. The new shell uses the actual Kit section menu, a 56px header, 196/64px navigation widths and 8px canvas margins. Local desktop/mobile checks and all 281 tests pass. The user explicitly requested publishing this complete revision to `https://utd-hackathon-26.pages.dev/`; production release verification is recorded in WORKLOG.
+
+> System integration: [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md) defines the additive evidence/Nemotron backend and power-policy reference. The labeled simulator remains available alongside the verified real-model path; automatic firmware load shedding remains unverified. A November 7 6:53 PM screenshot confirms pickup, including **one** AA holder (not the earlier draft's two).
 
 > Design correction: Ayan rejected the current command layout. The evolving [map-only contract](design/COMMAND_CENTER_MAP_ONLY.md) locks a U.S. disaster-region-first map with tools on demand, devices revealed on zoom, and expandable cards anchored to selected houses. Compact cards show status, attention reason and last report time. Ayan approved the rendered satellite-map direction for Astra to develop and refine. That direction is integrated in the redesign preview; later full-view navigation follows the user’s expanded request.
 
@@ -22,9 +26,9 @@ The exact State Farm event challenge and complete current track inventory remain
 
 - Public marketing homepage `/`, session-aware `/portal`, separate `/login`, public `/demo`, protected `/command-center` and `/profile`.
 - Actual street maps, synthetic exercise isolation, live Mongo summaries, refresh, filters, follow-up notes, source status, NWS polygon context and preview/apply/clear operator views.
-- Operator sign-in/out, profile, password change and single-use recovery-code reset. Shared demo cannot access live data or account writes. Email reset delivery and broader account administration are not implemented.
+- Operator sign-in/out, profile, password change and single-use recovery-code reset. Explicitly provisioned MongoDB accounts with role `operator` can sign in alongside the original configured operator; new account-backed sessions revoke on disablement, deletion, role changes or password changes. Shared demo cannot access live data or account writes. Public operator signup, email reset delivery and an account-management UI are not implemented.
 - Privacy, terms, cookie and accessibility pages. No analytics or advertising. Automated audits pass on checked flows; manual accessibility and legal review remain.
-- NVIDIA adapter is ready for a later key or compatible model endpoint. No NVIDIA key/model is connected. Current presets work without inference.
+- NVIDIA preview bindings connect to authenticated Nemotron Nano 9B v2 on Brev. Both inference paths passed real-model checks locally; operator access is required on the deployed app. Public synthetic presets work without inference.
 
 ## Actual stack and resources
 
@@ -52,7 +56,7 @@ The active checkout is under `/private/tmp/codex-hackathon26-20261107-active` be
 
 ## Next integration work
 
-Verify actual firmware/gateway sensor names, units, power path and timestamps with Dhruv. Demonstrate real offline replay and idempotency, physical battery endurance and sensor calibration. Connect/evaluate NVIDIA only when the API/model becomes available. Obtain exact track criteria. Add browser/axe enforcement and UI-only path coverage to CI. Review real-data privacy, retention and accessibility before production household use.
+Verify actual firmware/gateway sensor names, units, power path and timestamps with Dhruv. Demonstrate real offline replay and idempotency, physical battery endurance and sensor calibration. Exercise the deployed NVIDIA path using an authorized operator account and verify the scheduled Brev shutdown after its deadline. Obtain exact track criteria. Add browser/axe enforcement and UI-only path coverage to CI. Review real-data privacy, retention and accessibility before production household use.
 - Referenced ChatGPT conversation: Smart Fridge Hardware Plan, `6aef7693-4d98-83ea-a594-081797eee22b`.
 - HackUTD public site: https://zeroday.hackutd.co/
 - Signed-in portal: https://harp.hackutd.co/app

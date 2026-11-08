@@ -78,7 +78,7 @@ export function mountOverlays(ctx) {
   $('#overlay-toggle').onclick = () => {
     const panel = $('#overlay-panel'), open = panel.classList.toggle('open');
     $('#overlay-toggle').setAttribute('aria-expanded', String(open));
-    if (open) { if (S.detailOpen) ctx.closeDetail({ restoreFocus: false }); ctx.closeWorkspace({ focus: false }); render(); loadFeeds(); $('#overlay-close').focus(); }
+    if (open) { ctx.closeViewBuilder?.({ focus: false }); if (S.detailOpen) ctx.closeDetail({ restoreFocus: false }); ctx.closeWorkspace({ focus: false }); render(); loadFeeds(); $('#overlay-close').focus(); }
   };
   $('#overlay-close').onclick = () => { $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false'); $('#overlay-toggle').focus(); };
 
