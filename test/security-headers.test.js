@@ -27,7 +27,9 @@ test('function-served pages allow only the required remote map hosts', async () 
 test('static and function responses receive the same security policy', async () => {
   const text = await readFile(new URL('../public/_headers', import.meta.url), 'utf8');
   const response = await onRequest({ env, request: request('/login'), next: async () => new Response('Login') });
-  for (const line of text.split('\n').filter(line => /^\s+\S[^:]*:/.test(line))) {
+  // Only the catch-all `/*` block is the shared policy; later blocks are per-path cache rules.
+  const shared = text.slice(text.indexOf('/*'), text.indexOf('\n\n', text.indexOf('/*')) > 0 ? text.indexOf('\n\n', text.indexOf('/*')) : undefined);
+  for (const line of shared.split('\n').filter(line => /^\s+\S[^:]*:/.test(line))) {
     const colon = line.indexOf(':');
     assert.equal(response.headers.get(line.slice(0, colon).trim()), line.slice(colon + 1).trim());
   }

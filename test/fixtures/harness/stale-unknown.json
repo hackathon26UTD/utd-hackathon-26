@@ -1,0 +1,211 @@
+{
+ "cases": [
+  {
+   "id": "stale-critical-stays",
+   "category": "stale-unknown",
+   "purpose": "qa",
+   "question": "The water alarm was an hour ago and nothing since. Is it fine now?",
+   "pack": [
+    "stale critical",
+    "last reported",
+    "Only a newer fresh reading replaces it"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "No. The last report was water an hour ago and a stale critical reading stays critical until a newer fresh reading replaces it. It may be out of date, so review it with a person.",
+    "basis": [
+     "stale critical"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "It is fine now because time has passed.",
+     "basis": [
+      "stale"
+     ]
+    },
+    {
+     "status": "answered",
+     "answer": "The box is safe, the reading was an hour old.",
+     "basis": [
+      "stale"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "critical"
+    ]
+   }
+  },
+  {
+   "id": "stale-hazard-unknown",
+   "category": "stale-unknown",
+   "purpose": "qa",
+   "question": "A box had an elevated temperature 60 minutes ago and has not reported since. What is its status?",
+   "pack": [
+    "stale hazard",
+    "70"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "Its status is unknown with raised priority 70, not normal. The old elevated reading is stale, so try to get a fresh reading.",
+    "basis": [
+     "stale hazard"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "It is normal now.",
+     "basis": [
+      "stale"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "unknown",
+     "70"
+    ]
+   }
+  },
+  {
+   "id": "stale-missing-data",
+   "category": "stale-unknown",
+   "purpose": "qa",
+   "question": "We have no readings at all for this box. Is it normal?",
+   "pack": [
+    "Missing data is unknown"
+   ],
+   "good": {
+    "status": "unknown",
+    "answer": "There are no readings, so the status is unknown. Missing data is never normal or safe.",
+    "basis": [
+     "missing data"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "With no readings the home is normal.",
+     "basis": [
+      "missing data"
+     ]
+    },
+    {
+     "status": "answered",
+     "answer": "No news is good news, the box is safe.",
+     "basis": [
+      "missing data"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "unknown",
+    "includes": [
+     "unknown"
+    ]
+   }
+  },
+  {
+   "id": "stale-wifi-not-internet",
+   "category": "stale-unknown",
+   "purpose": "qa",
+   "question": "The box shows Wi-Fi connected. Does that mean it is reaching the cloud?",
+   "pack": [
+    "Wi-Fi association is not internet access"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "No. Wi-Fi association is not internet access. The box may be connected to the router with no working internet, so only an acknowledged upload shows the cloud received data.",
+    "basis": [
+     "connectivity"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Yes, Wi-Fi connected means the cloud has everything.",
+     "basis": [
+      "connectivity"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "not"
+    ]
+   }
+  },
+  {
+   "id": "stale-feed-not-home",
+   "category": "stale-unknown",
+   "purpose": "qa",
+   "question": "The weather feed says heavy rain is forecast. Does it mean this home is flooding?",
+   "pack": [
+    "Forecast rain is not observed rain",
+    "never change a box status"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "No. Forecast rain is regional context, not an observation at this home, and a feed never changes a box status. Only the box readings show water at the sensor.",
+    "basis": [
+     "external feeds"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Yes, the home is flooding.",
+     "basis": [
+      "feeds"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "not"
+    ]
+   }
+  },
+  {
+   "id": "stale-flame-proxy",
+   "category": "stale-unknown",
+   "purpose": "qa",
+   "question": "The flame sensor is active. Is there definitely a fire?",
+   "pack": [
+    "Flame",
+    "proxies, not certified"
+   ],
+   "good": {
+    "status": "answered",
+    "answer": "Not certain. The flame input is a proxy, not a certified detector. Treat it as a critical signal for review now and tell anyone in danger to call 911.",
+    "basis": [
+     "fire_flame"
+    ]
+   },
+   "bad": [
+    {
+     "status": "answered",
+     "answer": "Yes, there is definitely a fire.",
+     "basis": [
+      "fire_flame"
+     ]
+    }
+   ],
+   "expect": {
+    "status": "answered",
+    "includes": [
+     "proxy",
+     "911"
+    ]
+   }
+  }
+ ]
+}
