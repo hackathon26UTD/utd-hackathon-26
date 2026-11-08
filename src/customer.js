@@ -84,6 +84,9 @@ const loadRiskMod = () => tryImport('risk', () => import('./risk/load.js'));
 const customerViewMod = () => tryImport('view', () => import('./risk/customer.js'));
 const liveMod = () => tryImport('live', () => import('./live.js'));
 const messagesMod = () => tryImport('messages', () => import('./messages.js'));
+const emailMod = () => tryImport('email-events', () => import('./email-events.js'));
+// Email is fire-and-forget: it can never fail or slow the request. Off unless RESEND_API_KEY is set.
+const mail = (ctx, name, args) => { try { emailMod().then(m => m?.fire(ctx, (db, env) => m[name](db, env, args))).catch(() => {}); } catch { /* ignore */ } };
 
 async function depsFor(ctx) {
   const d = ctx.deps || {};
@@ -325,6 +328,7 @@ const routes = {
         catch { return reply({ error: FAIL_TEXT }, 400); }
         await audit(deps, db, {actor:await customerActor(email),action:'customer.register',details:{newAccount:true,acceptedTerms:true,termsVersion:'2026-11-07'}});
         const token = await issueCustomerSession(ctx.env, email, {verifiedAccount:created,db});
+        mail(ctx, 'notifyWelcome', { email, contactName, linked: false, consent: body.consent });
         return reply({ authenticated: true, linked: false }, 201, { 'Set-Cookie': customerCookie(token) });
       }
       let link;
@@ -337,6 +341,7 @@ const routes = {
       }
       await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing, termsVersion: '2026-11-07', acceptedTerms: true }, exercise: link.exercise });
       const token = await issueCustomerSession(ctx.env, email, {verifiedAccount,db});
+      mail(ctx, 'notifyWelcome', { email, contactName, nickname: link.nickname, linked: true, consent: link.consent, linkId: link._id, exercise: link.exercise });
       return reply({ authenticated: true, linked: true, id: link._id }, 201, { 'Set-Cookie': customerCookie(token) });
     });
   },
@@ -389,6 +394,7 @@ const routes = {
       if (serial && !await takeAttempt(db, await rateKey(ctx.env, 'cust-serial', serial), 5, now)) return tooMany();
       try {
         const link = await claimDevice(db, { email, serial: body.serial, code: body.code, contactName, consent: body.consent, nickname, address: body.address }, await depsFor(ctx));
+        mail(ctx, 'notifyWelcome', { email, contactName, nickname: link.nickname, linked: true, consent: link.consent, linkId: link._id, exercise: link.exercise });
         return reply({ linked: true, id: link._id }, 201);
       } catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
     });
@@ -522,6 +528,7 @@ export async function helpStatusHandler(ctx) {
         $push: { history: { $each: [{ status, note, at: now, by }], $slice: -50 } },
       }, { upsert: true });
       await audit(await depsFor(ctx), db, { actor: { type: 'operator', id: by }, action: 'help.set', deviceId, details: { status }, exercise });
+      mail(ctx, 'notifyHelpStatus', { deviceId, status, updatedAt: now });
       return reply({ help: { status, note, updatedAt: now.toISOString() } });
     });
   } catch (e) {

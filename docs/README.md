@@ -23,3 +23,6 @@
 - [Integration continuation](INTEGRATION_CONTINUATION.md): recovered work, real kit integration, validation and outstanding hardware/feed keys.
 
 - [Map-only command-center design](design/COMMAND_CENTER_MAP_ONLY.md) and [Astra brief](design/ASTRA_COMMAND_CENTER_BRIEF.md): current requirements, evidence, pending decisions and acceptance gates.
+
+- [Demo day runbook](TOMORROW.md): readiness checklist, commands, hardware steps, demo script, fallbacks and honest non-claims.
+- [Developer CLI](CLI.md), [performance](PERFORMANCE.md), [Uno Q agent](UNOQ_AGENT.md), [power design](POWER_DESIGN.md), [email](EMAIL.md), [NVIDIA harness](HARNESS.md), [how it works](HOW_IT_WORKS.md), [thresholds](THRESHOLDS.md) and [runbook](RUNBOOK.md): November 8 operations readiness set.

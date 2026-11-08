@@ -196,7 +196,7 @@ export async function pendingCount(db, deviceId, now = new Date()) {
 }
 
 /** Device reports a message was shown on screen or acknowledged by a button press. */
-export async function deviceReport(db, device, { messageId, state }, now = new Date()) {
+export async function deviceReport(db, device, { messageId, state }, now = new Date(), hooks = {}) {
   if (!isHex24(messageId)) throw badRequest('message_id is required');
   if (!['shown', 'acked'].includes(state)) throw badRequest('state must be shown or acked');
   const id = String(device._id);
@@ -215,6 +215,11 @@ export async function deviceReport(db, device, { messageId, state }, now = new D
   }
   await db.collection('message_deliveries').updateOne({ _id }, { $set: set });
   await writeDeviceLog(db, { deviceId: id, level: 'info', code: state === 'acked' ? 'message.acked' : 'message.shown', msg: `${state === 'acked' ? 'Message acknowledged' : 'Message shown'}: ${cur.title}`, at: now, exercise });
+  // Optional receipt email to a consenting customer. `hooks.email` is the request context ({env, waitUntil, db?}).
+  // Fire and forget: email can never change the response or fail the request.
+  if (state === 'acked' && cur.customerVisible && hooks.email) {
+    try { import('./email-events.js').then((m) => m.fire(hooks.email, (d, env) => m.notifyMessageReceipt(d, env, { deviceId: id, messageId, title: cur.title, state: 'acked', at: now }))).catch(() => {}); } catch { /* ignore */ }
+  }
   return { state: state === 'acked' ? 'acked' : 'delivered', shown: true };
 }
 
