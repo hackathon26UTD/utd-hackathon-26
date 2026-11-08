@@ -1,10 +1,27 @@
 // MapLibre wrapper: street-level base maps plus the command center layers. Rebuilds layers after every style switch.
 import { STATUS_COLOR as C, ZONE_TYPES } from './core.js';
+import { CONUS_BOUNDS, CONUS_FIT, CONUS_API_BOX, MIN_ZOOM, MAX_ZOOM, FIT_TO_MAX_ZOOM, clampBbox } from './geo.js';
 
+// Base maps. The default is a near-white street map. There is no photo imagery base: topography and
+// shaded relief are the only terrain views, and they are chosen from the top bar.
+const POSITRON = 'https://tiles.openfreemap.org/styles/positron';
+const USGS = 'https://basemap.nationalmap.gov/arcgis/rest/services';
+const USGS_ATTR = '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USGS The National Map</a>';
+const rasterSource = name => ({ type: 'raster', tiles: [`${USGS}/${name}/MapServer/tile/{z}/{y}/{x}`], tileSize: 256, maxzoom: 16, attribution: USGS_ATTR });
 export const STYLES = {
-  satellite: { version: 8, sources: { imagery: { type: 'raster', tiles: ['https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 16, attribution: '<a href="https://www.usgs.gov/programs/national-geospatial-program/national-map">USDA, USGS The National Map: Orthoimagery</a>' } }, layers: [{ id: 'canvas', type: 'background', paint: { 'background-color': '#192027' } }, { id: 'imagery', type: 'raster', source: 'imagery', paint: { 'raster-saturation': -0.25, 'raster-brightness-max': 0.85, 'raster-fade-duration': 0 } }] },
-  street: 'https://tiles.openfreemap.org/styles/liberty',
-  light: 'https://tiles.openfreemap.org/styles/positron',
+  street: POSITRON,
+  streetTerrain: POSITRON,
+  topo: { version: 8, sources: { topo: rasterSource('USGSTopo') }, layers: [{ id: 'canvas', type: 'background', paint: { 'background-color': '#f4f3ee' } }, { id: 'topo', type: 'raster', source: 'topo', paint: { 'raster-fade-duration': 0 } }] },
+};
+export const BASE_OPTIONS = [
+  { value: 'street', label: 'Street' },
+  { value: 'topo', label: 'Topographic' },
+  { value: 'streetTerrain', label: 'Streets and terrain' },
+];
+// Optional raster layers, drawn under map labels and hidden until chosen.
+const RASTER_OVERLAYS = {
+  hillshade: { source: 'ov-hillshade-src', layer: 'ov-hillshade', name: 'USGSShadedReliefOnly', opacity: 0.45 },
+  hydro: { source: 'ov-hydro-src', layer: 'ov-hydro', name: 'USGSHydroCached', opacity: 0.85 },
 };
 const EMPTY = { type: 'FeatureCollection', features: [] };
 const statusColor = ['match', ['get', 'status'], 'critical', C.critical, 'elevated', C.elevated, 'watch', C.watch, 'normal', C.normal, C.unknown];
@@ -24,6 +41,12 @@ const EXT_STYLE = {
   firms: { pt: ['#e8590c', 4] },
   airnow: { pt: [aqiColor, 8] },
   eia: { pt: ['#495057', 6] },
+  nwps: { pt: ['#0b7285', 7] },
+  weather: { pt: ['#4c6ef5', 5] },
+  ercot: { pt: ['#495057', 6] },
+  river_forecast: { pt: ['#1c7ed6', 6] },
+  nws_forecast: { pt: ['#e67700', 5] },
+  tides: { pt: ['#0c8599', 6] },
 };
 const AREA = ['any', ['==', ['geometry-type'], 'Polygon'], ['==', ['geometry-type'], 'MultiPolygon']];
 
@@ -32,25 +55,60 @@ export const GROUP_LAYERS = {
   zones: ['zones-fill', 'zones-line', 'zones-pt', 'zones-sel'],
 };
 
+const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const HOVER_DWELL_MS = 120, HOVER_LEAVE_PX = 24;
+
+// A feature is kept when any part of it can fall inside the lower 48 box. Alaska, Hawaii and open ocean are dropped.
+export function featureInConus(f) {
+  const st = String(f?.properties?.state ?? f?.properties?.STATE ?? '').toUpperCase();
+  if (st === 'AK' || st === 'HI') return false;
+  const g = f?.geometry;
+  if (!g) return false;
+  let w = Infinity, s = Infinity, e = -Infinity, n = -Infinity;
+  const visit = c => { if (typeof c?.[0] === 'number') { w = Math.min(w, c[0]); e = Math.max(e, c[0]); s = Math.min(s, c[1]); n = Math.max(n, c[1]); } else if (Array.isArray(c)) c.forEach(visit); };
+  visit(g.coordinates);
+  const b = CONUS_API_BOX;
+  return w <= b.maxLon && e >= b.minLon && s <= b.maxLat && n >= b.minLat;
+}
+const conusOnly = fc => fc?.features ? { ...fc, features: fc.features.filter(featureInConus) } : fc;
+
 export class MapView {
-  constructor(maplibregl, container, { center, zoom, styleKey = 'street', deviceMinZoom = 11, showGroups = true }) {
+  constructor(maplibregl, container, { styleKey = 'street', deviceMinZoom = 11, showGroups = true, padding } = {}) {
     this.gl = maplibregl;
-    this.styleKey = styleKey;
+    this.styleKey = STYLES[styleKey] ? styleKey : 'street';
     this.deviceMinZoom = deviceMinZoom; this.showGroups = showGroups;
     this.data = { devices: EMPTY, overview: EMPTY, regions: EMPTY, zones: EMPTY, draw: EMPTY };
     this.ext = {};
     this.radarTime = null;
     this.visible = new Set(['regions', 'zones']);
+    this.rasterOn = { hillshade: this.styleKey === 'streetTerrain', hydro: false };
     this.selectedZone = '';
     this.highlights = { power: false, water: false };
     this.handlers = {};
-    this.map = new maplibregl.Map({ container, style: STYLES[styleKey], center, zoom, attributionControl: { compact: true }, renderWorldCopies: false, maxZoom: 18 });
+    this.cb = {};
+    this.pad = padding || { top: 64, right: 40, bottom: 56, left: 40 };
+    this.pointerType = 'mouse';
+    this.map = new maplibregl.Map({
+      container, style: STYLES[this.styleKey], attributionControl: { compact: true }, renderWorldCopies: false,
+      maxBounds: CONUS_BOUNDS, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM,
+      bounds: CONUS_FIT, fitBoundsOptions: { padding: this.pad, duration: 0 },
+    });
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     this.map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
     this.map.on('style.load', () => this.install());
     this.map.on('error', e => this.handlers.error?.(e));
-    this.map.on('click', e => this.handlers.click?.(e, this.hit(e.point)));
+    this.map.on('click', e => this.onClick(e));
     this.map.on('moveend', () => this.handlers.moveend?.());
+    this.map.on('movestart', () => { this.clearHover(); this.cb.moveStart?.(); });
+    this.map.on('mousemove', e => this.onMouseMove(e));
+    const box = this.map.getCanvasContainer();
+    for (const type of ['pointerdown', 'pointermove']) box.addEventListener(type, e => { if (e.pointerType) this.pointerType = e.pointerType; }, { capture: true, passive: true });
+    box.addEventListener('mouseleave', () => { if (this.pointerType === 'mouse') this.clearHover(); });
+    box.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' || e.target !== this.map.getCanvas() || this.drawing) return;
+      const lngLat = this.map.getCenter(), point = this.map.project(lngLat);
+      this.cb.placeClick?.({ lngLat, point, hit: null, keyboard: true });
+    });
     for (const layer of ['dev-circle', 'dev-groups', 'zones-fill', 'zones-pt', 'risk-fill']) {
       this.map.on('mouseenter', layer, () => { if (!this.drawing) this.map.getCanvas().style.cursor = 'pointer'; });
       this.map.on('mouseleave', layer, () => { this.map.getCanvas().style.cursor = this.drawing ? 'crosshair' : ''; });
@@ -58,8 +116,16 @@ export class MapView {
   }
 
   on(name, fn) { this.handlers[name] = fn; return this; }
+  onPlaceHover(fn) { this.cb.placeHover = fn; return this; }
+  onPlaceLeave(fn) { this.cb.placeLeave = fn; return this; }
+  onPlaceClick(fn) { this.cb.placeClick = fn; return this; }
+  onDeviceClick(fn) { this.cb.deviceClick = fn; return this; }
+  onMoveStart(fn) { this.cb.moveStart = fn; return this; }
   get zoom() { return this.map.getZoom(); }
   bbox() { const b = this.map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; }
+  // The visible box limited to the lower 48, for data requests. Null when nothing visible is inside it.
+  apiBbox() { return clampBbox(this.bbox()); }
+  projectToScreen(lngLat) { const p = this.map.project(lngLat); return { x: p.x, y: p.y }; }
 
   async setRadar(time) {
     this.radarTime = time;
@@ -99,12 +165,86 @@ export class MapView {
     return true;
   }
 
-  setDrawing(on) { this.drawing = on; this.map.getCanvas().style.cursor = on ? 'crosshair' : ''; this.map.doubleClickZoom[on ? 'disable' : 'enable'](); }
+  setDrawing(on) { this.drawing = on; this.clearHover(); this.map.getCanvas().style.cursor = on ? 'crosshair' : ''; this.map.doubleClickZoom[on ? 'disable' : 'enable'](); }
 
-  setStyleKey(key) {
+  // ---- hover, click and place events ----
+
+  clearHover() {
+    clearTimeout(this.dwellTimer); this.dwellTimer = null;
+    if (this.anchor) { this.anchor = null; this.cb.placeLeave?.(); }
+  }
+
+  onMouseMove(e) {
+    if (this.drawing || this.pointerType !== 'mouse' || !this.cb.placeHover) return;
+    if (this.raf) { this.pending = e; return; }
+    this.pending = e;
+    this.raf = requestAnimationFrame(() => { this.raf = 0; this.handleMove(this.pending); });
+  }
+
+  handleMove(e) {
+    const a = this.anchor, dist = a ? Math.hypot(e.point.x - a.x, e.point.y - a.y) : 0;
+    const hit = this.hit(e.point);
+    const sameDevice = a?.deviceId && hit?.kind === 'device' && hit.properties.id === a.deviceId;
+    if (a) {
+      if (a.deviceId ? sameDevice : hit?.kind !== 'device' && dist <= HOVER_LEAVE_PX) return;
+      this.clearHover();
+    }
+    clearTimeout(this.dwellTimer);
+    const fire = () => {
+      this.dwellTimer = null;
+      this.anchor = { x: e.point.x, y: e.point.y, hit, deviceId: hit?.kind === 'device' ? hit.properties.id : null };
+      this.cb.placeHover?.({ lngLat: hit?.kind === 'device' && hit.geometry?.coordinates ? { lng: hit.geometry.coordinates[0], lat: hit.geometry.coordinates[1] } : e.lngLat, point: e.point, hit });
+    };
+    if (hit?.kind === 'device') fire(); else this.dwellTimer = setTimeout(fire, HOVER_DWELL_MS);
+  }
+
+  onClick(e) {
+    const hit = this.hit(e.point);
+    this.clearHover();
+    this.handlers.click?.(e, hit);
+    if (this.drawing) return;
+    if (hit?.kind === 'device') this.cb.deviceClick?.(hit.properties.id);
+    else this.cb.placeClick?.({ lngLat: e.lngLat, point: e.point, hit, touch: this.pointerType === 'touch' });
+  }
+
+  // ---- base map and raster overlays ----
+
+  getViewState() {
+    return { base: this.styleKey, overlays: { hillshade: this.rasterOn.hillshade, hydro: this.rasterOn.hydro } };
+  }
+
+  setBase(key) {
     if (!STYLES[key] || key === this.styleKey) return;
+    const sameStyle = STYLES[key] === STYLES[this.styleKey];
+    const wasTerrain = this.styleKey === 'streetTerrain';
     this.styleKey = key;
-    this.map.setStyle(STYLES[key]);
+    if (key === 'streetTerrain') this.rasterOn.hillshade = true;
+    else if (wasTerrain && !this.hillshadeChosen) this.rasterOn.hillshade = false;
+    if (sameStyle) this.applyRaster(); else this.map.setStyle(STYLES[key]);
+    this.handlers.base?.(key);
+  }
+  setStyleKey(key) { this.setBase(key); }
+
+  setOverlayVisible(id, on) {
+    if (!RASTER_OVERLAYS[id]) return;
+    this.rasterOn[id] = !!on;
+    if (id === 'hillshade') this.hillshadeChosen = !!on;
+    this.applyRaster();
+  }
+
+  applyRaster() {
+    for (const [id, def] of Object.entries(RASTER_OVERLAYS)) {
+      if (this.map.getLayer(def.layer)) this.map.setLayoutProperty(def.layer, 'visibility', this.rasterOn[id] ? 'visible' : 'none');
+    }
+  }
+
+  installRaster() {
+    const m = this.map;
+    const before = m.getStyle().layers.find(l => l.type === 'symbol')?.id;
+    for (const [id, def] of Object.entries(RASTER_OVERLAYS)) {
+      if (!m.getSource(def.source)) m.addSource(def.source, rasterSource(def.name));
+      if (!m.getLayer(def.layer)) m.addLayer({ id: def.layer, type: 'raster', source: def.source, layout: { visibility: this.rasterOn[id] ? 'visible' : 'none' }, paint: { 'raster-opacity': def.opacity, 'raster-fade-duration': 0 } }, before);
+    }
   }
 
   setHighlight(key, on) {
@@ -118,7 +258,7 @@ export class MapView {
   }
 
   setExt(id, fc) {
-    this.ext[id] = fc || EMPTY;
+    this.ext[id] = conusOnly(fc) || EMPTY;
     this.map.getSource('ov-' + id)?.setData(this.ext[id]);
   }
 
@@ -152,6 +292,7 @@ export class MapView {
     const m = this.map;
     const add = (name, data) => { if (!m.getSource(name)) m.addSource(name, { type: 'geojson', data }); };
     try {
+      this.installRaster();
       for (const id of Object.keys(EXT_STYLE)) this.addExtLayers(id);
       add('zones', this.data.zones); add('regions', this.data.regions); add('devices', this.data.devices); add('overview', this.data.overview); add('draw', this.data.draw);
       m.addLayer({ id: 'zones-fill', type: 'fill', source: 'zones', filter: AREA, paint: { 'fill-color': zoneColor, 'fill-opacity': ['case', ['==', ['get', 'active'], false], 0.05, 0.2] } });
@@ -191,13 +332,21 @@ export class MapView {
   }
 
   fitTo(bbox, { maxZoom = 14 } = {}) {
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: { top: innerWidth < 700 ? 175 : 150, right: 60, bottom: innerWidth < 700 ? 120 : 60, left: 60 }, maxZoom, duration: reduce ? 0 : 500 });
+    const mobile = innerWidth < 700;
+    this.map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: { ...this.pad, top: Math.max(this.pad.top, 72), bottom: mobile ? 100 : this.pad.bottom }, maxZoom: Math.min(maxZoom, FIT_TO_MAX_ZOOM), duration: reduced() ? 0 : 500 });
+  }
+
+  fitConus({ animate = false } = {}) {
+    this.map.fitBounds(CONUS_FIT, { padding: this.pad, duration: animate && !reduced() ? 500 : 0 });
+  }
+
+  // Room reserved by panels over the map (the device drawer sets `right`), so fits and flights center in the open part.
+  setPadding(p = {}) {
+    this.pad = { ...this.pad, ...p };
   }
 
   flyTo(center, zoom = 15) {
-    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.map.flyTo({ center, zoom: Math.max(this.map.getZoom(), zoom), duration: reduce ? 0 : 500 });
+    this.map.flyTo({ center, zoom: Math.min(MAX_ZOOM, Math.max(this.map.getZoom(), zoom)), padding: this.pad, duration: reduced() ? 0 : 500 });
   }
 
   // Small popup built with text nodes only, so third-party feed text can never inject markup.

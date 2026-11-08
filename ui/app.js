@@ -2,6 +2,8 @@ import {startProductKit} from './product-kit.js';
 startProductKit();
 import {exerciseProperties} from '../domain/exercise.js';
 import './command.css';
+import './command/map.css'; // MAP-V2
+import './command/drawer.css'; // MAP-V2
 let maplibregl;
 const $=s=>document.querySelector(s);
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
