@@ -1,6 +1,6 @@
 # Start here: Ayan's Safe Home handoff
 
-November 8 public-weather update: public hazards, a live NWS News tab, local official alert boundaries, mainland zoom limits and buffered NOAA radar playback. Private device access remains protected. See [Public weather and News](docs/PUBLIC_WEATHER_NEWS.md) and WORKLOG for release evidence.
+November 8 public-weather release (PR #48, `6e4df46`, production verified): public hazards, a live NWS News tab, local official alert boundaries, mainland zoom limits and buffered NOAA radar playback. Private device access remains protected. See [Public weather and News](docs/PUBLIC_WEATHER_NEWS.md) and WORKLOG for release evidence.
 
 November 8 homepage/wind update (PR #47, `818fb6b`, production verified): separate corner navigation, profile/avatar menu, larger centered readings, roomier sections and autoplaying blue wind preview. Live Wind adds labeled speeds and local forecast trails; gaps remain unknown. Read [MARKETING.md](docs/MARKETING.md), [MAP_WORLD_VIEWS.md](docs/MAP_WORLD_VIEWS.md) and the latest worklog.
 
