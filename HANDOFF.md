@@ -1,6 +1,6 @@
 # Start here: Ayan's HomeBeacon handoff
 
-November 8 workflow canvas: full dotted workspace, temporary navigation collapse, full available history on the left, top playback controls, event-driven node reveals and finite arrow pulses. Checkpoint explanations expand below the node using cursor-scoped evidence. See [WORKFLOW_CANVAS.md](docs/WORKFLOW_CANVAS.md) and the latest worklog for release verification.
+November 8 workflow canvas (PR #45 merged as `0086310`, production verified): full dotted workspace, temporary navigation collapse, full available history on the left, top playback controls, event-driven node reveals and finite arrow pulses. Checkpoint explanations expand below the node using cursor-scoped evidence. See [WORKFLOW_CANVAS.md](docs/WORKFLOW_CANVAS.md) and the latest worklog for release verification.
 
 November 8 household release (PR #44 merged as `5977037`, production verified): customer household sharing, selected live devices, private addressed invitation links, read-only members, official point weather and regional headlines. Email delivery stays disabled because Ayan deferred sender setup. Email changes end household shares to prevent old access returning. Read [HOUSEHOLDS.md](docs/HOUSEHOLDS.md) and [HOUSEHOLD_CONTEXT_ALERTS.md](docs/HOUSEHOLD_CONTEXT_ALERTS.md).
 
