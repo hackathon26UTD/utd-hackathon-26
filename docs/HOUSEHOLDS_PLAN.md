@@ -1,5 +1,7 @@
 # Household sharing and alerts
 
+Completed in PR #44 (`5977037`), production verified November 8. Email setup deferred by the user; delivery remains disabled. See `docs/verification/HOUSEHOLDS_2026-11-08.md`.
+
 Request: share a home's status with other emails, let recipients choose email updates, and show nearby weather and local news. Existing owner permissions and unknown/stale semantics remain unchanged.
 
 ## Global constraints
