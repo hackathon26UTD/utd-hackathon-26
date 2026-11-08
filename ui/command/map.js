@@ -178,6 +178,12 @@ export function describeOverlayFeature(layer, p = {}) {
   const pick = (...keys) => keys.map(k => p[k]).find(v => v !== undefined && v !== null && v !== '');
   const title = pick('event', 'headline', 'name', 'title', 'place', 'site_name', 'siteName', 'FLD_ZONE') || layer;
   const lines = [];
+  if(p.observed!=null)lines.push('Observed: '+p.observed+' '+(p.observedUnit||''));
+  if(p.forecast!=null)lines.push('Forecast: '+p.forecast+' '+(p.forecastUnit||''));
+  if(p.water_level_m!=null)lines.push('Water level: '+p.water_level_m+' m relative to '+p.datum);
+  if(p.observedAt)lines.push('Observed '+new Date(p.observedAt).toLocaleString());
+  if(p.river_discharge)lines.push('Forecast discharge: '+p.river_discharge.join(', ')+' '+p.unit);
+  if(p.periods?.length){const rows=typeof p.periods==='string'?JSON.parse(p.periods):p.periods;lines.push(...rows.slice(0,3).map(r=>r.startTime+': '+r.temperature+' '+r.temperatureUnit+', '+r.shortForecast));}
   if (layer === 'nfhl') lines.push(p.SFHA_TF === 'T' || p.SFHA_TF === true ? 'Special flood hazard area' : 'Lower mapped flood risk', 'Flood zones describe mapped risk, not damage to a home.');
   if (pick('severity')) lines.push('Severity: ' + pick('severity'));
   if (pick('areaDesc', 'area')) lines.push(String(pick('areaDesc', 'area')).slice(0, 160));

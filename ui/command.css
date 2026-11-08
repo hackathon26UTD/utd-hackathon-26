@@ -314,3 +314,4 @@ fieldset{border:1px solid var(--line);border-radius:4px;padding:10px 14px}.pair{
 
 @media(max-width:400px){.cc.map-only.vertical-shell .cc-hub .tag{display:none}.cc.map-only.vertical-shell .cc-hub .cc-more{margin-left:auto}}
 @media(max-height:500px){.vertical-shell #workspace-menu{overflow-y:auto;overflow-x:hidden;padding-block:8px;scrollbar-width:thin}.vertical-shell .workspace-sidebar-foot{display:none}}
+.data-tool-body{max-width:620px;max-height:75dvh;overflow:auto;line-height:1.6}.response-print{overflow-wrap:anywhere;font:13px/1.6 var(--font-mono,monospace)}.response-print-sheet{display:none}@media print{body.printing-response>*{display:none!important}body.printing-response>.response-print-sheet{display:block!important;background:white;color:black;padding:24px}.response-print-sheet pre{white-space:pre-wrap;font:14px/1.6 sans-serif}}

@@ -1,3 +1,4 @@
+import { EXTRA_LAYERS } from './extra-feeds.js';
 // External layer definitions: where each public feed lives, how it is cached and how it is parsed.
 // Parsers are pure so tests can feed them saved samples. Network goes through the injected `get`.
 import { FeedError } from './feed-error.js';
@@ -188,6 +189,7 @@ const keyOf = (env, name) => env[name] || '';
 
 // scope: 'tile' = 0.25 degree grid, 'cell' = geohash5 cell, 'all' = one document per scopeKey.
 export const LAYERS = {
+  ...EXTRA_LAYERS,
   nfhl: { id: 'nfhl', name: 'FEMA flood hazard zones', scope: 'tile', ttlS: 86400, maxSpan: 0.75, maxTiles: 16, minZoom: 11, attribution: 'FEMA National Flood Hazard Layer',
     fetchMany: arcgis('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28', 'FLD_ZONE,SFHA_TF,ZONE_SUBTY,OBJECTID', pickNfhl, { extra: { maxAllowableOffset: '0.0002' }, pages: 4 }) },
   declarations: { id: 'declarations', name: 'FEMA disaster declarations', scope: 'all', scopeKey: (env) => state(env), ttlS: 86400, attribution: 'OpenFEMA and US Census TIGERweb',

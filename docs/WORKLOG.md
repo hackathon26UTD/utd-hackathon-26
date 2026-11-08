@@ -226,6 +226,12 @@ Final local verification for system integration: merged latest `origin/main` (Ay
 - Refined default chrome leaves 93.0% unobstructed at 1440x960. Previous 97.7% figure describes the first proposal. Added reproducible check script and section 22 with the latest user requirements.
 - Review follow-up: Activity, sample-report transitions and search now stay scoped to the selected scenario. A browser check confirmed hurricane activity references HB-2001 and a selected hurricane device receives the exercise report-age transition.
 
+## 2026-11-07 night: box mesh (Dhruv)
+
+- Request: keep boxes talking when Wi-Fi and cellular are down, relaying box to box until one finds Wi-Fi (Thread was asked about). Thread needs an 802.15.4 radio (ESP32-C6/H2); our ESP32-S3/ESP32 boards do not have one, so the same behaviour is built on ESP-NOW.
+- Added `firmware/common/mesh.h` (encrypted unicast flooding with TTL 5, duplicate suppression, gateway beacons, ACKs routed back to the origin, origin keeps unacknowledged messages and re-sends them, events kept over readings when the buffer is full, time sync from gateways) and `firmware/common/uplink.h` (Wi-Fi, Internet health check, verified HTTPS, SD/RAM queue, message → API conversion). Any box with Internet becomes the gateway; box B can now upload for box A. Protocol v2 adds origin/dest/via/hops/ttl.
+- Provisioning now takes `--box ID=MAC` for 2-8 boxes and gives every box the full device table (any box can upload for any other: documented trade-off). Hub accepts any box id and shows hops/gateway.
+- Known limits: one shared channel (hotspot's when visible, else 1); ESP-NOW ~100–200 m per hop; gateway duplicate window is in RAM.
 ## 2026-11-07 | HomeBeacon homepage simplification
 - Replaced the long animated neighborhood homepage with one clear introduction, a single Open demo action, an interactive example home record, and a short explanation of recording, local history and operator review. Household and operator routes remain separate.
 - The four manual example states keep unknown readings and unresolved water alerts visible. The page labels its fictional data and simulated hardware behavior. Removed automatic playback, decorative illustrations, duplicate maps and repeated feature sections.
@@ -276,12 +282,6 @@ Brev's direct-host copy endpoint timed out; proxy SSH reached the actual kvm/sys
 
 Real layer follow-up: the first call returned valid fenced JSON with trailing whitespace, rejected by the existing parser. Trimmed outside whitespace before its existing fence/JSON parsing; all filter and evidence-ID validation remains unchanged. Regression/focused checks5/5 pass. Actual model-backed layer now returns HTTP200, water criterion and the one correct fictional device. No Atlas records were used or modified. Publishing the verified integration to the preview next.
 
-## 2026-11-07 night: box mesh (Dhruv)
-
-- Request: keep boxes talking when Wi-Fi and cellular are down, relaying box to box until one finds Wi-Fi (Thread was asked about). Thread needs an 802.15.4 radio (ESP32-C6/H2); our ESP32-S3/ESP32 boards do not have one, so the same behaviour is built on ESP-NOW.
-- Added `firmware/common/mesh.h` (encrypted unicast flooding with TTL 5, duplicate suppression, gateway beacons, ACKs routed back to the origin, origin keeps unacknowledged messages and re-sends them, events kept over readings when the buffer is full, time sync from gateways) and `firmware/common/uplink.h` (Wi-Fi, Internet health check, verified HTTPS, SD/RAM queue, message → API conversion). Any box with Internet becomes the gateway; box B can now upload for box A. Protocol v2 adds origin/dest/via/hops/ttl.
-- Provisioning now takes `--box ID=MAC` for 2-8 boxes and gives every box the full device table (any box can upload for any other: documented trade-off). Hub accepts any box id and shows hops/gateway.
-- Known limits: one shared channel (hotspot's when visible, else 1); ESP-NOW ~100–200 m per hop; gateway duplicate window is in RAM.
 
 ### November 7, 8:30 PM Central — Brev preview deployment verified
 
@@ -312,3 +312,17 @@ Adyaan requested a vertical navigation, then provided an ARGUS screenshot and sp
 Implemented a 56px header, actual Kit section-menu sidebar with persistent 196/64px expanded/collapsed states, 8px canvas margins and retained MapLibre map. Responsive sidebar expansion overlays the mobile canvas; short windows scroll navigation internally. Workspace transitions fade out then in, cancel stale switches and honor reduced motion. Map resizing and selected-home anchoring now use the actual canvas dimensions. The right NVIDIA view builder and chrome-free homepage map remain intact. Review caught and corrected stale Demo continuations and keyboard focus after opening a device.
 
 Verification: 281 tests pass, 39 focused command checks pass, production build and whitespace checks pass. Initial sandbox test invocation could not bind MongoDB's local port; reran with local-service permission. Wrangler's log path was moved to writable temporary storage; the existing unenv warning remains. Browser checks covered desktop expansion/collapse, rapid workspace switching, Overview, device filtering/selection and focus, 390px mobile navigation and view builder, 844x390 short-window navigation, embedded map chrome and overflow. Production merge/deployment and exact-host verification follow this entry.
+
+## 2026-11-07 | Ayan | Production data organization and operations
+- Request: label MongoDB input/history/averages, integrate and refresh government feeds, support board REST changes, print simulated responder routing messages and show registered Google location imagery.
+- Cross-checked main/mesh firmware and PR #26. Integrated its green-tested redesign locally, preserving both work logs; its original PR was conflicting with newer main. No firmware was rewritten.
+- Added collection catalog, compressed hourly public-source samples (90 days), UTC canonical daily summaries (365 days), source/job status and observed numeric/boolean averages with units/counts/window/insufficient-history flags. Preserved existing collections and raw telemetry TTL; no fabricated climate normals.
+- Added ERCOT, river-discharge forecast, NWS point forecast, NOAA tide and NOAA river guidance adapters. Corrected NOAA geographic bbox requests with explicit EPSG_4326 after inspecting official OpenAPI. Source policies, coverage, stale/needs-key/truncation states remain explicit.
+- Applied additive catalog/index setup to the approved Atlas database and warmed actual public sources. Production has zero registered live boards at this check; no fake telemetry was inserted. EIA, AirNow, FIRMS and Google keys were absent; asked where the team stores them while continuing public-feed work.
+- Prepared a one-minute narrow-credential refresh Worker, encrypted provider settings and a separate scoped worker CI token. Activation/production verification follows deployment; these setup steps alone do not prove scheduled execution.
+- Added live operator location/Google image, observed-average, responder-print and message-poll-setting tools using actual Argus popup/select/details components. Responder preview explicitly says NOT SENT; no contact or dispatch occurs. Polling requests await a matching device-reported revision; physical board behavior remains unverified.
+- Local backend: 278 tests passing. Four real browser tool flows against isolated MongoDB passed automated accessibility/page-error checks. Printed draft visually inspected; no production sample homes were created for these checks. Deployment and final scheduled-run evidence will be appended after verification.
+
+Production release integration: main advanced to `aba449b` (teammate data operations PR #29) during the release checks, so the first merge attempt correctly stopped on conflicts. Preserved the new data command, operation styles and both work logs; rechecking the integrated code before publication.
+
+Integrated verification: all 288 tests and the production build pass after preserving PR #29's data operations. Dialog/overlay review confirms the NVIDIA sidebar and Layers interaction remain intact. No firmware, credential or data migration was performed by this navigation change.

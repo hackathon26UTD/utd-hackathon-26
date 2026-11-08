@@ -96,7 +96,8 @@ export const deviceMessages = (ctx) => run(ctx, ['GET', 'POST'], async (url) => 
   if (ctx.request.method === 'GET') {
     const after = intParam(url, 'after', { def: 0, min: 0, max: Number.MAX_SAFE_INTEGER });
     const limit = intParam(url, 'limit', { def: 3, min: 1, max: 3 });
-    return json(await pullForDevice(db, device, { after, limit, now: ctx.now }));
+    const out=await pullForDevice(db, device, { after, limit, now: ctx.now });
+    return json({...out,...(device.desiredSettings?{configuration:{revision:device.desiredSettings.revision,pollAfterSeconds:device.desiredSettings.pollAfterSeconds}}:{})});
   }
   const b = await readJson(ctx.request);
   return json(await deviceReport(db, device, { messageId: b?.message_id, state: b?.state }, ctx.now));
