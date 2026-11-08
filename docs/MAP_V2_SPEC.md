@@ -1,3 +1,5 @@
+> November 8 workflow update: the Workflow tab is a full dotted workspace with automatic navigation collapse, a left history rail, playback above the canvas and expandable explanations directly below each checkpoint. The older layout/filtering directions below are superseded by [WORKFLOW_CANVAS.md](WORKFLOW_CANVAS.md). Endpoint and risk contracts are unchanged.
+
 # MAP V2 SPEC (single source of truth for builders S, M, D)
 
 > November 8 follow-up supersedes the drawer and zoom details below: selecting a device opens the full workspace with actual Kit main tabs. Conditions lead with power, connection and sensors; explanations are expandable. Workflow fills the workspace. State outlines are bundled Census geometry with complete bounds for click-to-zoom. Device dots appear at national scale with critical dots above normal dots. Minimum zoom is 1.5, with center-only lower-48 constraints so narrow screens can fit the whole region. Public demo place cards use local synthetic context rather than requesting protected operator data. Demo locations now use mapped address anchors; see DEMO_LOCATIONS.md.
