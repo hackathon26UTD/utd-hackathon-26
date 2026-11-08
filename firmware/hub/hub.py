@@ -11,7 +11,7 @@ offline view and a second copy of the record.
 
     python3 hub.py --selftest     # parses sample lines and checks the database, no hardware needed
 """
-import argparse, base64, glob, hmac, html, json, os, sqlite3, subprocess, sys, threading, time
+import argparse, base64, glob, hmac, html, json, os, re, sqlite3, subprocess, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 DB = os.environ.get("HUB_DB", os.path.join(os.path.dirname(os.path.abspath(__file__)), "hub.sqlite"))
@@ -34,7 +34,7 @@ def parse_line(line):
         msg = json.loads(line[3:])
     except json.JSONDecodeError:
         return None
-    return msg if isinstance(msg, dict) and msg.get("box") in ("A", "B") else None
+    return msg if isinstance(msg, dict) and re.fullmatch(r"[A-Z0-9]{1,5}", str(msg.get("box", ""))) else None
 
 
 def store(con, msg):
@@ -90,8 +90,8 @@ def page(con):
 <meta http-equiv=refresh content=3><title>HomeBeacon hub</title>
 <style>body{{font:15px system-ui;margin:16px;background:#111;color:#eee}}section{{background:#1d1d1d;padding:12px;border-radius:8px;margin-bottom:12px}}
 th{{text-align:left;padding-right:12px;color:#aaa;font-weight:400}}.warn{{color:#ff6b6b}}.ok{{color:#6bcf7f}}li{{margin:4px 0}}time{{color:#888}}</style>
-<h1>HomeBeacon neighborhood hub</h1><p>Local view, works without Internet. Silent = no report for 30 s (unknown, not safe).</p>
-{card('A')}{card('B')}<section><h2>Recent events</h2><ul>{ev or '<li>none yet</li>'}</ul></section>"""
+<h1>HomeBeacon neighborhood hub</h1><p>Local view of every box on the mesh; works without Internet. Silent = no report for 30 s (unknown, not safe). <b>hops</b> = boxes a message passed through; <b>gateway</b> = box uploading to the cloud.</p>
+{''.join(card(b) for b in sorted(latest) or ['A'])}<section><h2>Recent events</h2><ul>{ev or '<li>none yet</li>'}</ul></section>"""
 
 
 def make_handler(con, password):
@@ -116,9 +116,12 @@ def selftest():
     ok = parse_line('HB {"box":"B","type":"event","event":"flame.detected"}')
     assert ok and ok["event"] == "flame.detected"
     assert parse_line("[wifi] connecting...") is None
-    assert parse_line('HB {"box":"Z"}') is None and parse_line("HB {broken") is None
+    assert parse_line('HB {"box":"bad id!"}') is None and parse_line("HB {broken") is None
+    assert parse_line('HB {"box":"C","type":"reading","hops":2}')["hops"] == 2
     store(con, ok); store(con, {"box": "A", "type": "reading", "water": True})
-    assert "flame.detected" in page(con) and "Box A" in page(con)
+    store(con, {"box": "C", "type": "reading", "hops": 2, "gateway": "A"})
+    out = page(con)
+    assert "flame.detected" in out and "Box A" in out and "Box C" in out
     print("hub selftest PASS")
 
 
