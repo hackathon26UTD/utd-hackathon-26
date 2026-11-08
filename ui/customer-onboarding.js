@@ -275,7 +275,7 @@ export function onboardingUI({ h, api, state, refresh, renderDevices, say, msgEl
     return a.step === 'confirm' && a.serial && a.code ? confirmStep() : a.step === 'done' ? doneStep() : findStep();
   }
   function addView() {
-    const open = !!state.prefill || state.devices?.length === 0 || state.add.step !== 'find';
+    const open = win.location.hash === '#add-device' || !!state.prefill || state.devices?.length === 0 || state.add.step !== 'find';
     const box = h('section', { id: 'add-box', class: 'add-box' }, ...addBody());
     return h('details', { class: 'card', open, ontoggle: e => { if (!e.target.open) stopScan(); } }, h('summary', null, 'Add my box'), box);
   }

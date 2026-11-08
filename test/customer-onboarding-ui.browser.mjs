@@ -265,3 +265,11 @@ test('expired login stops device polling; malformed QR is removed before login',
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
+
+
+test('new signup destination and Add device shortcut open the pairing form', async()=>{
+ const first=await setup({signed:true,devices:[],fragment:'#add-device'});
+ await expect(first.page.locator('#add-device details')).toHaveAttribute('open','');await first.context.close();
+ const existing=await setup({signed:true,devices:[box()]});
+ await existing.page.getByRole('link',{name:'Add device',exact:false}).click();await expect(existing.page.locator('#add-device details')).toHaveAttribute('open','');await existing.context.close();
+});

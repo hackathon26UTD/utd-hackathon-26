@@ -78,6 +78,8 @@ const run = Date.now().toString(36);
 
 async function post(path, body) {
   const r = await fetch(BASE + path, { method: 'POST', redirect:'error',signal:AbortSignal.timeout(15000),headers: { 'Content-Type': 'application/json', 'X-Device-Key': dev.deviceKey }, body: JSON.stringify(body) });
+  // Drain each response before reusing the host's HTTP connection. Never replay an uncertain write.
+  await r.arrayBuffer();
   if (r.ok) sent++; else failed++;
   return r.status;
 }
@@ -109,7 +111,7 @@ if(hub){
   while(Date.now()<deadline){
     const readings=readHub(opt('adb')||'adb',opt('serial'));
     const status=await post('/api/ingest',{readings});
-    if(status!==202)throw Error('Write not confirmed; stopped for review');
+    if(status!==202)throw Error(`Write not confirmed (HTTP ${status}); stopped for review`);
     console.log(`${new Date().toISOString()} controller readings accepted: ${readings.length}`);
     await new Promise(resolve=>setTimeout(resolve,HEARTBEAT_MS));
   }
