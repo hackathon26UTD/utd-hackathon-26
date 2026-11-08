@@ -15,14 +15,15 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 - **Selection opens an expandable card anchored to the selected house**, not a permanent side panel or a separate default device screen. Exact answer to the selection question, November 7.
 - **The compact card shows status, why the house needs attention, and when it last reported.** Sensor details/history/logs/actions follow on expansion.
 - **Disaster regions are the default visual priority; individual devices appear as the operator zooms in.** Do not open on a wall of house markers.
+- **Open on a U.S. disaster overview, then move into regions and neighborhoods.** The target is national, not a Dallas or Texas default.
 - The experience must feel animated, dynamic and modern while remaining operationally useful.
 - Use Ayan's actual Argus UI components. A kit import, a gallery or CSS-class decoration is not enough evidence of a component-led product.
 - Inspect what is actually rendered. The cookie experience is explicitly part of this review.
 - First consolidate what we want in this living design document. A teammate will use Astra. Do not silently deploy another redesign before this design is resolved.
 
-### Pending Ayan's answer
+### Remaining design review
 
-- Initial geographic coverage: U.S. overview, Texas, or Dallas-Fort Worth. Asked once; awaiting the answer. Current verified data is Texas-focused and must not be relabeled nationwide.
+The five foundational choices above are locked. Exact visual composition, map style, tool placement, expansion dimensions and motion treatment still need a rendered design review. Backend national coverage remains implementation/research work, not an unanswered user preference.
 
 ### Proposed, not yet approved
 
@@ -151,7 +152,7 @@ Selected-device sensor values are operational evidence, not the rejected fleet-w
 
 ## 6. Region and layer behavior
 
-Ayan chose **disaster regions first, individual devices as you zoom in**. The default is therefore a geographic incident overview, not the current dense scatter of 32 exercise pins. Initial geographic coverage is the next open decision.
+Ayan chose **disaster regions first, individual devices as you zoom in**. The default is therefore a geographic incident overview, not the current dense scatter of 32 exercise pins. The initial view is the U.S. overview Ayan chose. National source coverage still needs verification/building.
 
 ### Semantic zoom
 
@@ -268,8 +269,8 @@ Required implementation verification when that phase starts:
 - Ayan chose an expandable card anchored to the selected house. This supersedes the floating inspector/full-page alternatives.
 - Ayan chose compact-card status, attention reason and last report time.
 - Ayan chose disaster regions first, with individual devices appearing on zoom.
-- Initial geographic coverage is pending.
-- To resolve next: information order within selection; whether area inspection uses the same pattern; initial region and source defaults; which live events deserve attention; mobile tool behavior. Ask progressively, not as a large questionnaire.
+- Ayan chose a U.S. disaster overview, then regional and neighborhood zoom. This supersedes the Texas/DFW default.
+- Design review next: exact visual composition; whether selected areas use the same anchored pattern; source/layer defaults within the chosen national overview; event attention/coalescing; mobile tool fit. The five foundational user choices above are already answered.
 
 This document remains a draft until the pending decisions and visual review are resolved. No production UI change is claimed by writing it.
 
@@ -345,4 +346,48 @@ Astra must show distinct semantics, not just attractive colored polygons:
 3. Operator-drawn operational zones, explicitly owned and editable with audit.
 4. Historical susceptibility/context layers, enabled deliberately and labeled as context.
 
-The first wide view prioritizes disaster regions as Ayan chose. The map may not have trustworthy geometry for every event or dataset. Unsupported coverage is a data limitation, not permission to draw a plausible shape. Choosing a national initial view would require national source/bounds work; the current Texas-focused implementation is not proof that national incident coverage is finished.
+The first wide view prioritizes disaster regions as Ayan chose. The map may not have trustworthy geometry for every event or dataset. Unsupported coverage is a data limitation, not permission to draw a plausible shape. Ayan chose the national initial view. It requires national source/bounds work; the current Texas-focused implementation is not proof that national incident coverage is finished.
+
+
+## 17. National overview: implementation and research requirements
+
+Ayan selected the U.S. overview. Do not downgrade this to a Texas default because existing endpoints are easier to reuse. Keep current regional APIs as working dependencies while adding the necessary national/viewport path.
+
+### Coverage to reconcile
+
+| Current dependency / constraint | Required treatment for the U.S. design |
+| --- | --- |
+| Existing NWS/weather route uses Texas scope and a bounded feature list | Obtain national active-event discovery with explicit completeness/limits, then viewport detail. Do not label the first 100 Texas alerts as all U.S. disasters. |
+| Existing OpenFEMA declaration request is Texas-filtered | National context needs state/county coverage and verified geometry; declarations are not automatically active event footprints. |
+| Earthquake feed and current regional filters | National event discovery with correct event/time semantics; points are not fabricated disaster perimeters. |
+| River/flood data | Fetch by meaningful geography/viewport, with age, limits and gauges/forecast distinctions; do not request every detailed geometry at street resolution on startup. |
+| ERCOT/EIA examples | ERCOT is regional grid context. A Texas grid value is not a nationwide or neighborhood power-outage measurement. Expand only from actual source coverage. |
+| AirNow/FIRMS/model keys missing in checked runtime | Show unavailable/needs setup. Do not synthesize nationwide layers or call unknown coverage clear. |
+| Current bounded device summaries | National overview needs server-side spatial aggregation and viewport-scoped detail. Do not silently drop devices beyond a limit and present the result as full coverage. |
+| Existing synthetic exercise properties are centered in DFW | National design examples need separately labeled regional fixtures or real public geometry; they are not evidence of deployed national boxes. |
+
+### National-to-house progression
+
+```text
+U.S. incident/hazard overview
+    -> select or zoom to a disaster region
+        -> compare neighborhoods and reported-condition clusters
+            -> reveal street-level device markers
+                -> select a house
+                    -> compact anchored card
+                        -> expand evidence, history and actions
+```
+
+Alaska/Hawaii and any supported additional jurisdictions must have an intentional navigation and coverage treatment; do not silently omit them while claiming complete U.S. coverage. Exact initial projection/extent is a design review item. National discovery is not a claim to monitor every house or every hazard.
+
+Use cluster/aggregation detail appropriate to zoom, geographic request bounds, cache age and request limits. The map must remain responsive while sources load independently. A missing source must not block viewing other available evidence or be confused with no incidents.
+
+### Useful next validation questions for the teammate
+
+- Which official geometries reliably represent active events, versus forecasts, susceptibility or historical declarations?
+- What national overview can be truthfully built from the currently available public/keyed sources?
+- Which endpoints are still Texas-limited, truncated or unconfigured, and what exact national query/aggregation replaces that limit?
+- At each zoom/density level, what is visible and selectable, with keyboard equivalents?
+- How does the anchored card behave at map edges, on mobile, during a burst of reports and while the operator is typing?
+
+Do not report the national UI complete until actual current-state data and rendered behavior prove it.

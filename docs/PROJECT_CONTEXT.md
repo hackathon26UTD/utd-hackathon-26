@@ -1,6 +1,6 @@
 # HomeBeacon current project context
 
-> Design correction: Ayan rejected the current command layout. The evolving [map-only contract](design/COMMAND_CENTER_MAP_ONLY.md) locks a full map with tools on demand and expandable cards anchored to selected houses. No redesign acceptance is implied by the previous release.
+> Design correction: Ayan rejected the current command layout. The evolving [map-only contract](design/COMMAND_CENTER_MAP_ONLY.md) locks a U.S. disaster-region-first map with tools on demand, devices revealed on zoom, and expandable cards anchored to selected houses. Compact cards show status, attention reason and last report time. No redesign acceptance is implied by the previous release.
 
 
 > Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
