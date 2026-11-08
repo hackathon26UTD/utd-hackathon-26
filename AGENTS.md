@@ -1,5 +1,9 @@
 # Project instructions
 
+## Git attribution
+
+Preserve the actual human author's Git identity and credit human contributors accurately. Commit authors, committers and co-authors must reflect actual human contributors; omit generated-by footers and session links. Do not misrepresent development methods. Keep product integration documentation and third-party license notices intact.
+
 ## Shared context and logs
 
 Before changing this project, read `docs/PROJECT_CONTEXT.md` and the recent entries in `docs/WORKLOG.md`. Inspect live repo/provider state when consequential; history can be stale.

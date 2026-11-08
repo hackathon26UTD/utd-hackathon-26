@@ -19,6 +19,14 @@ A useful handoff includes the problem, changed behavior, touched contract, branc
 
 ## Team records
 
+### November 8 history update
+
+The GitHub branch histories were rewritten on November 8 to remove development-tool co-author trailers. Human authors, timestamps, file snapshots and merge relationships were preserved. Historical commit IDs changed; signatures attached to rewritten commits cannot remain valid. Old PR records may retain earlier commit copies.
+
+If your clone predates this update, save any uncommitted work and use a fresh clone before pushing. Bring over only your new work. Do not merge an old local branch into the rewritten history, which would reintroduce the removed trailers. The owner retained a local pre-rewrite bundle and old-to-new commit map for recovery; these are not published to GitHub.
+
+Commit attribution should credit people accurately. Local development-tool settings disable automatic commit and PR bylines. Product integration and third-party license documentation remains intact.
+
 [Architecture](ARCHITECTURE.md) describes shared boundaries. [Development](DEVELOPMENT.md) covers local work and checks. [Operations](OPERATIONS_RUNBOOK.md) covers release responsibility. [WORKLOG.md](WORKLOG.md) is the chronological evidence trail; [CHANGELOG.md](../CHANGELOG.md) is the short release history.
 
 Private contacts remain in the existing private contact document. Do not copy them into public pages or send messages simply because an address is available. Recheck current GitHub/Atlas roles before access changes; old invitation/membership observations are not proof of current status.
