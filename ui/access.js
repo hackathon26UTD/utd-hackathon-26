@@ -1,3 +1,4 @@
+import {brandNode} from './brand.js';
 const h = (tag, attrs = {}, ...children) => {
   const node = document.createElement(tag);
   for (const [key,value] of Object.entries(attrs)) {
@@ -59,7 +60,7 @@ export function accessView({mode = 'signup', onCustomer, navigate = url => locat
 }
 
 export async function mountAccess(root, {mode='signup',switchAccount=false}={}) {
-  const brand=h('a',{class:'access-brand',href:'/'},'Safe Home');
+  const brand=h('a',{class:'access-brand',href:'/'},brandNode());
   const main=h('main',{id:'main',class:'account-page'},brand,h('p',{role:'status'},'Opening your dashboard…'));
   root.replaceChildren(main);
   try{
