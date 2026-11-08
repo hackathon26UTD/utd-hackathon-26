@@ -18,8 +18,11 @@
 //     into D7 (Uno Q D1 TX -> XIAO D7, GND -> GND). Local water/sound/buzzer pins are then unused.
 #define USE_UNOQ         1
 #define UNOQ_RX_PIN     44   // D7
+#define UNO_WATER_WET_RAW 150  // Uno Q raw water >= this = wet (measured ~293 in water, ~0 dry)
+#define UNO_WATER_DRY_RAW  80  // once wet, stays wet until raw drops below this (no flicker)
 #define UNOQ_STALE_MS  5000  // Uno Q readings older than this are reported as "not measured"
 
+#define USE_WIFI         0   // 0: never join Wi-Fi; mesh stays on FALLBACK_CHANNEL and the laptop uploads over USB
 #define USE_MAINS_SENSE  1   // Power MB fixed 3.3 V pin -> D3 (wall power present = ~3300 mV)
 #define USE_SOUND        0
 #define USE_CAMERA       0   // off: privacy, power and demo risk outweigh a photo nobody sees (set 1 to re-enable)
