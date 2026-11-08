@@ -184,7 +184,10 @@ export async function pullForDevice(db, device, { after = 0, limit = 3, now = ne
 /** 10 s while an urgent message is open for the device, otherwise 30 s. */
 export async function pollInterval(db, deviceId, now = new Date()) {
   const urgent = await db.collection('message_deliveries').countDocuments({ deviceId, severity: 'urgent', state: { $in: LIVE_STATES }, expiresAt: { $gt: now } });
-  return urgent ? 10 : 30;
+  if(urgent)return 10;
+  const device=await db.collection('devices').findOne({_id:new ObjectId(String(deviceId))},{projection:{'desiredSettings.pollAfterSeconds':1}});
+  const seconds=device?.desiredSettings?.pollAfterSeconds;
+  return Number.isInteger(seconds)&&seconds>=10&&seconds<=300?seconds:30;
 }
 
 /** How many queued messages the device has not pulled yet. Used by the ingest hook. */
