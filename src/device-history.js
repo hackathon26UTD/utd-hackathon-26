@@ -1,5 +1,6 @@
 // Retained canonical history. Never a replacement for fixed hazard rules.
 import { ObjectId } from 'mongodb';
+import {localDeviceHistory} from './device-history-sync.js';
 import { HttpError, json } from './http.js';
 import { withDb } from './db.js';
 import { opsAuth } from './live-api.js';
@@ -121,7 +122,7 @@ export async function deviceHistory(db, id, { days = 365, now = new Date() } = {
     m.mean /= m.count;
     m.status = m.count >= 30 && m.lastObservedAt - m.firstObservedAt >= 2 * DAY ? 'observed_reference' : 'insufficient_history';
   }
-  return { days, daily: rows.map(r => ({ day: r.day, metrics: safeMetrics(r.metrics) })), baseline: {
+  return { days, local: await localDeviceHistory(db,device._id), daily: rows.map(r => ({ day: r.day, metrics: safeMetrics(r.metrics) })), baseline: {
     status: Object.values(metrics).some(m => m.status === 'observed_reference') ? 'observed_reference' : 'insufficient_history',
     note: (blocked ? 'An unresolved critical incident excludes this device from baseline use. ' : '') + note, metrics,
   } };

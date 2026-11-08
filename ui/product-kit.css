@@ -22,3 +22,5 @@ html[data-hb-motion=reduce] *,html[data-hb-motion=reduce] *::before,html[data-hb
 .hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill).critical{color:var(--kit-bad)}
 .hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill):is(.watch,.elevated){color:var(--kit-warn)}
 .hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill).normal{color:var(--kit-ok)}
+
+.kit .history-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px}.kit .history-table th,.kit .history-table td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line,#ddd);white-space:nowrap}.profile-photo-settings{margin:20px 0 32px}
