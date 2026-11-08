@@ -213,3 +213,10 @@ Ayan selected the U.S. disaster overview, then regions and neighborhoods. All fi
 - Checked ten desktop/mobile states: no automated accessibility violations, page errors or horizontal overflow. Actual clicks verified P3 assignment and stored session state. Zoom reveals device dots. Fixed dropdown closure caused by container scrolling and mobile control/attribution/card collisions after rendered review.
 - Refined default chrome leaves 93.0% unobstructed at 1440x960. Previous 97.7% figure describes the first proposal. Added reproducible check script and section 22 with the latest user requirements.
 - Review follow-up: Activity, sample-report transitions and search now stay scoped to the selected scenario. A browser check confirmed hurricane activity references HB-2001 and a selected hurricane device receives the exercise report-age transition.
+
+## 2026-11-07 night: box mesh (Dhruv)
+
+- Request: keep boxes talking when Wi-Fi and cellular are down, relaying box to box until one finds Wi-Fi (Thread was asked about). Thread needs an 802.15.4 radio (ESP32-C6/H2); our ESP32-S3/ESP32 boards do not have one, so the same behaviour is built on ESP-NOW.
+- Added `firmware/common/mesh.h` (encrypted unicast flooding with TTL 5, duplicate suppression, gateway beacons, ACKs routed back to the origin, origin keeps unacknowledged messages and re-sends them, events kept over readings when the buffer is full, time sync from gateways) and `firmware/common/uplink.h` (Wi-Fi, Internet health check, verified HTTPS, SD/RAM queue, message → API conversion). Any box with Internet becomes the gateway; box B can now upload for box A. Protocol v2 adds origin/dest/via/hops/ttl.
+- Provisioning now takes `--box ID=MAC` for 2-8 boxes and gives every box the full device table (any box can upload for any other: documented trade-off). Hub accepts any box id and shows hops/gateway.
+- Known limits: one shared channel (hotspot's when visible, else 1); ESP-NOW ~100–200 m per hop; gateway duplicate window is in RAM.
