@@ -44,7 +44,7 @@ html[data-hbkit-theme=dark] body.kit:has(#customer),html[data-hbkit-theme=dark] 
 body:has(#customer){background:#fff!important}html[data-hbkit-theme=dark] body:has(#customer){background:#171717!important}
 #customer .box-overview{background:transparent!important}
 #customer .box-visual{isolation:isolate;--model-grid-line:rgba(38,38,38,.045);--model-grid-dot:rgba(38,38,38,.1)}
-#customer .box-visual::before{content:'';position:absolute;inset:6% 5% 12%;z-index:0;pointer-events:none;background-image:radial-gradient(circle at 1px 1px,var(--model-grid-dot) .7px,transparent 1px),linear-gradient(to right,var(--model-grid-line) 1px,transparent 1px),linear-gradient(to bottom,var(--model-grid-line) 1px,transparent 1px);background-size:28px 28px;background-position:center;opacity:.5;mask-image:radial-gradient(ellipse at 50% 50%,#000 0%,rgba(0,0,0,.45) 40%,transparent 72%)}
+#customer .box-visual::before{display:none}
 #customer .enclosure-stage{position:relative;z-index:1}#customer .model-status{z-index:2}
 html[data-hbkit-theme=dark] #customer .box-visual{--model-grid-line:rgba(255,255,255,.07);--model-grid-dot:rgba(255,255,255,.16)}
 html[data-hbkit-theme=dark] #customer .vital-circle{background:#33211f;border-color:#6b403b;color:#ff9b92}
