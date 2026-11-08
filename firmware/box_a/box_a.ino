@@ -113,7 +113,8 @@ int readWaterRaw() {
 void sampleSensors() {
 #if USE_UNOQ
   cur.unoValid = unoFresh(); cur.waterValid = cur.unoValid;
-  if (cur.unoValid) { cur.water = uno.water; cur.waterRaw = uno.waterRaw; cur.flame = uno.flame; cur.flameRaw = uno.flameRaw; cur.tilt = uno.tilt; }
+  // Water: box A applies its own cutoff with hysteresis to the Uno Q's raw value (wet readings sat at ~293, right at the Uno's 300 cutoff, and flickered).
+  if (cur.unoValid) { cur.water = cur.water ? uno.waterRaw >= UNO_WATER_DRY_RAW : uno.waterRaw >= UNO_WATER_WET_RAW; cur.waterRaw = uno.waterRaw; cur.flame = uno.flame; cur.flameRaw = uno.flameRaw; cur.tilt = uno.tilt; }
 #else
   cur.waterRaw = readWaterRaw(); cur.water = cur.waterRaw >= WATER_WET_RAW;
 #endif
@@ -317,7 +318,8 @@ void setup() {
   mesh::begin(MY_NODE_ID, NODES, NODE_COUNT, ESPNOW_PMK, ESPNOW_LMK);
   const MeshNodeCfg *historyNode = mesh::nodeCfg(MY_NODE_ID);
   local_history::begin({historyFlags, false, SHAKE_MILLI_G, SOUND_HITS_ALARM}, historyNode ? historyNode->deviceId : nullptr);
-  uplink::begin(WIFI_SSID, WIFI_PASS, API_BASE, sdOk, FALLBACK_CHANNEL);
+  uplink::usbGateway = !USE_WIFI;  // laptop uploads over USB (scripts/boxes-to-dashboard.mjs)
+  uplink::begin(USE_WIFI ? WIFI_SSID : "", WIFI_PASS, API_BASE, sdOk, FALLBACK_CHANNEL);
 
   Serial.printf("boot #%u | sd=%d cam=%d rtc=%d mpu=%d oled=%d mesh=%d (%d boxes) | MAC %s\n", mesh::bootCount, sdOk, camOk, rtcOk, mpuOk, oledOk, mesh::ready, NODE_COUNT, WiFi.macAddress().c_str());
   printHelp();

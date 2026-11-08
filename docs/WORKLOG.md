@@ -790,3 +790,9 @@ Changes: `scripts/boxes-to-dashboard.mjs` reads box A's `HB {json}` serial lines
 Verification: the user dipped the water sensor → box A `water.detected` 201, readings/telemetry 202; the live command center showed box A "Immediate review / critical / Water detected indoors" with an open flood incident; box B "Reporting / normal" via mesh (0 hops into box A). Box B went silent once (box A raised `box_B.silent`); a reset brought it back.
 
 Open: box A Wi-Fi is not working (laptop is the gateway; say so to judges); the flame sensor reads true in ambient light (turn the pot down); the Uno Q buzzer fix is not flashed.
+
+## November 8, 2026, ~11:45 CST — box A as USB gateway, water hysteresis (Dhruv)
+
+Box A's Wi-Fi retries (reasons 201/36) pulled its radio off mesh channel 1 for ~25 s each, so box B kept going silent. New `USE_WIFI 0` in box A: never joins Wi-Fi, stays on the fallback channel, and `uplink::usbGateway` makes it announce itself as the mesh gateway (the laptop uploads over USB via `scripts/boxes-to-dashboard.mjs`). Without that flag box B reported "gateway: none heard" and held its 48 pending messages. Water from the Uno Q flickered (raw 293 in water vs. the Uno's 300 cutoff); box A now applies its own cutoff: wet at raw ≥150, stays wet until <80. A raw 0 reading once traced to a loose A0 wire.
+
+Verified on hardware: box A flashed; water dip → `water.detected` 201 and steady `water_detected=true`; tilt forwarded; box B `box.boot` and heartbeats → 202 through box A after the gateway fix. Set `USE_WIFI 1` again once box A can join Wi-Fi.

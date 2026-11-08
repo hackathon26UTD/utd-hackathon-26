@@ -16,6 +16,7 @@ constexpr uint32_t WIFI_RETRY_MS = 30000, UPLOAD_RETRY_MS = 4000, HEALTH_MS = 20
 constexpr int RAM_Q = 40;
 
 const char *ssid, *pass, *apiBase;
+bool usbGateway = false;  // true: a computer on USB uploads for this box, so it acts as the mesh gateway without Wi-Fi
 uint8_t fallbackChannel = 1;
 bool useSd = false, apiHealthy = false;
 uint32_t lastWifiTry = 0, lastUploadTry = 0, lastHealth = 0, lastOk = 0;
@@ -141,6 +142,11 @@ bool enqueueMsg(const MeshMsg &m) {
 
 // ── Wi-Fi ──
 void connect() {
+  if (!ssid || !*ssid) {  // Wi-Fi disabled: stay on the mesh channel full time (e.g. a laptop is the gateway over USB)
+    esp_wifi_set_promiscuous(true); esp_wifi_set_channel(fallbackChannel, WIFI_SECOND_CHAN_NONE); esp_wifi_set_promiscuous(false);
+    Serial.printf("[wifi] disabled; mesh on channel %u\n", fallbackChannel);
+    return;
+  }
   Serial.println("[wifi] connecting...");
   // Join on a quiet radio: no ESP-NOW transmissions, no promiscuous channel pinning, and no
   // background auto-reconnect racing our own retry/channel logic (seen as reason 2/201 loops).
@@ -172,7 +178,7 @@ void connect() {
 }
 
 void loop() {
-  if (!wifiUp() && millis() - lastWifiTry > WIFI_RETRY_MS) { lastWifiTry = millis(); connect(); }
+  if (ssid && *ssid && !wifiUp() && millis() - lastWifiTry > WIFI_RETRY_MS) { lastWifiTry = millis(); connect(); }
   if (!wifiUp()) apiHealthy = false;
   // Internet check: Wi-Fi can be up with no Internet (hotspot with mobile data off).
   if (wifiUp() && millis() - lastHealth > HEALTH_MS) {
@@ -180,7 +186,7 @@ void loop() {
     apiHealthy = request("GET", "/api/health", "", nullptr) > 0;  // any HTTP answer = our API is reachable
   }
   drain();
-  mesh::setOnline(online());
+  mesh::setOnline(usbGateway || online());
 }
 
 void begin(const char *s, const char *p, const char *base, bool sd, uint8_t fallbackCh) {
