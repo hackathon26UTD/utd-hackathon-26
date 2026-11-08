@@ -52,3 +52,4 @@ for (const mobile of [false, true]) {
 await fs.writeFile("work/refined-audit.json", JSON.stringify(results, null, 2));
 console.log(JSON.stringify(results));
 await b.close();
+if(results.some(r=>r.errors?.length||r.issues?.length||r.overflow||('stored' in r&&r.stored!=='3')||(r.state==='hurricane'&&r.visibleDots!==0)||(r.state==='neighborhood'&&r.visibleDots===0)))process.exitCode=1;
