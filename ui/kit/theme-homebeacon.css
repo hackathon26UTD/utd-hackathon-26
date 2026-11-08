@@ -1,5 +1,5 @@
 /* ===========================================================================
- * HomeBeacon theme for the vendored ARGUS UI kit. GENERATED:
+ * Safe Home theme for the vendored ARGUS UI kit. GENERATED:
  *   node ui/kit/tools/make-theme.mjs
  * Do not hand-edit tokens here; edit CORE in the generator and re-run.
  *
@@ -459,7 +459,7 @@ body.kit-body:not(.light-mode) {
     color: #edf3ef;
 }
 
-/* Hard-coded font families in the vendored sheets, restated with the HomeBeacon faces. */
+/* Hard-coded font families in the vendored sheets, restated with the Safe Home faces. */
 /* was 'Fraunces', 'Tiempos', Georgia, serif (kit.css) */
 .kit .kit-head__title {
     font-family: var(--font-display);

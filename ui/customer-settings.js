@@ -196,7 +196,7 @@ export function customerSettings({ h, api, state, refresh, enter }) {
     h(
       "p",
       null,
-      "Add HomeBeacon as a custom MCP connection in your assistant, then sign in here to approve access.",
+      "Add Safe Home as a custom MCP connection in your assistant, then sign in here to approve access.",
     ),
     h("code", { class: "copy-value" }, mcpUrl),
     button("Copy connection URL", async () => {
@@ -265,7 +265,7 @@ export function customerSettings({ h, api, state, refresh, enter }) {
       h(
         "p",
         { class: "fine" },
-        "Stored encrypted on HomeBeacon. Only your account can use it. NVIDIA usage may count toward your provider allowance.",
+        "Stored encrypted on Safe Home. Only your account can use it. NVIDIA usage may count toward your provider allowance.",
       ),
     ],
     "Save NVIDIA key",

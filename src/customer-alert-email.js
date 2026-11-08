@@ -41,7 +41,7 @@ export function renderCustomerAlertEmail(input={}) {
   const url=customerLink(input.customerUrl);
   const heading=(simulation?'EXERCISE: ':'')+title;
   return {
-    subject:'HomeBeacon: '+heading,
+    subject:'Safe Home: '+heading,
     text:[heading,...rows.map(([key,value])=>`${key}: ${value}`),disclaimer,`Review your home: ${url}`].join('\n\n'),
     html:`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(heading)}</title></head><body style="font-family:Arial,sans-serif;line-height:1.5;color:#17241d;max-width:560px;margin:32px auto;padding:20px"><h1 style="font-size:24px">${escape(heading)}</h1><dl>${rows.map(([key,value])=>`<dt style="font-weight:bold;margin-top:12px">${escape(key)}</dt><dd style="margin:0">${escape(value)}</dd>`).join('')}</dl><p>${escape(disclaimer)}</p><p><a href="${escape(url)}">Review your home</a></p></body></html>`,
   };

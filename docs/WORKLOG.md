@@ -517,3 +517,14 @@ Final lifecycle check: closing an expanded checkpoint now ignores queued detail-
 
 
 Workflow release complete: PR #45 merged as `00863106c4c3429c957e840506bdb3520c751e40` from verified feature head `28e5373`. Preview run `42468838808` succeeded at `https://a91a168d.utd-hackathon-26.pages.dev`; exact asset and assembled Chrome checks passed. Production run `42469054959` succeeded at `https://159264ac.utd-hackathon-26.pages.dev`. All 13 checked production application/style/shared assets match the built release. Public routes and database readiness pass; anonymous device-timeline and household endpoints remain 401. Actual production Chrome checks pass automatic sidebar collapse/restoration, replay, inline explanations, desktop/390px, light/dark and reduced motion, with zero page errors, scoped Axe findings or document overflow. Local suite: 481 existing tests and seven workflow browser cases passed. No hardware or full manual accessibility claim is made. Temporary browser servers are stopped, test-only toolchain link removed, and original checkout's unpublished work preserved. This final evidence update is documentation-only.
+
+
+## November 8, 2026 — Ayan Safe Home naming and organization documentation
+
+Request: call the whole site Safe Home and commit substantial documentation to the organization. Used a separate branch from main `77fa50c`; inspected current PRs and preserved the original checkout's unpublished work.
+
+Changed first-party presentation, HTML/meta titles, source labels, customer/assistant copy, prepared mail copy, SVG wordmarks and the generated share-card PNG. Preserved API/header/cookie/OAuth/MCP/schema/resource identifiers and existing user data. No domain or repository migration and no mail sending. Added brand guidance and a decision record explaining compatibility.
+
+Rebuilt the organization documentation hub, README, architecture, development/setup, product journeys, operations, team guide, current context and next-agent brief. Removed stale living-doc claims that customer signup/sharing and recent integrations were not built. Dated handoffs, older worklog entries and third-party provenance remain historical. Final checks and deployment evidence follow below.
+
+Local naming/documentation checks: build passed; all 481 existing tests passed with no skips; 15 workflow/household browser cases passed. Actual assembled-browser checks found Safe Home titles and no old visible product name across 11 public/account/simulation/gallery routes, plus no document overflow across five phone routes and no page errors. The regenerated kit contrast report passes. New/updated documentation links resolve locally. The 1200×630 share-card PNG was visually reviewed. Live release evidence is still recorded separately after deployment.

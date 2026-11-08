@@ -166,7 +166,7 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
     throw new ClaimFailed();
   }
   const matched = address === undefined ? null : await matchCustomerAddress(address, deps.fetcher);
-  const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName, nickname: nickname || 'My HomeBeacon', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
+  const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName, nickname: nickname || 'My Safe Home', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
   const actor = await customerActor(email);
   const session = db.client.startSession();
   try {
@@ -268,7 +268,7 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
     try { messages = deps.customerMessages ? await deps.customerMessages(db, link.deviceId, now) : []; } catch { messages = []; }
     const help = helpOf.get(link.deviceId);
     out.push({
-      id: link._id, nickname: link.nickname || 'My HomeBeacon', exercise: link.exercise === true,
+      id: link._id, nickname: link.nickname || 'My Safe Home', exercise: link.exercise === true,
       ...base, lastSeen: lastSeen ? new Date(lastSeen).toISOString() : null,
       messages: (messages || []).slice(0, 5).map(m => ({ id: String(m.id), title: String(m.title ?? '').slice(0, 20), body: String(m.body ?? '').slice(0, 80), severity: m.severity, expiresAt: m.expiresAt })),
       help: { status: help?.status || 'none', text: HELP_TEXT[help?.status || 'none'], note: help?.note || '', updatedAt: help?.updatedAt ? new Date(help.updatedAt).toISOString() : null },
@@ -280,7 +280,7 @@ export async function listCustomerDevices(db, { email, now = new Date(), env = {
 // ---------- route handlers ----------
 const run = (ctx, fn) => ctx.db ? fn(ctx.db) : withDatabase(ctx.env, fn);
 const originOk = request => sameOrigin(request) || false;
-const originError = () => reply({ error: 'This request must come from HomeBeacon.' }, 403);
+const originError = () => reply({ error: 'This request must come from Safe Home.' }, 403);
 
 async function signedIn(ctx, db) {
   const session = await readCustomerSession(ctx.request, ctx.env, db);

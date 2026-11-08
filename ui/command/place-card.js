@@ -10,7 +10,7 @@ const SECTIONS = [
   ['weatherNow', 'Weather now'], ['forecast', 'Forecast'], ['alerts', 'Active alerts'], ['floodZone', 'Flood zone'],
   ['gauges', 'River gauges'], ['riverForecast', 'River forecast'], ['tides', 'Tides'], ['quakes', 'Earthquakes'],
   ['fires', 'Fire hotspots'], ['airQuality', 'Air quality'], ['shelters', 'Shelters'], ['declarations', 'Disaster declarations'],
-  ['devices', 'HomeBeacon devices'], ['regionalRisk', 'Regional risk'], ['zones', 'Operator zones'],
+  ['devices', 'Safe Home devices'], ['regionalRisk', 'Regional risk'], ['zones', 'Operator zones'],
 ];
 const STATUS_WORDS = { ok: '', stale: 'Out of date', none: 'Checked, none found', unknown: 'Unknown', not_cached: 'Not loaded yet', needs_key: 'Needs a server key', not_applicable: 'Not applicable here', error: 'Source unavailable' };
 const SEVERITY_WORDS = { critical: 'Critical', elevated: 'Elevated', watch: 'Watch', info: 'Note' };
@@ -173,7 +173,7 @@ export function mountPlaceCard({ map, ctx, mapEl }) {
     const here = mapHere(hit); if (here) body.append(here);
     const near = localNearby(lngLat);
     const sec = el('section', 'pc-sec');
-    const head = el('div', 'pc-sec-head'); head.append(el('h4', 'pc-sec-title', 'HomeBeacon devices'), chip('This map'));
+    const head = el('div', 'pc-sec-head'); head.append(el('h4', 'pc-sec-title', 'Safe Home devices'), chip('This map'));
     sec.append(head);
     if (near.length) for (const { p, d } of near) sec.append(deviceButton({ id: p.id, label: p.name || p.id, status: p.severity, distanceKm: d, lastSeenAgeS: p.lastSeen ? Math.max(0, (Date.now() - Date.parse(p.lastSeen)) / 1000) : null, exercise: !!(ctx.demo || p.simulated) }));
     else sec.append(el('p', 'pc-status', 'None loaded on the map within 8 km. Devices that have not loaded are unknown.'));

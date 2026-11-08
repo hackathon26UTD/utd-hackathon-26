@@ -1,4 +1,6 @@
-# Start here: Ayan's HomeBeacon handoff
+# Start here: Ayan's Safe Home handoff
+
+November 8 naming/documentation update: the website is now **Safe Home**. Read [the team documentation hub](docs/README.md), [brand compatibility](docs/BRAND.md), [product guide](docs/PRODUCT_GUIDE.md), [current architecture](docs/ARCHITECTURE.md) and [operations runbook](docs/OPERATIONS_RUNBOOK.md). Old identifiers remain compatible; dated records below retain their historical wording. Release evidence is in WORKLOG.
 
 November 8 workflow canvas (PR #45 merged as `0086310`, production verified): full dotted workspace, temporary navigation collapse, full available history on the left, top playback controls, event-driven node reveals and finite arrow pulses. Checkpoint explanations expand below the node using cursor-scoped evidence. See [WORKFLOW_CANVAS.md](docs/WORKFLOW_CANVAS.md) and the latest worklog for release verification.
 

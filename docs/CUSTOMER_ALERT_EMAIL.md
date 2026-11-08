@@ -1,6 +1,6 @@
 # Customer alert email groundwork
 
-Presentation-only groundwork for Ayan's HomeBeacon workstream, November 8, 2026. No email provider, recipient lookup, sending, automatic queue/outbox, subscriptions or deliveries are enabled. These previews are synthetic. Box and website history is a subsequent parent task, not implemented here.
+Presentation-only groundwork for Ayan's Safe Home workstream, November 8, 2026. No email provider, recipient lookup, sending, automatic queue/outbox, subscriptions or deliveries are enabled. These previews are synthetic. Box and website history is a subsequent parent task, not implemented here.
 
 ## Parent integration
 

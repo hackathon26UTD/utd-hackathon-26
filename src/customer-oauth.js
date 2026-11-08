@@ -27,7 +27,7 @@ export function metadata(request, protectedResource = false) {
           authorization_servers: [origin],
           scopes_supported: [SCOPE],
           bearer_methods_supported: ["header"],
-          resource_name: "HomeBeacon personal devices",
+          resource_name: "Safe Home personal devices",
         }
       : {
           issuer: origin,

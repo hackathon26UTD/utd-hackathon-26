@@ -11,7 +11,7 @@ try {
     if (command === 'setup') {
       await ensureIndexes(db);
       await setupBeacon(db);
-      console.log('HomeBeacon collections and indexes verified.');
+      console.log('Safe Home collections and indexes verified.');
     } else if (command === 'reconcile') {
       if (!process.argv[3] || process.env.BEACON_INGESTION_PAUSED !== 'true') throw new Error('Pause ingestion and set BEACON_INGESTION_PAUSED=true first');
       await reconcileReceipt(db, process.argv[3]);

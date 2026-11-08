@@ -1,4 +1,4 @@
-// HomeBeacon's additive data model. Legacy /ingest and readings remain intact.
+// Safe Home's additive data model. Legacy /ingest and readings remain intact.
 import { ObjectId } from 'mongodb';
 import { badRequest, HttpError, notFound } from './http.js';
 import { requireAdmin, requireRead, requireDevice, sha256Hex } from './auth.js';
@@ -19,7 +19,7 @@ const FIELDS = ['temperature_c', 'humidity_pct', 'water_detected', 'main_power_a
 
 export async function setupBeacon(db) {
   const { versionArray } = await db.command({ buildInfo: 1 });
-  if (versionArray[0] < 6 || (versionArray[0] === 6 && versionArray[1] < 3)) throw new Error('HomeBeacon requires MongoDB 6.3 or newer');
+  if (versionArray[0] < 6 || (versionArray[0] === 6 && versionArray[1] < 3)) throw new Error('Safe Home requires MongoDB 6.3 or newer');
   const existing = await db.listCollections({ name: 'telemetry' }).next();
   if (!existing) {
     try {
@@ -129,7 +129,7 @@ async function detectIncidents(db, device, t, receiptId) {
 export async function ingestTelemetry(db, device, input, claimedDeviceId) {
   if (String(device._id) !== claimedDeviceId.toLowerCase()) throw new HttpError(403, 'device_id does not match the device key');
   if (!device.homeId || !await db.collection('homes').findOne({ _id: device.homeId })) throw new HttpError(409, 'Assign a home to the device before ingesting');
-  if (!await db.collection('beacon_schema').findOne({ _id: 'v1', ready: true })) throw new HttpError(503, 'HomeBeacon database setup is required');
+  if (!await db.collection('beacon_schema').findOne({ _id: 'v1', ready: true })) throw new HttpError(503, 'Safe Home database setup is required');
   const fingerprintInput = { ...input };
   // A missing device timestamp is stable across retries; receipt preserves the first fallback.
   if (input.clockSource === 'server_fallback') delete fingerprintInput.observedAt;
