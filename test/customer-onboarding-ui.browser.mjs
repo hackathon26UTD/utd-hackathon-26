@@ -127,7 +127,7 @@ test('manual legacy serial warns once, validates code, and preserves errors for 
     await expect(add.locator('input[name=nickname]')).toHaveValue('Kitchen box');
     data.failClaim = false;
     await add.getByRole('button', { name: 'Link my box', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Kitchen box', exact: true })).toBeVisible();
+    await expect(page.locator('#devices').getByRole('heading', { name: 'Kitchen box', exact: true })).toBeVisible();
     assert.deepEqual(calls.filter(c => c.path === '/api/customer/claim').at(-1).body, { serial: 'HB-AAAA-AAFA', code: '012345', nickname: 'Kitchen box', room: 'Kitchen', consent: true, contactName: 'Test Owner' });
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
