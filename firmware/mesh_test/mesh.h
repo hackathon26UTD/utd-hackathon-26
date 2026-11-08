@@ -37,6 +37,7 @@ Node nodes[MAX_NODES]; int nodeCount = 0; int selfIdx = -1;
 char myId[NODE_ID_LEN] = {0};
 uint32_t bootCount = 0, seqCounter = 0;
 bool isOnline = false, ready = false;
+volatile bool txPaused = false;  // set by the uplink while Wi-Fi is joining: ESP-NOW traffic breaks the join handshake
 QueueHandle_t rxq;
 Pending pending[PENDING_MAX];
 struct Seen { uint32_t key; uint32_t ms; } seen[SEEN_MAX]; int seenNext = 0;
@@ -76,6 +77,7 @@ void onSent(const esp_now_send_info_t *, esp_now_send_status_t st) { if (st == E
 void onSent(const uint8_t *, esp_now_send_status_t st) { if (st == ESP_NOW_SEND_SUCCESS) statTxOk++; else statTxFail++; }
 #endif
 void flood(const MeshMsg &m, const uint8_t *exceptMac = nullptr) {
+  if (txPaused) return;  // held messages stay pending and are re-sent after the join
   for (int i = 0; i < nodeCount; i++) {
     if (i == selfIdx || (exceptMac && !memcmp(nodes[i].mac, exceptMac, 6))) continue;
     sendTo(nodes[i].mac, m);

@@ -63,3 +63,5 @@ firmware/*/secrets.*.h
 firmware/mesh_test/mesh_test_config.h
 firmware/.build/
 firmware/.bench-device.json
+firmware/.live-box-a.json
+firmware/.live-box-b.json
