@@ -1,4 +1,4 @@
-/* HomeBeacon kit gallery: renders every standard in the vendored ARGUS UI
+/* Safe Home kit gallery: renders every standard in the vendored ARGUS UI
  * library registry, in every documented state, with the real kit parts.
  * Standalone: needs only kit.js, kit.css, kit-gallery.js, kit-gallery.css.
  *
@@ -48,7 +48,7 @@ import registry from '../vendor/gallery/registry.json';
     var brand = el('div', 'hbg-brand');
     brand.appendChild(el('span', 'hbg-lamp'));
     var bt = el('div', 'hbg-brand__text');
-    bt.appendChild(el('p', 'hbg-eyebrow', 'HomeBeacon UI kit'));
+    bt.appendChild(el('p', 'hbg-eyebrow', 'Safe Home UI kit'));
     bt.appendChild(el('h1', 'hbg-title', 'Every part, every state'));
     brand.appendChild(bt);
     head.appendChild(brand);

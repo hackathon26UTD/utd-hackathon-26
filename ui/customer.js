@@ -1,9 +1,11 @@
+import {emailConfirmation} from './household-email-confirm.js';
+import {householdUI} from './households.js';
 import {openDeviceHistory} from './device-history.js';
 import {mountProfilePhoto} from './profile-photo.js';
 import {customerSettings} from './customer-settings.js';
 import {startProductKit} from './product-kit.js';
 startProductKit();
-// Customer side of HomeBeacon. All text is set with textContent; the server returns an allowlisted view only.
+// Customer side of Safe Home. All text is set with textContent; the server returns an allowlisted view only.
 const root = document.getElementById('customer');
 let photoCleanup = null;
 const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
@@ -30,8 +32,9 @@ async function api(path, method = 'GET', body) {
     const res = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
     let data = null; try { data = await res.json(); } catch { /* empty body */ }
     return { ok: res.ok, status: res.status, data: data || {} };
-  } catch { return { ok: false, status: 0, data: { error: 'Could not reach HomeBeacon. Check your connection and try again.' } }; }
+  } catch { return { ok: false, status: 0, data: { error: 'Could not reach Safe Home. Check your connection and try again.' } }; }
 }
+const households = householdUI({h,api,state});
 function ago(iso) {
   if (!iso) return 'never';
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -79,10 +82,11 @@ function guestView() {
   }); } }, field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Password', 'password', { type: 'password', auto: 'current-password', max: 512 }), h('button', { class: 'primary', type: 'submit' }, 'Sign in'), msgEl('login'));
   const tab = (id, text) => h('button', { type: 'button', id: 'customer-tab-' + id, 'aria-pressed': String(state.tab === id), onclick: () => { state.tab = id; render(); document.getElementById('customer-tab-' + id)?.focus(); } }, text);
   return [
-    h('h1', null, link ? 'Create your HomeBeacon account' : 'Sign in'),
+    h('h1', null, link ? 'Create your Safe Home account' : 'Sign in'),
     h('p', { class: 'muted' }, 'See your device reports and updates from the response team.'),
+    households.guestNotice(),
     h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Sign up'), tab('signin', 'Sign in')),
-    link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add device to connect your HomeBeacon.'),
+    link && h('p', { class: 'fine' }, 'Create your profile. Then choose Add device to connect your Safe Home.'),
     h('section', { class: 'card' }, link ? regForm : inForm),
     link && h('p', { class: 'fine' }, 'No device yet? ', h('a', { href: '/simulations' }, 'Explore simulations'), '. Team operators use ', h('a', { href: '/login?role=operator' }, 'operator sign in'), '.'),
   ];
@@ -121,7 +125,7 @@ function addView() {
 function appView() {
   const settings = customerSettings({h,api,state,refresh,enter});
   const connecting = new URLSearchParams(location.search).has('connect');
-  return [h('h1', null, connecting ? 'Connect your assistant' : 'Your devices'), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), ...(!connecting ? [settings] : [])];
+  return [h('h1', null, connecting ? 'Connect your assistant' : 'Your devices'), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), households.node(), ...(!connecting ? [settings] : [])];
 }
 
 // ---------- actions ----------
@@ -139,6 +143,7 @@ async function refresh() {
   if (r.status === 401) { stop(); state.user = null; state.devices = null; return render(); }
   if (r.ok) { state.devices = r.data.devices || []; state.failures = 0; } else state.failures++;
   renderDevices();
+  households.sync();
 }
 function renderDevices() { const el = document.getElementById('devices'); if (el) el.replaceChildren(devicesView()); }
 function stop() { clearTimeout(state.timer); state.timer = null; }
@@ -157,12 +162,13 @@ async function signOut() { stop(); await api('/api/customer/logout', 'POST'); st
 
 function render() {
   photoCleanup?.(); photoCleanup = null;
-  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'HomeBeacon'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
+  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'Safe Home'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
-    h('p', { class: 'fine' }, 'HomeBeacon shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
+    h('p', { class: 'fine' }, 'Safe Home shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
     h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
-  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, ...(state.user ? appView() : guestView())), foot));
-  if(state.user){const photo=h('details',{class:'card'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
+  root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, emailConfirmation({h,api}), ...(state.user ? appView() : guestView())), foot));
+  households.sync();
+  if(state.user){const photo=h('details',{class:'card',id:'profile',open:location.hash==='#profile'},h('summary',null,'Profile photo'));root.querySelector('main').append(photo);photoCleanup=mountProfilePhoto(photo,{kind:'customer'});}
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.user) refresh(); });
 const first = await api('/api/customer/me');

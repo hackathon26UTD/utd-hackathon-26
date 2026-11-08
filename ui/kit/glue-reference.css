@@ -6,7 +6,7 @@
  * and on .axr in rail.css, in ARGUS wine and neutral grey.
  *
  * Re-declared here on `.kit` (a nearer element than :root, so it wins) from the
- * kit's own tokens, so the references take the HomeBeacon theme in light and
+ * kit's own tokens, so the references take the Safe Home theme in light and
  * dark. Gallery only: kit-reference.css is not part of kit.css.
  * =========================================================================== */
 .kit {

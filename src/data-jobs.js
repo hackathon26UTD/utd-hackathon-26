@@ -1,5 +1,6 @@
 import { LAYERS,refreshLayer } from './feeds.js';
 import { ensureDataStore,materializeDailyStats } from './data-store.js';
+import { refreshHouseholdAlerts } from './household-alerts.js';
 const bboxDefault=[-96.80,32.96,-96.76,33.00];
 export async function ensureSourceRegistry(db,env,{now=new Date()}={}){
  for(const [id,s]of Object.entries(LAYERS))await db.collection('source_registry').updateOne({_id:id},{$set:{name:s.name,origin:s.attribution,cadenceSeconds:s.ttlS,scopeType:s.scope,requiresCredential:s.keyEnv||null,configured:!s.keyEnv||Boolean(env[s.keyEnv]),note:s.note||null},$setOnInsert:{nextDueAt:now,createdAt:now,status:'not_fetched'}},{upsert:true});
@@ -21,5 +22,8 @@ export async function refreshData(db,env,{now=new Date(),limit=3,fetcher,trigger
  const aggregate=await db.collection('source_registry').findOne({_id:'device_daily_stats'});
  if(!aggregate?.nextDueAt||aggregate.nextDueAt<=now){await materializeDailyStats(db,{now});await db.collection('source_registry').updateOne({_id:'device_daily_stats'},{$set:{name:'Device daily statistics',status:'ok',lastSuccessAt:now,nextDueAt:new Date(now.getTime()+3600000)}},{upsert:true});}
  await db.collection('data_job_runs').insertOne({at:now,trigger,outcomes,expiresAt:new Date(now.getTime()+30*86400000)});
- return{at:now,trigger,outcomes};
+ let households;
+ try{households=await refreshHouseholdAlerts(db,env,{now,fetcher});}
+ catch{households={status:'error',message:'Household alerts could not be checked. No delivery claim is made.'};}
+ return{at:now,trigger,outcomes,households};
 }

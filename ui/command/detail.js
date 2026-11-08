@@ -32,6 +32,13 @@ export function mountDetail(ctx) {
   drawer.setAttribute('role', 'region'); drawer.setAttribute('aria-labelledby', 'dr-title');
   ($('.workspace') || document.body).append(drawer);
   const DR = { id: null, tab: 'conditions', explain: null, wf: null, wfSig: '', padded: false };
+  let workflowOpen = false, previousCollapse = false;
+  function workflowMode(open) {
+    if (open === workflowOpen) return;
+    workflowOpen = open;
+    if (open) { previousCollapse = ctx.navigation?.collapsed; ctx.navigation?.setCollapsed(true); }
+    else { if (ctx.navigation?.collapsed) ctx.navigation.setCollapsed(!!previousCollapse); DR.wf?.pause(); }
+  }
 
   async function loadDetail(id, { quiet = false } = {}) {
     if (ctx.demo) { S.detail = { id, state: 'local', data: null }; loadTimeline(id, { quiet }); return; }
@@ -108,6 +115,7 @@ export function mountDetail(ctx) {
     if (asDrawer) $('#workspace-name').textContent = p.name || p.id;
     document.body.classList.toggle('has-drawer', asDrawer);
     if (!asDrawer) {
+      workflowMode(false);
       if (!S.workspaceView) $('#workspace-name').textContent='Map';
       if (DR.padded) { DR.padded = false; setMapPadding(false); }
       DR.explain?.destroy(); DR.wf?.destroy(); DR.explain = DR.wf = null; DR.id = null; DR.wfSig = '';
@@ -144,6 +152,7 @@ export function mountDetail(ctx) {
     ].join(' ');
     setHtml(drawer.querySelector('.dr-chips'), chips);
     const tab = tabKey(); drawer.dataset.tab = tab; if (DR.tab !== tab) { drawer.querySelector('.dr-panels').scrollTop=0; DR.tab=tab; }
+    workflowMode(tab === 'workflow');
     for (const b of drawer.querySelectorAll('[role=tab]')) { const on = b.dataset.tab === tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; }
     for (const el of drawer.querySelectorAll('.dr-panel')) el.hidden = el.id !== 'dr-p-' + tab;
     const tl = timelineFor(p, D, now);

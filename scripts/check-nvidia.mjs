@@ -9,7 +9,7 @@ if (!config.configured) {
   try {
     const result = await nemotronCompletion(env, { messages: [
       { role: 'system', content: 'Call record_probe with status connected. Do not respond in plain text.' },
-      { role: 'user', content: 'This is a synthetic HomeBeacon integration check.' },
+      { role: 'user', content: 'This is a synthetic Safe Home integration check.' },
     ], tools: [{ type: 'function', function: { name: 'record_probe', description: 'Record a synthetic connectivity check.',
       parameters: { type: 'object', properties: { status: { type: 'string', enum: ['connected'] } }, required: ['status'], additionalProperties: false } } }] });
     const call = result.tool_calls[0];

@@ -72,3 +72,7 @@ npm run build
 Setup is additive. Refresh writes actual source caches/history and job outcomes, not fake households. Use `npm run dev:local` and isolated MongoDB for fake sensors/browser tests. Deploy Pages before relying on the scheduler endpoint. Worker deployment is defined by `workers/data-refresh.jsonc`; CI uses the separate account-scoped worker token. Provisioning helpers never print secret values. Check actual scheduled job timestamps and production `/api/ready`, not just a successful upload.
 
 Official source references: [Google Maps Static requirements](https://developers.google.com/maps/documentation/maps-static/get-api-key), [Cloudflare cron triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/), [NOAA CO-OPS datum/time requirements](https://api.tidesandcurrents.noaa.gov/api/prod), [NOAA river guidance OpenAPI](https://api.water.noaa.gov/nwps/v1/docs/). NOAA river bounding boxes require explicit EPSG_4326 for geographic coordinates; sentinel -999 values are null, not zero.
+
+## Household source checks
+
+The customer household view queries NWS point alerts/forecast and fixed regional publisher feeds through a private bounded cache. It never feeds news into device risk. The data refresh job also has an optional household-email sweep, gated off unless a verified sender and signed callback are explicitly configured. Ayan deferred email setup on November 8; normal refresh continues with household delivery disabled. See [HOUSEHOLD_CONTEXT_ALERTS.md](HOUSEHOLD_CONTEXT_ALERTS.md) for limits and source ages.

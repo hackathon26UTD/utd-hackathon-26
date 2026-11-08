@@ -1,4 +1,4 @@
-# HomeBeacon UI kit
+# Safe Home UI kit
 
 The owner's ARGUS UI library, vendored as-is and re-themed. Every part on the public site, command center and customer portal should come from here, not from lookalikes. Live gallery: `/kit.html` (noindex).
 
@@ -59,7 +59,7 @@ Self-hosted from the existing pinned npm dependencies:
 Tokens: `--font-display`, `--font-sans`, `--font-mono`, `--kit-chart-font`. Vendored library sources remain unchanged.
 
 ## Shims
-See PROVENANCE.md. In short: the theme switch, the ARGUS logo images swapped for HomeBeacon art, and token aliases in glue.css. No kit file was edited.
+See PROVENANCE.md. In short: the theme switch, the ARGUS logo images swapped for Safe Home art, and token aliases in glue.css. No kit file was edited.
 
 ## Resync from source
 1. `git -C /Users/ayanbasheer/rion-nexus-worktrees/ui-library pull`, note the new commit.

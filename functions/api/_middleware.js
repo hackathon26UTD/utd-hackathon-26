@@ -20,6 +20,8 @@ export const onRequest=async context=>{
 };
 async function route(context){
   const {request,env}=context;const path=new URL(request.url).pathname;const method=request.method;
+  // Dedicated public context routes never confer operator/device authority.
+  if(['/api/public/feeds','/api/public/overlays','/api/public/news'].includes(path)&&['GET','HEAD'].includes(method))return context.next();
   // 1) public
   if(path==='/api/simulations'&&['GET','HEAD','POST'].includes(method))return context.next();
   if(path==='/api/demo'&&['GET','HEAD'].includes(method))return context.next();

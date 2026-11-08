@@ -1,38 +1,64 @@
-# Development and logging plan
+# Safe Home development
 
-## System investigation workstream
+Current as of November 8, 2026. Start with the repository root, [AGENTS.md](../AGENTS.md), [current context](PROJECT_CONTEXT.md) and the relevant subsystem contract. Use the private organization repository; preserve teammate work.
 
-See [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md). `npm run system:demo` exercises an isolated MongoDB-backed, explicitly simulated four-tool investigation; `npm run nvidia:check` is an opt-in live model check once a private key exists. New operator endpoints expose evidence and persist review checkpoints without modifying the map UI. The next hardware gate is a verified AA power path and measured current draw; reference power policies are not yet wired into sketches. Coordinate with Dhruv before firmware integration and Ayan before adding map controls.
+## Prerequisites and first checkout
 
-## Immediate infrastructure work
+Node 22, npm, Git and an authenticated GitHub CLI are the standard path. The lockfile is authoritative. A local Chrome or Playwright Chromium installation is needed for browser checks. Firmware host tests also need a C++ compiler; transport tests use ArduinoJson headers installed through the documented firmware toolchain.
 
-1. Use the private `hackathon26UTD/utd-hackathon-26` organization repo; bring across the prepared starter and logs through a reviewed PR.
-2. Confirm Atlas organization/project and complete Cloudflare login.
-3. Prepare requested management credentials and document actual permissions/expiration, without logging values. Complete the browser's final credential-creation confirmation if required.
-4. Keep runtime database credentials separate from provider-management tokens. Atlas management keys do not authenticate application database reads/writes.
-5. Select one problem, one user, and one short demo journey before adding application endpoints or tables/collections.
+```sh
+git clone https://github.com/hackathon26UTD/utd-hackathon-26.git
+cd utd-hackathon-26
+npm ci
+npm run build
+```
 
-## Proposed 24-hour build sequence
+Inspect `git status`, fetch origin and review current PRs before editing. Do not reset, stash or overwrite someone else's changes. An isolated Git worktree is useful when a teammate is editing the active checkout. Temporary checkouts can disappear; Git is the durable source, not a session folder.
 
-This is a proposed working sequence, not the official event schedule or assigned team commitments.
+## Disposable local environment
 
-- First 1–2 hours: agree problem, team owners, track rules, hardware availability, one happy-path API contract, and demo success condition.
-- Next 3–5 hours: build one end-to-end path using clearly labeled sample data; deploy early.
-- Middle portion: connect one real sensor/input and the actual data store; add useful history/alerts only if needed for the core journey.
-- Final portion: stop new features, handle main error/empty states, rehearse demo, record backup video, prepare submission and third-party credits.
+```sh
+npm run dev:local
+```
 
-Do not equate a polished dashboard with working hardware or an AI moat. Demonstrate one measured input and one useful resulting action.
+This starts a disposable MongoDB replica set, creates required indexes and starts Pages on `http://127.0.0.1:8788`. Override the port with `PORT=8792 npm run dev:local`. It does not prove an Atlas connection. It uses a local-development admin fallback when none is supplied; never copy that fallback into production or onto a board. The first MongoDB binary download needs network access.
 
-## Team coordination
+The helper reads `.dev.vars` for other settings. Inspect your own configuration privately before using a disposable database with external providers. It does not automatically create a production operator account or seed measured hardware reports. Public simulations require no operator account.
 
-Use small branches and PRs. Keep main working. One owner per workstream; assignments are still pending. Pull/rebase before changes and avoid overwriting another teammate's active files. Check in with done/next/blocked; keep blocker and decision logs current. Do not migrate repos or delete cloud services based only on a tentative plan.
+## Existing private environment
 
-## API/data contract when product is selected
+Use `.env` for CLI/provider credentials and `.dev.vars` for local Pages bindings. `.env.example` lists placeholders, not usable keys. Create a new file from it only when no private file already exists. `npm run access` checks supported access without printing secret values.
 
-Record: endpoint, input validation, authentication, device identity if any, response shape, limits, timeout, owner, storage collection, and error behavior. Label mocks and generated data. Keep ingestion tokens and management tokens distinct. Do not expose an unrestricted administrative credential to devices or frontend code.
+```sh
+npm run build
+npm run dev -- --port 8792
+```
 
-## Ongoing Markdown logging
+Never put environment files in a PR, browser bundle, screenshot or issue. Do not rotate shared production keys to fix a missing local key. The [operations runbook](OPERATIONS_RUNBOOK.md) explains the credential boundaries.
 
-After meaningful work, append date/time (America/Chicago), actor/source, request, actual result, verification, blockers, and next action to WORKLOG.md. Update PROJECT_CONTEXT.md for the current handoff, DECISIONS.md for changes/reversals, ARCHITECTURE.md for real stack choices, and HARDWARE.md for reservations, wiring, and failures.
+## Verification by change
 
-Record identifiers and URLs only when useful; never token values, passwords, database URIs with passwords, cookies, auth headers, private invite URLs, QR credentials, or resume contents. Keep contacts in the private team file. Mark unverified claims, stale inventory, and suggested designs explicitly. Do not rewrite failed or abandoned work as completed.
+```sh
+npm test
+npm run build
+node --test test/workflow-ui.browser.mjs
+node --test test/households-ui.browser.mjs
+```
+
+The browser files run separately from `npm test` and should follow a build. The workflow suite uses actual Argus components and synthetic timelines. The household suite uses disposable browser fixtures. Broader release checks should exercise the assembled Pages app and the changed live routes. `npm run test:db` checks the configured database and is not a disposable unit test.
+
+Several backend tests start a local MongoDB replica set. Supply only a throwaway test database when using test URI overrides. Do not point test variables at the shared live database. Firmware transport tests may skip without the documented local ArduinoJson headers; report skips honestly. Read [firmware testing](../firmware/TESTING.md) for toolchain setup and physical checks.
+
+## Frontend and brand assets
+
+Build before opening the website. Edit first-party modules, styles and kit glue; leave vendored Argus source intact. Fonts are local packages, map tiles are external sources and source attribution remains visible. The brand share-card source is `ui/brand/social-card.html`; regenerate its checked-in PNG with:
+
+```sh
+node scripts/build-brand-assets.mjs
+```
+
+The command uses installed Chrome/Chromium, local fonts and no account credentials. It is a development asset command, not part of the server runtime. Compatibility filenames still use `homebeacon`; see [Brand](BRAND.md).
+
+## Contribution and completion
+
+Keep PRs scoped, explain the resulting behavior, and state actual test results and limits. Do not include secret values, real addresses or private invitation links in review examples. Check the preview, merge through the authorized team workflow, then verify production readiness and changed behavior. Record the result in [WORKLOG.md](WORKLOG.md), refresh affected living docs and add a short [CHANGELOG](../CHANGELOG.md) entry. Never treat a green old workflow as proof of the new release.
