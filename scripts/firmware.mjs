@@ -10,7 +10,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FW = join(ROOT, 'firmware');
 const SKETCHES = [
   { dir: 'box_a', fqbn: 'esp32:esp32:XIAO_ESP32S3:PSRAM=opi' },
-  { dir: 'box_b', fqbn: 'esp32:esp32:esp32:PartitionScheme=huge_app' },
+  { dir: 'box_b', fqbn: 'esp32:esp32:XIAO_ESP32C3:PartitionScheme=huge_app' },
   { dir: 'mesh_test', fqbn: 'esp32:esp32:esp32' },
 ];
 
