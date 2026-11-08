@@ -24,7 +24,7 @@ The exact State Farm event challenge and complete current track inventory remain
 
 - Public marketing homepage `/`, session-aware `/portal`, separate `/login`, public `/demo`, protected `/command-center` and `/profile`.
 - Actual street maps, synthetic exercise isolation, live Mongo summaries, refresh, filters, follow-up notes, source status, NWS polygon context and preview/apply/clear operator views.
-- Operator sign-in/out, profile, password change and single-use recovery-code reset. Shared demo cannot access live data or account writes. Email reset delivery and broader account administration are not implemented.
+- Operator sign-in/out, profile, password change and single-use recovery-code reset. Explicitly provisioned MongoDB accounts with role `operator` can sign in alongside the original configured operator; new account-backed sessions revoke on disablement, deletion, role changes or password changes. Shared demo cannot access live data or account writes. Public operator signup, email reset delivery and an account-management UI are not implemented.
 - Privacy, terms, cookie and accessibility pages. No analytics or advertising. Automated audits pass on checked flows; manual accessibility and legal review remain.
 - NVIDIA preview bindings connect to authenticated Nemotron Nano 9B v2 on Brev. Both inference paths passed real-model checks locally; operator access is required on the deployed app. Public synthetic presets work without inference.
 
