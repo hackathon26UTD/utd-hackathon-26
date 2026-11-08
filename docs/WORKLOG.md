@@ -483,3 +483,6 @@ Next: review, commit and open a PR; calibrate `WATER_WET_RAW`/`SOUND_HITS_ALARM`
 
 
 Combined-release follow-up: preserved Dhruv's concurrently merged PR #42 (`e3181e4`) and both worklog entries. The combined build and all 421 local tests passed with zero skips; production run `42463678119` passed and production assets/new-feed reads/browser checks passed for that combined release. A final simulation integration check found that preset reloads and playback could re-enable synthetic wind exposure in a non-wind view. Both automatic visibility calls now restrict that exposure to Overview/Wind. Independent two-line review and actual Chrome legacy-hurricane reload plus wind-simulation seek checks passed. This changes only automatic layer visibility, not risk, telemetry or thresholds. Deployment of this small follow-up is checked separately below.
+
+
+Final follow-up `b8d3a70` passed production run `42464035022`. Exact production assets match the rebuilt combined release (`command-EF7IUQEK.js`); readiness/public routes and protected-feed boundaries passed again. Actual production Chrome legacy-hurricane reload and simulation playback confirmed UV/Sunshine remain free of synthetic wind shading while Wind retains it. No further source changes remain in this workstream.
