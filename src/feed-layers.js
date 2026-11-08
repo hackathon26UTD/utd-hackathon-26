@@ -32,6 +32,11 @@ export function parseNws(json) {
     geometry: f.geometry || null,
     properties: {
       event: text(f.properties?.event, 80),
+      status: text(f.properties?.status, 20), messageType: text(f.properties?.messageType, 20),
+      onset: f.properties?.onset || null, ends: f.properties?.ends || null,
+      affectedZones: (Array.isArray(f.properties?.affectedZones)?f.properties.affectedZones:[]).filter(u=>typeof u==='string'&&/^https:\/\/api\.weather\.gov\/zones\/(county|forecast|fire)\/[A-Z]{2}[CZ][0-9]{3}$/.test(u)).slice(0,200),
+      sourceUrl: typeof f.id==='string'&&f.id.startsWith('https://api.weather.gov/alerts/')?f.id:null,
+
       severity: text(f.properties?.severity, 20),
       urgency: text(f.properties?.urgency, 20),
       headline: text(f.properties?.headline, 200),

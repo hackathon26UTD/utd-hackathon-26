@@ -1,3 +1,4 @@
+import { mountNews } from './news.js';
 import { simulationWind } from './wind-flow.js';
 import { mountSimulationStudio } from '../simulation-studio.js';
 import '../simulation-studio.css';
@@ -33,12 +34,14 @@ function layout({ demo, role, footer, brand }) {
 <aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
 <section class="board" aria-label="Properties and map"><div class="map-wrap"><div id="map" class="map" role="region" aria-label="United States response map. Open Devices for a keyboard-accessible home list."></div>
-<div id="radar-controls" class="radar-controls" hidden><button type="button" aria-pressed="false" disabled>Play</button><input type="range" min="0" max="0" value="0" aria-label="Radar observation time" disabled><output aria-live="polite">Loading radar</output><small>Observed radar history · contiguous U.S. · not a forecast or proof of flooding</small></div><aside id="overlay-panel" class="overlay-panel" aria-label="Map layers and zones"><div class="ov-head"><strong>Layers and zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
+<div id="radar-controls" class="radar-controls" hidden><div class="radar-heading"><strong>Rain radar</strong><output aria-live="off">Loading radar</output><button type="button" data-radar-latest>Latest</button></div><div class="radar-track"><button type="button" data-radar-play aria-pressed="false" disabled>Play</button><input type="range" min="0" max="0" value="0" aria-label="Radar observation time" disabled></div><div class="radar-ticks"><span data-radar-start></span><span data-radar-end></span></div><small>NOAA observed history · not a forecast</small><p class="radar-status" role="status"></p></div>
+<aside id="overlay-panel" class="overlay-panel" aria-label="Operator zones"><div class="ov-head"><strong>Operator zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
 <div id="draw-bar" class="draw-bar hidden" role="group" aria-label="Zone drawing"><p id="draw-help"></p><span id="draw-count" class="muted"></span><div class="tools"><button id="draw-undo" class="small">Undo point</button><button id="draw-finish" class="small primary">Finish</button><button id="draw-cancel" class="small">Cancel</button></div></div>
-<details class="map-caption"><summary>Map key &amp; sources</summary><div class="map-key"><p>${LADDER.slice().reverse().map(k => `<span class="tag ${k}">${STATUS_LABEL[k]}</span>`).join(' ')}</p><p class="legend-note"><small>Large blue circles group device locations, not severity. Small blue ring: linked customer. Grey edge: last known. Unknown does not mean safe.</small></p><small id="map-status">Loading street map.</small><p><small>${demo ? 'Dallas and Florida homes, wind exposure and zones are fictional. Wind circles are not a forecast.' : 'The base map is geographic context. Public-layer coverage varies by source; see Data sources for verified coverage. Electricity demand is not household outage telemetry.'}</small></p></div></details></div>
+<p id="map-status" class="sr-only" role="status">Loading map.</p></div>
 <aside id="device-panel" class="queue" aria-label="Devices and priorities" hidden><div class="panel-title"><div><h2 id="queue-title">Devices</h2><p class="view-lead">Search observations, compare readings and choose a home to inspect.</p></div><button id="queue-close" class="small" aria-label="Close device list">Close</button></div><div class="queue-tabs" role="tablist" aria-label="Lists">${[['homes', 'Homes'], ['priorities', 'Priorities'], ['regions', 'Areas']].map(([k, l]) => `<button role="tab" data-qtab="${k}" aria-selected="${k === 'homes'}" id="qtab-${k}">${l}</button>`).join('')}</div><div class="panel-head" id="queue-filters"><label><span class="sr-only">Search homes</span><input id="search" type="search" placeholder="Search home or area"></label><label><span class="sr-only">Filter by status</span><select id="filter"><option value="all">All statuses</option><option value="critical">Critical</option><option value="elevated">Elevated</option><option value="watch">Watch</option><option value="unknown">Unknown</option><option value="normal">No active alerts</option><option value="offline">Not reporting</option><option value="linked">Customer linked</option><option value="power">Power loss</option></select></label><label><span class="sr-only">Sort homes</span><select id="home-sort"><option value="priority">Sort by priority</option><option value="power">Power loss first</option><option value="battery">Lowest battery</option><option value="age">Oldest report</option></select></label></div><div id="properties" class="properties" aria-label="List"></div><div class="queue-foot"><button id="send-area"${demo ? ' disabled title="Exercise mode is read only"' : ''}>Message map area</button><button id="export" class="small">Export homes</button></div></aside>
 <svg id="detail-connector" aria-hidden="true"><path></path></svg><section id="detail" class="detail" aria-label="Selected home details" aria-live="polite" hidden></section></section>
 <section id="timeline" class="timeline cc-bottom" aria-label="Activity" hidden><div class="panel-title"><div><h2 id="activity-title" tabindex="-1">Activity</h2><p class="view-lead">Device updates, operator logs and message delivery.</p></div><button id="activity-close" class="small">Close</button></div><div class="activity-content"><div class="activity-toolbar"><div class="tabs" role="tablist" aria-label="Activity"><button role="tab" data-btab="feed" aria-selected="true">Updates</button><button role="tab" data-btab="logs" aria-selected="false">Logs</button><button role="tab" data-btab="sent" aria-selected="false">Sent messages</button></div></div><div id="bottom-body" class="bottom-body" role="tabpanel"></div></div></section>
+<section id="news-panel" class="full-view news-view" aria-labelledby="news-title" hidden><div class="panel-title"><div><h2 id="news-title" tabindex="-1">News</h2><p class="view-lead">Live watches, warnings and advisories from the National Weather Service.</p></div><button data-close-view>Back to map</button></div><div id="news-content" class="full-view-body"></div></section>
 <section id="overview-panel" class="full-view overview-view" aria-labelledby="overview-title" hidden><div class="panel-title"><div><h2 id="overview-title" tabindex="-1">Overview</h2><p class="view-lead">Reported conditions across the homes in this workspace.</p></div><button data-close-view class="small">Back to map</button></div><div id="overview-content" class="full-view-body"></div></section>
 <section id="demo-panel" class="full-view demo-view" aria-labelledby="demo-title" hidden><div class="panel-title"><div><h2 id="demo-title" tabindex="-1">Simulations</h2><p class="view-lead">Set up a world, choose an event, then follow the reports.</p></div><button data-close-view class="small">Back to map</button></div><div class="full-view-body"><div id="simulation-studio"></div><div id="legacy-simulation" hidden><p class="demo-boundary">Synthetic data only. Scenarios never change connected devices or send messages.</p><div id="demo-scenarios" class="scenario-grid">${SCENARIOS.map(s => `<button class="scenario-option" data-scenario="${s.id}" aria-pressed="false"><strong>${s.label}</strong><span>${s.description}</span></button>`).join('')}</div><div id="demo-summary" class="demo-summary"></div><div class="demo-actions"><button id="demo-show-map" class="primary">Explore this scenario on the map</button><button id="demo-show-overview">See overview</button><p id="demo-status" role="status"></p></div><p class="muted">Each selection loads a new read-only scenario snapshot. Nothing advances automatically.</p></div></div></section>
 </main></div>
@@ -80,6 +83,7 @@ export async function mountCommand(env) {
     { id: 'map', label: 'Map', icon: ['m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2z', 'M9 3v16M15 5v16'] },
     { id: 'overview', label: 'Overview', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
     { id: 'homes', label: 'Devices', icon: ['M5 3h14v18H5z', 'M9 7h6M9 11h6M10 17h4'] },
+    { id: 'news', label: 'News', icon: ['M4 3h16v18H4z','M8 7h8M8 11h8M8 15h5'] },
     { id: 'activity', label: 'Activity', icon: ['M3 12h4l3-8 4 16 3-8h4'] },
     { id: 'demo', label: 'Simulations', icon: ['M8 4v16l12-8z'] },
   ];
@@ -127,6 +131,7 @@ export async function mountCommand(env) {
   ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
   ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
   mv.on('error', () => { $('#map-status').textContent = 'Map unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
+  $('.map-credits').prepend($('#notice'));
   if(embedded&&route.get('weather')==='wind')mv.setWorldView('wind');
   mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else { S.nationalFitted = true; mv.fitConus(); } } });
   mv.handlers.base = () => { updateMapSource(); ctx.toolbar.sync(); };
@@ -149,13 +154,14 @@ export async function mountCommand(env) {
   const detailPanel = mountDetail(ctx);
   const overlays = mountOverlays(ctx);
   mountRadar(mv, document);
+  const news=mountNews(ctx,$('#news-content'));ctx.news=news;
   const bottom = mountBottom(ctx);
   mountDialogs(ctx);
   ctx.showLogs = q => bottom.showLogs(q);
   ctx.loadRegions = () => loadRegions();
   ctx.afterSend = () => { if (S.bottomTab === 'sent') bottom.show('sent'); if (S.selectedId) detailPanel.loadDetail(S.selectedId, { quiet: true }); };
 
-  const viewPanels = { homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
+  const viewPanels = { news:'#news-panel', homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
   let transitionId = 0, viewAnimations = [];
   function setWorkspaceView(view) {
     S.workspaceView = view;
@@ -170,7 +176,7 @@ export async function mountCommand(env) {
     document.querySelectorAll('[data-view]').forEach(link => link.setAttribute('aria-expanded', String(link.dataset.view === (view || 'map'))));
   }
   const viewElement = view => view ? $(viewPanels[view]) : $('.board');
-  const viewFocus = view => view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
+  const viewFocus = view => view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
   function cancelViewAnimations() { viewAnimations.forEach(animation => animation.cancel()); viewAnimations = []; }
   async function transitionWorkspace(view, { animate = true, focusTarget = null } = {}) {
     const id = ++transitionId;
@@ -214,6 +220,7 @@ export async function mountCommand(env) {
     ctx.closeDetail({ restoreFocus: false });
     $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false');
     if (view === 'homes') { $('#queue-title').textContent = 'Devices'; renderList(); }
+    else if(view==='news')news.refresh();
     else if (view === 'overview') renderOverview();
     else if (view === 'demo') { studio?.pause(); renderDemo(); }
     return transitionWorkspace(view, { focusTarget: viewFocus(view) });
@@ -368,7 +375,7 @@ export async function mountCommand(env) {
     mv.simulationWind=simulationWind(id);mv.windFlow.update();
     const wind = r.data.overlays?.exerciseWind || { type: 'FeatureCollection', features: [] };
     mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length && mv.worldKey==='street');
-    const zonesOn = id === 'water-hurricane';
+    const zonesOn = false;
     zonesOn ? S.ovOn.add('zones') : S.ovOn.delete('zones'); mv.setVisible('zones', zonesOn);
     ctx.toolbar?.sync(); // MAP-V2
     $('#notice').textContent = (S.demoMeta?.label || 'Scenario') + ' · fictional homes and readings. Read only.';
@@ -606,6 +613,7 @@ export async function mountCommand(env) {
   renderAll();
   overlays.render();
   if (S.selectedId) detailPanel.loadDetail(S.selectedId);
+  if(!S.embed)news.start();
   if (!studio) overlays.loadZones();
   if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
   mv.map.once('load', () => loadRegions());
