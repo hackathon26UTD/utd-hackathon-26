@@ -70,3 +70,7 @@ Verify actual firmware/gateway sensor names, units, power path and timestamps wi
 Another agent's `work/homebeacon-database` work merged while this handoff was being written. Preserve `src/beacon.js`, its tests, explicit schema/setup/reconciliation tools, legacy readings projection and hardware contract. It adds `/api/beacon/ingest` with retry receipts, homes, telemetry time series, latched incidents and geospatial queries. See [database architecture](mongodb-architecture.md) and [ESP32 contract](../clients/esp32/HOMEBEACON.md). This supersedes earlier notes saying no HomeBeacon ingest adapter exists.
 
 Update after Ayan's immediate-ship request: explicit Atlas schema bootstrap succeeded and direct inspection verified required collections and time-series retention. The full hardware-to-UI path has not been validated. Do not treat legacy database readiness as proof of new collections/indexes. Verify home coordinates and latched incidents are reflected in the existing command-center projection before calling that integration complete. `feat/futureyou` / PR #15 is separate work and was not merged by this handoff.
+
+## Radar playback (local branch)
+
+`work/weather-radar` adds optional NOAA MRMS observed radar playback to the command map. It is real historical radar for the contiguous U.S., separate from simulated hurricane scenarios and forecast precipitation; the user must enable it. Local browser verification passed; not deployed as of this entry. See WORKLOG for limitations.
