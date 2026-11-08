@@ -1,4 +1,6 @@
-// HomeBeacon Box B (and any extra ESP32 box: C, D... set MY_NODE_ID). Sensors on the box mesh.
+// HomeBeacon Box B (and any extra ESP32 box: C, D... set MY_NODE_ID). Runs on a XIAO ESP32-C3.
+// Demo build: no sensors (all USE_* = 0 in config.h); the box is a mesh node that sends heartbeats
+// and relays/uploads other boxes' messages. Optional sensors when enabled:
 //
 //  - PIR motion, flame (digital + analog), tilt, optional GY-521 on I2C, wall-power loss and
 //    9 V battery voltage through resistor dividers.
@@ -6,7 +8,8 @@
 //    a box with Internet acknowledges them; unacknowledged messages are kept and re-sent.
 //  - Uplink (common/uplink.h): if this box finds Wi-Fi with working Internet it becomes a gateway
 //    and uploads for the whole neighbourhood (RAM queue, verified HTTPS).
-// Board: ESP32 Dev Module, Partition Scheme "Huge APP". Type `help` in the serial monitor.
+// Board: XIAO_ESP32C3, USB CDC On Boot Enabled, Partition Scheme "Huge APP". Type `help` in the
+// serial monitor.
 
 #include <Wire.h>
 #include "config.h"
@@ -32,6 +35,9 @@ struct State { bool motion, flame, tilt, mains, shaking; int flameRaw, accelMg, 
 bool i2cPresent(uint8_t a) { Wire.beginTransmission(a); return Wire.endTransmission() == 0; }
 uint8_t i2cRead8(uint8_t a, uint8_t reg) { Wire.beginTransmission(a); Wire.write(reg); if (Wire.endTransmission(false) != 0) return 0xFF; if (Wire.requestFrom(a, (uint8_t)1) != 1) return 0xFF; return Wire.read(); }
 void detectMpu() {
+#if !USE_MPU
+  return;
+#endif
   for (uint8_t a : { (uint8_t)0x68, (uint8_t)0x69 }) if (i2cPresent(a) && i2cRead8(a, 0x75) == 0x68) { mpuAddr = a; break; }
   if (!mpuAddr) return;
   Wire.beginTransmission(mpuAddr); Wire.write(0x6B); Wire.write(0); Wire.endTransmission(); mpuOk = true;
@@ -114,7 +120,7 @@ void handleSerial() {
     String cmd = buf; buf = ""; cmd.trim(); if (!cmd.length()) continue;
     if (cmd == "help") Serial.println(F("Commands: help | mac | i2c | sensors | watch | mesh | ping | wifi | api | history | queue | selftest"));
     else if (cmd == "mac") Serial.printf("[mac] %s\n", WiFi.macAddress().c_str());
-    else if (cmd == "i2c") { Serial.print("[i2c]"); for (uint8_t a = 1; a < 127; a++) if (i2cPresent(a)) Serial.printf(" 0x%02X", a); Serial.printf("  mpu=%s\n", mpuOk ? "yes" : "no"); }
+    else if (cmd == "i2c") { if (!USE_MPU) { Serial.println("[i2c] disabled (USE_MPU 0)"); continue; } Serial.print("[i2c]"); for (uint8_t a = 1; a < 127; a++) if (i2cPresent(a)) Serial.printf(" 0x%02X", a); Serial.printf("  mpu=%s\n", mpuOk ? "yes" : "no"); }
     else if (cmd == "sensors") cmdSensors();
     else if (cmd == "watch") { for (int i = 0; i < 20; i++) { cmdSensors(); delay(500); } }
     else if (cmd == "mesh") mesh::printStatus();
@@ -128,15 +134,42 @@ void handleSerial() {
   }
 }
 
+#if !CAN_BE_GATEWAY
+// Relay-only: never join Wi-Fi, but sit on the hotspot's channel (where the gateway box A is),
+// or FALLBACK_CHANNEL if the hotspot is not visible. Same rule uplink.h uses when offline.
+void followHotspotChannel() {
+  uint8_t ch = FALLBACK_CHANNEL;
+  int n = WiFi.scanNetworks(false, false, false, 120);
+  for (int i = 0; i < n; i++) if (WiFi.SSID(i) == WIFI_SSID) { ch = WiFi.channel(i); break; }
+  WiFi.scanDelete();
+  esp_wifi_set_promiscuous(true); esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE); esp_wifi_set_promiscuous(false);
+  Serial.printf("[wifi] relay-only (no upload); mesh on channel %u%s\n", ch, ch == FALLBACK_CHANNEL ? " (fallback)" : " (hotspot)");
+}
+#endif
+
 void setup() {
   Serial.begin(115200); delay(1000);
-  Serial.println("\nHomeBeacon box " MY_NODE_ID " (ESP32) starting");
+  Serial.println("\nHomeBeacon box " MY_NODE_ID " (XIAO ESP32-C3) starting");
   bootMs = millis();
-  pinMode(PIN_LED, OUTPUT); pinMode(PIN_PIR, INPUT); pinMode(PIN_FLAME_DO, INPUT); pinMode(PIN_TILT, INPUT_PULLUP);
+  if (PIN_LED >= 0) pinMode(PIN_LED, OUTPUT);
+#if USE_PIR
+  pinMode(PIN_PIR, INPUT);
+#endif
+#if USE_FLAME
+  pinMode(PIN_FLAME_DO, INPUT);
+#endif
+#if USE_TILT
+  pinMode(PIN_TILT, INPUT_PULLUP);
+#endif
   analogReadResolution(12);
   setenv("TZ", "UTC0", 1); tzset();
+#if USE_MPU
   Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 100000); detectMpu();
-  uint32_t historyFlags = F_MAINS_VALID;
+#endif
+  uint32_t historyFlags = 0;
+#if USE_MAINS_SENSE
+  historyFlags |= F_MAINS_VALID;
+#endif
 #if USE_FLAME
   historyFlags |= F_FLAME_VALID;
 #endif
@@ -150,8 +183,12 @@ void setup() {
   mesh::begin(MY_NODE_ID, NODES, NODE_COUNT, ESPNOW_PMK, ESPNOW_LMK);
   const MeshNodeCfg *historyNode = mesh::nodeCfg(MY_NODE_ID);
   local_history::begin({historyFlags, USE_BATTERY != 0, SHAKE_MILLI_G, 1}, historyNode ? historyNode->deviceId : nullptr);
+#if CAN_BE_GATEWAY
   uplink::begin(WIFI_SSID, WIFI_PASS, API_BASE, false, FALLBACK_CHANNEL);
-  Serial.printf("boot #%u | mesh=%d (%d boxes) mpu=%d | MAC %s | PIR warming up %d s\n", mesh::bootCount, mesh::ready, NODE_COUNT, mpuOk, WiFi.macAddress().c_str(), PIR_WARMUP_MS / 1000);
+#else
+  followHotspotChannel();
+#endif
+  Serial.printf("boot #%u | mesh=%d (%d boxes) mpu=%d | MAC %s | sensors pir=%d flame=%d tilt=%d mpu=%d mains=%d\n", mesh::bootCount, mesh::ready, NODE_COUNT, mpuOk, WiFi.macAddress().c_str(), USE_PIR, USE_FLAME, USE_TILT, USE_MPU, USE_MAINS_SENSE);
   sample(); prev = cur;
   sendEvent("box.boot");
 }
@@ -160,8 +197,13 @@ void loop() {
   handleSerial();
   local_history::loop();
   mesh::loop();
+#if CAN_BE_GATEWAY
   uplink::loop();
   history_sync::loop();
+#else
+  static uint32_t lastScan = millis();
+  if (!mesh::gatewayKnown() && millis() - lastScan >= CHANNEL_SCAN_MS) { lastScan = millis(); followHotspotChannel(); }
+#endif
   if (millis() - lastSample >= SAMPLE_MS) {
     lastSample = millis(); sample();
     if (cur.motion && !prev.motion) sendEvent("motion.detected");
@@ -174,6 +216,6 @@ void loop() {
     prev = cur;
   }
   if (millis() - lastReading >= READING_MS) { lastReading = millis(); sendReading(); }
-  digitalWrite(PIN_LED, (mesh::isOnline || mesh::gatewayKnown()) ? LOW : HIGH);
+  if (PIN_LED >= 0) digitalWrite(PIN_LED, (mesh::isOnline || mesh::gatewayKnown()) ? LOW : HIGH);
   delay(5);
 }
