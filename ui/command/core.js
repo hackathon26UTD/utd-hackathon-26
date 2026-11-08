@@ -368,23 +368,26 @@ export function overlayNote(layer, hb, now = Date.now()) {
 
 export const SENSOR_GROUPS = [
   ['Power', ['mains_power', 'battery_pct', 'power_mode']],
-  ['Water', ['water_detected', 'water_level_mm', 'moisture_pct']],
-  ['Air and fire', ['smoke_alarm', 'fire_flame', 'co_ppm', 'pm25_ugm3', 'voc_index']],
+  ['Water', ['water_detected', 'water_raw', 'water_level_mm', 'moisture_pct']],
+  ['Air and fire', ['smoke_alarm', 'flame', 'flame_raw', 'fire_flame', 'co_ppm', 'pm25_ugm3', 'voc_index']],
   ['Climate', ['temp_c', 'humidity_pct']],
   ['Network', ['wan_connected', 'rssi_dbm']],
-  ['Movement', ['tilt_deg', 'shock_g']],
+  ['Movement', ['tilt', 'tilt_deg', 'shock_g']],
 ];
 export const SENSOR_LABEL = {
+  cpu_temp_c: 'Controller temperature', mem_avail_mb: 'Available memory (MB)', load1: 'CPU load (one minute)', os_uptime_s: 'Controller uptime (seconds)',
+  flame: 'Flame sensor', flame_raw: 'Flame sensor raw value', water_raw: 'Water sensor raw value', tilt: 'Tilt switch', mesh_hops: 'Mesh relay hops',
   mains_power: 'Mains power', battery_pct: 'Battery', power_mode: 'Power mode', water_detected: 'Water at sensor', water_level_mm: 'Water depth', moisture_pct: 'Moisture',
   smoke_alarm: 'Smoke alarm', fire_flame: 'Flame sensor', co_ppm: 'Carbon monoxide', pm25_ugm3: 'Fine particles (PM2.5)', voc_index: 'Air chemicals (VOC)', air_alarm: 'Air alarm',
   temp_c: 'Temperature', humidity_pct: 'Humidity', wan_connected: 'Internet', rssi_dbm: 'Wi-Fi signal', tilt_deg: 'Tilt', shock_g: 'Shock',
 };
-const BOOL_TEXT = { mains_power: ['Connected', 'Lost'], water_detected: ['Detected', 'Not detected'], smoke_alarm: ['Alarm', 'No alarm'], fire_flame: ['Flame detected', 'None detected'], air_alarm: ['Alarm', 'No alarm'], wan_connected: ['Connected', 'Disconnected'] };
+const BOOL_TEXT = { flame: ['Active', 'Inactive'], tilt: ['Triggered', 'Not triggered'], mains_power: ['Connected', 'Lost'], water_detected: ['Detected', 'Not detected'], smoke_alarm: ['Alarm', 'No alarm'], fire_flame: ['Flame detected', 'None detected'], air_alarm: ['Alarm', 'No alarm'], wan_connected: ['Connected', 'Disconnected'] };
 const POWER_MODE_TEXT = { normal: 'Normal', saver: 'Power save mode', critical: 'Critical power save' };
 const UNIT_FALLBACK = { battery_pct: '%', humidity_pct: '%', moisture_pct: '%', water_level_mm: 'mm', co_ppm: 'ppm', pm25_ugm3: 'ug/m3', temp_c: '°C', rssi_dbm: 'dBm', tilt_deg: '°', shock_g: 'g' };
 
 export function formatReading(sensor, value, unit) {
   if (value === null || value === undefined) return 'Not reported';
+  if (BOOL_TEXT[sensor] && (value === 0 || value === 1)) return BOOL_TEXT[sensor][value ? 0 : 1];
   if (typeof value === 'boolean') { const t = BOOL_TEXT[sensor]; return t ? t[value ? 0 : 1] : value ? 'Yes' : 'No'; }
   if (sensor === 'power_mode') return POWER_MODE_TEXT[value] || String(value);
   const u = unit ?? UNIT_FALLBACK[sensor] ?? '';
