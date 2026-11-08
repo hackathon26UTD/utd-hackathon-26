@@ -1,4 +1,4 @@
-// Independent map context. Never used as precipitation or household risk evidence.
+// Map forecast context. Never used to recalculate household risk.
 import { FeedError } from './feed-error.js';
 
 export const ATMOSPHERE_URL = 'https://api.open-meteo.com/v1/forecast';
@@ -54,12 +54,12 @@ const clean = (v, max = 200) => typeof v === 'string' && v.trim() ? v.replace(/[
 const position = (p) => Array.isArray(p) && p.length === 2 && p.every(finite) && Math.abs(p[0]) <= 180 && Math.abs(p[1]) <= 90;
 const badAtmosphere = () => new FeedError(502, 'Atmosphere source sent invalid coordinates, units, time or data.');
 
-export function atmosphereRequestUrl() {
+export function atmosphereRequestUrl({projection=false}={}) {
   const q = new URLSearchParams({
     latitude: ATMOSPHERE_SAMPLES.map(s => s.lat).join(','),
     longitude: ATMOSPHERE_SAMPLES.map(s => s.lng).join(','),
-    hourly: Object.values(VARIABLES).map(v => v[0]).join(','),
-    forecast_hours: '1', timezone: 'GMT', timeformat: 'unixtime',
+    hourly: [...Object.values(VARIABLES).map(v => v[0]),...(projection?['rain','showers']:[])].join(','),
+    forecast_hours: projection?'24':'1', timezone: 'GMT', timeformat: 'unixtime',
     wind_speed_unit: 'kmh', temperature_unit: 'celsius',
   });
   return `${ATMOSPHERE_URL}?${q}`;
@@ -102,6 +102,22 @@ export function parseAtmosphere(json, samples = ATMOSPHERE_SAMPLES, now = new Da
     units: { wind_kph: 'km/h', wind_direction: 'degrees from true north', solar_wm2: 'W/m²', uv_index: 'dimensionless', temperature_c: '°C' },
     sampling: 'Fixed lower-48 request locations; returned model grid coordinates. No interpolation or area-wide coverage.',
   } };
+}
+
+// Preserve the current-hour feature contract; time playback is optional extra data.
+export function parseAtmosphereProjection(json,samples=ATMOSPHERE_SAMPLES,now=new Date()){
+ const rows=Array.isArray(json)?json:samples.length===1?[json]:[],times=rows[0]?.hourly?.time;
+ if(!Number.isFinite(+now)||rows.length!==samples.length||!Array.isArray(times)||times.length!==24||times.some((t,i)=>!Number.isSafeInteger(t)||(i&&t!==times[i-1]+3600))||times[0]*1000>+now||+now-times[0]*1000>=7200000)throw badAtmosphere();
+ if(rows.some(r=>JSON.stringify(r.hourly?.time)!==JSON.stringify(times)))throw badAtmosphere();
+ let first,partial=false;
+ const forecastFrames=times.map((t,index)=>{
+  const sliced=rows.map(r=>({...r,hourly:Object.fromEntries(Object.entries(r.hourly).map(([key,a])=>{if(!Array.isArray(a)||a.length!==24)throw badAtmosphere();return [key,[a[index]]];}))}));
+  const frame=parseAtmosphere(sliced,samples,new Date(t*1000));partial ||= frame.truncated;
+  frame.features.forEach((f,i)=>{const h=rows[i].hourly,u=rows[i].hourly_units,rain=h.rain?.[index],showers=h.showers?.[index];f.properties.rain_mm=u.rain==='mm'&&u.showers==='mm'&&finite(rain)&&finite(showers)&&rain>=0&&showers>=0?rain+showers:null;if(f.properties.rain_mm===null)partial=true;});
+  if(index===0)first=frame;
+  return {validAt:new Date(t*1000).toISOString(),readings:frame.features.map(f=>({id:f.id,wind_kph:f.properties.wind_kph,wind_direction:f.properties.wind_direction,rain_mm:f.properties.rain_mm}))};
+ });
+ return {...first,truncated:partial,extra:{...first.extra,forecastFrames,forecastSource:'Open-Meteo',rainIntervalSeconds:3600,rainMeaning:'Rain plus showers during the preceding hour; excludes snow.'}};
 }
 
 const badFaults = () => new FeedError(502, 'USGS fault source sent unreadable or invalid line data.');
@@ -171,12 +187,12 @@ async function fetchFaults(tiles, ctx) {
 }
 
 export const WORLD_LAYERS = {
-  atmosphere: { id: 'atmosphere', name: 'Sampled atmosphere forecast', scope: 'all', scopeKey: () => 'conus-samples-v1', ttlS: 1800, minZoom: 0,
+  atmosphere: { id: 'atmosphere', name: 'Sampled atmosphere forecast', scope: 'all', scopeKey: () => 'conus-samples-hourly-v2', ttlS: 1800, minZoom: 0,
     attribution: 'Open-Meteo.com (CC BY 4.0)',
     coverage: { type: 'sampled-national', area: '60 selected lower-48 locations', sampleCount: 60 },
     note: 'Sparse model forecast points, not observations or continuous coverage. Valid time is validAt; observedAt is null. Solar is the preceding-hour mean. Wind direction is where wind comes from.',
     async fetchMany(tiles, { get, now }) {
-      const result = parseAtmosphere(await get(atmosphereRequestUrl()), ATMOSPHERE_SAMPLES, now);
+      const result = parseAtmosphereProjection(await get(atmosphereRequestUrl({projection:true})), ATMOSPHERE_SAMPLES, now);
       return new Map(tiles.map(t => [t.key, result]));
     } },
   faults: { id: 'faults', name: 'USGS geological fault traces', scope: 'tile', ttlS: 86400, maxSpan: 0.75, maxTiles: 16, minZoom: 10,
