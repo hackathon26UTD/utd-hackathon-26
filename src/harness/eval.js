@@ -183,4 +183,3 @@ export async function runLive(cases, env, options = {}, deps = {}) {
   }
   return { mode: 'live', ran: true, model, total: results.length, passed: results.filter(r => r.pass).length, tokensReported: spent, results };
 }
-
