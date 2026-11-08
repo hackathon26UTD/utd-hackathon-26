@@ -24,66 +24,49 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();server.closeAllConnections();await new Promise(r=>server.close(r));});
 async function setup(opts={}){const ctx=await browser.newContext({viewport:{width:1440,height:960},...opts});const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(origin+'/harness');await expect(page.locator('.wf-node')).toHaveCount(8);return{ctx,page,errors};}
-test('replay resets to one node, reveals arrivals, pulses incoming edge and keeps full history',async()=>{
+test('static workflow has full history, scrollable checkpoints and no playback',async()=>{
  const{ctx,page,errors}=await setup();
- const controls=await page.locator('.wf-play').boundingBox(),canvas=await page.locator('.wf-viewport').boundingBox(),history=await page.locator('.wf-log').boundingBox();
- assert(controls.y+controls.height<=canvas.y+1,JSON.stringify({controls,canvas,history}));assert(history.x+history.width<=canvas.x+1);assert(canvas.height>550,JSON.stringify({controls,canvas,history}));
- await page.clock.install();await page.getByRole('button',{name:'Play history',exact:true}).click();
- await expect(page.locator('.wf-node')).toHaveCount(1);await expect(page.locator('.wf-ev')).toHaveCount(6);
- await page.clock.fastForward(1400);await expect(page.locator('.wf-ev.is-current')).toContainText('Recorded event 1');
- await page.clock.fastForward(1400);await expect(page.locator('.wf-node')).toHaveCount(4);await expect(page.locator('.wf-energy')).toHaveCount(1);await expect(page.locator('.wf-node.is-entering')).toHaveCount(3);
- await page.getByRole('button',{name:'Pause history'}).click();const count=await page.evaluate(()=>wf.cursor);await page.clock.fastForward(5000);assert.equal(await page.evaluate(()=>wf.cursor),count);
- await page.locator('[data-id="cloud_ingest"]').click();await expect(page.locator('.wf-node-panel')).toContainText('Recorded event 2');await expect(page.locator('.wf-node-panel')).not.toContainText('Latest-only note');await expect(page.locator('.wf-node-panel')).not.toContainText('future-record');
- const node=await page.locator('[data-id="cloud_ingest"]').boundingBox(),panel=await page.locator('.wf-node-panel').boundingBox();assert(panel.y>=node.y+node.height);assert(panel.x>=canvas.x);assert(panel.y+panel.height<=canvas.y+canvas.height+1);
- await expect(page.locator('[data-id="local_record"]')).toContainText('Not reported');await expect(page.locator('[data-id="gateway_mesh"]')).toContainText('Unknown');
- await page.screenshot({path:'work/workflow-replay.png',fullPage:true});
+ await expect(page.locator('.wf-play,[data-p],.wf-energy')).toHaveCount(0);
+ await expect(page.locator('.wf-banner')).toBeHidden();
+ await expect(page.locator('.wf-ev')).toHaveCount(6);
+ const viewport=page.locator('.wf-viewport');
+ await page.setViewportSize({width:1000,height:700});
+ const bounds=await viewport.boundingBox();await page.mouse.move(bounds.x+bounds.width/2,bounds.y+bounds.height/2);await page.mouse.wheel(0,1800);
+ await expect.poll(()=>viewport.evaluate(e=>e.scrollTop)).toBeGreaterThan(0);
+ await page.locator('[data-id="message_help"]').scrollIntoViewIfNeeded();await page.locator('[data-id="message_help"]').click();
+ await expect(page.locator('.wf-node-panel')).toContainText('Latest-only note');
+ await page.screenshot({path:'work/workflow-static-desktop.png',fullPage:true});
+ await page.clock.install();await page.clock.fastForward(10000);await expect(page.locator('.wf-node')).toHaveCount(8);assert.equal(await page.evaluate(()=>wf.playing),false);
  assert.deepEqual(errors,[]);await ctx.close();
 });
-test('history click preserves focus, final critical state, restart and keyboard explanation',async()=>{
- const{ctx,page,errors}=await setup();
- await page.locator('[data-go="3"]').click();await expect(page.locator('[data-go="3"]')).toBeFocused();
- const node=page.locator('[data-id="rules_latch"]');await node.focus();await page.keyboard.press('Enter');await expect(node).toHaveAttribute('aria-expanded','true');await expect(page.locator('.wf-node-panel')).toContainText('Fixed rules');
+test('history and keyboard open current checkpoint explanations without replaying',async()=>{
+ const{ctx,page,errors}=await setup();await page.locator('[data-go="3"]').click();
+ await expect(page.locator('.wf-node-panel')).toContainText('Fixed rules');
+ await expect(page.locator('[data-id="risk_ladder"]')).toContainText('Critical');
+ const node=page.locator('[data-id="rules_latch"]');await expect(node).toHaveAttribute('aria-expanded','true');
  await page.getByRole('button',{name:'Close checkpoint explanation'}).click();await expect(node).toBeFocused();
- await page.getByRole('button',{name:'Now',exact:true}).click();await expect(page.locator('[data-id="risk_ladder"]')).toContainText('Critical');
- await page.getByRole('button',{name:'Restart',exact:true}).click();await expect(page.locator('.wf-node')).toHaveCount(1);
+ await page.keyboard.press('Enter');await expect(node).toHaveAttribute('aria-expanded','true');
  assert.deepEqual(errors,[]);await ctx.close();
 });
-test('phone and reduced motion keep canvas usable with no page overflow or animated pulses',async()=>{
- const{ctx,page,errors}=await setup({viewport:{width:390,height:844},reducedMotion:'reduce'});
- await page.getByRole('button',{name:'Restart',exact:true}).click();await page.getByRole('button',{name:'Next event'}).click();await page.getByRole('button',{name:'Next event'}).click();
- await expect(page.locator('.wf-energy')).toHaveCount(0);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
- await page.screenshot({path:'work/workflow-mobile.png',fullPage:true});
+test('phone allows scrolling to the final checkpoint and then the complete history',async()=>{
+ const{ctx,page,errors}=await setup({viewport:{width:390,height:844}});
+ const last=page.locator('[data-id="message_help"]');await last.scrollIntoViewIfNeeded();await last.click();
+ await expect(page.locator('.wf-node-panel')).toBeVisible();
+ const panels=page.locator('.dr-panels');await panels.evaluate(e=>e.scrollTop=e.scrollHeight);
+ await expect(page.locator('.wf-log')).toBeInViewport();
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.screenshot({path:'work/workflow-static-phone.png',fullPage:true});
  const axe=await new AxeBuilder({page}).include('.wf').analyze();assert.deepEqual(axe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
  assert.deepEqual(errors,[]);await ctx.close();
 });
-test('empty, refresh, truncation and teardown keep history truthful and stop timers',async()=>{
- const{ctx,page}=await setup();
- await page.evaluate(f=>wf.update({...f,events:[],coverage:{truncated:true}}),fixture);await expect(page.getByRole('button',{name:'Play history',exact:true})).toBeDisabled();await expect(page.locator('.wf-log')).toContainText('No recorded events');
- await page.evaluate(f=>wf.update(f),fixture);await page.clock.install();await page.getByRole('button',{name:'Play history',exact:true}).click();await page.clock.fastForward(1400);assert.equal(await page.evaluate(()=>wf.cursor),1);
- await page.evaluate(f=>wf.update({...f,events:[...f.events,{...f.events[5],id:'new',at:'2026-11-08T09:09:00Z'}]}),fixture);assert.equal(await page.evaluate(()=>wf.cursor),1);
- await page.evaluate(()=>wf.destroy());await page.clock.fastForward(10000);await expect(page.locator('.wf-node')).toHaveCount(0);assert.equal(await page.evaluate(()=>wf.playing),false);await ctx.close();
-});
-
-test('dark theme, long history, expanded evidence and motion setting survive refresh',async()=>{
+test('refresh retains history scroll and explanation, handles empty data and teardown',async()=>{
  const{ctx,page,errors}=await setup();
- await page.evaluate(()=>{HomeBeaconKit.setTheme('dark');localStorage.setItem('homebeacon-motion','reduce');});
+ await page.evaluate(()=>HomeBeaconKit.setTheme('dark'));
+ const many={...fixture,derived:true,coverage:{truncated:true},events:Array.from({length:100},(_,i)=>({...fixture.events[0],id:'long-'+i,at:new Date(Date.parse('2026-11-08T08:00:00Z')+i*60000).toISOString(),text:'Reading '+i}))};
+ await page.evaluate(f=>wf.update(f),many);await expect(page.locator('.wf-ev')).toHaveCount(100);await expect(page.locator('.wf-banner')).toHaveText('Showing the most recent 100 events.');
  await page.locator('[data-id="rules_latch"]').click();await page.locator('.wf-node-panel summary').click();
- await page.evaluate(f=>wf.update(f),fixture);await expect(page.locator('.wf-node-panel details')).toHaveAttribute('open','');
- const many={...fixture,events:Array.from({length:100},(_,i)=>({...fixture.events[0],id:'long-'+i,at:new Date(Date.parse('2026-11-08T08:00:00Z')+i*60000).toISOString(),text:'Reading '+i}))};
- await page.evaluate(f=>wf.update(f),many);await expect(page.locator('.wf-ev')).toHaveCount(100);
- await page.getByRole('button',{name:'Restart',exact:true}).click();await page.getByRole('button',{name:'Next event'}).click();await expect(page.locator('.wf-energy')).toHaveCount(0);
- const violations=(await new AxeBuilder({page}).include('.wf').analyze()).violations.map(v=>({id:v.id,targets:v.nodes.map(n=>n.target)}));assert.deepEqual(violations,[]);assert.deepEqual(errors,[]);await ctx.close();
-});
-
-test('refresh follows the same event and pauses if that event leaves the history window',async()=>{
- const{ctx,page}=await setup();await page.clock.install();await page.getByRole('button',{name:'Play history',exact:true}).click();await page.clock.fastForward(1400);
- await page.evaluate(f=>wf.update({...f,events:[{...f.events[0],id:'earlier',at:'2026-11-08T08:00:00Z'},...f.events]}),fixture);
- assert.equal(await page.evaluate(()=>wf.cursor),2);await expect(page.locator('.wf-ev.is-current')).toContainText('Recorded event 1');
- await page.evaluate(f=>wf.update({...f,events:f.events.slice(1)}),fixture);assert.equal(await page.evaluate(()=>wf.cursor),0);assert.equal(await page.evaluate(()=>wf.playing),false);await expect(page.locator('.wf-banner')).toContainText('left this time window');await ctx.close();
-});
-
-test('closing an expanded explanation cancels queued detail events and late updates',async()=>{
- const{ctx,page,errors}=await setup();await page.locator('[data-id="rules_latch"]').click();
- await page.evaluate(f=>{document.querySelector('.wf-node-panel details').open=true;wf.destroy();wf.update(f);},fixture);
- await page.waitForTimeout(50);assert.deepEqual(errors,[]);await expect(page.locator('.wf-node')).toHaveCount(0);await ctx.close();
+ await page.locator('.wf-events').evaluate(e=>e.scrollTop=500);await page.evaluate(f=>wf.update(f),many);
+ await expect(page.locator('.wf-node-panel details')).toHaveAttribute('open','');assert.equal(await page.locator('.wf-events').evaluate(e=>e.scrollTop),500);
+ await page.evaluate(f=>wf.update({...f,events:[]}),fixture);await expect(page.locator('.wf-log')).toContainText('No recorded events');
+ await page.evaluate(()=>wf.destroy());await expect(page.locator('.wf-node')).toHaveCount(0);assert.deepEqual(errors,[]);await ctx.close();
 });
