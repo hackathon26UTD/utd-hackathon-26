@@ -1,8 +1,8 @@
 // Reads devices, readings, links and overlay context, then runs the pure risk functions.
 // Direct collection reads only. The one write is `risk_state` (status changes, used for "got worse").
 import { ObjectId } from 'mongodb';
-import { LOOKBACK_DAYS, REGION, SENSOR_NAMES, SERIES_SENSORS, levelIndex } from './config.js';
-import { assessDevice } from './device.js';
+import { LOOKBACK_DAYS, REGION, SENSORS, SENSOR_NAMES, SERIES_SENSORS, levelIndex } from './config.js';
+import { assessDevice, normalizeValue } from './device.js';
 import { deviceLngLat, geohashEncode, inBbox, validLngLat } from './geo.js';
 import { aggregateRegions, applyRegionBoosts, followUps, normalizePrecision } from './region.js';
 
@@ -16,6 +16,36 @@ export async function ensureRiskIndexes(db) {
   if (ensured) return;
   await db.collection('risk_state').createIndex({ since: -1 });
   ensured = true;
+}
+
+const MAX_ONSET_LOOKUPS = 300;
+
+/**
+ * For each device whose newest reading of a sustained-condition sensor (mains off, water wet, ...)
+ * is in that condition, find when the unbroken run began: the first matching reading after the
+ * last reading that did not match. Two indexed point lookups per affected pair; healthy boxes cost nothing.
+ * Returns Map(deviceId -> {sensor: {t, bounded}}). bounded means the run reaches the lookback edge.
+ */
+export async function loadOnsets(db, latestDocs, since) {
+  const newest = new Map();
+  for (const r of latestDocs) {
+    const cfg = SENSORS[r.sensor];
+    if (!cfg?.sustain) continue;
+    const k = `${r.deviceId}|${r.sensor}`, cur = newest.get(k);
+    if (!cur || new Date(r.ts) > new Date(cur.ts)) newest.set(k, r);
+  }
+  const pairs = [...newest.values()].filter((r) => { const n = normalizeValue(SENSORS[r.sensor], r.value); return n.ok && SENSORS[r.sensor].sustain.test(n.value); }).slice(0, MAX_ONSET_LOOKUPS);
+  const col = db.collection('readings'), out = new Map();
+  await Promise.all(pairs.map(async (r) => {
+    const bad = SENSORS[r.sensor].sustain.bad, base = { deviceId: r.deviceId, sensor: r.sensor };
+    const clear = await col.findOne({ ...base, ts: { $gte: since, $lte: r.ts }, $nor: [bad] }, { sort: { ts: -1 }, projection: { ts: 1 } });
+    const first = await col.findOne({ ...base, ...bad, ts: clear ? { $gt: clear.ts, $lte: r.ts } : { $gte: since, $lte: r.ts } }, { sort: { ts: 1 }, projection: { ts: 1 } });
+    if (!first) return;
+    const k = String(r.deviceId);
+    if (!out.has(k)) out.set(k, {});
+    out.get(k)[r.sensor] = { t: first.ts, bounded: !clear };
+  }));
+  return out;
 }
 
 async function defaultOverlays() {
@@ -78,6 +108,7 @@ export async function loadRisk(db, opts = {}, deps = {}) {
     db.collection('risk_state').find({ _id: { $in: idStrings } }).toArray(),
   ]);
 
+  const onsets = await loadOnsets(db, latest, since);
   const byDevice = new Map();
   for (const r of [...latest, ...series]) {
     const k = String(r.deviceId);
@@ -94,7 +125,7 @@ export async function loadRisk(db, opts = {}, deps = {}) {
   const ctx = await readOverlays(db, { bbox: opts.bbox || bboxOf(locs), now, exercise, deps, env: opts.env || {}, cells });
 
   let assessments = located.map(({ d, loc }) => assessDevice({
-    device: d, readings: [...(byDevice.get(String(d._id))?.values() || [])], location: loc,
+    device: d, readings: [...(byDevice.get(String(d._id))?.values() || [])], location: loc, onsets: onsets.get(String(d._id)),
     link: linkBy.get(String(d._id)), help: helpBy.get(String(d._id)),
   }, ctx, now));
 

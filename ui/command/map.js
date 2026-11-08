@@ -2,6 +2,7 @@ import { allowsMotion } from '../display-settings.js';
 // MapLibre wrapper: street-level base maps plus the command center layers. Rebuilds layers after every style switch.
 import { STATUS_COLOR as C, ZONE_TYPES } from './core.js';
 import { CONUS_BOUNDS, CONUS_FIT, CONUS_API_BOX, MIN_ZOOM, MAX_ZOOM, FIT_TO_MAX_ZOOM, clampBbox } from './geo.js';
+import { worldView, WORLD_PALETTES, basePaint, metricColor } from './world-views.js';
 
 // Base maps. The default is a near-white street map. There is no photo imagery base: topography and
 // shaded relief are the only terrain views, and they are chosen from the top bar.
@@ -12,7 +13,7 @@ const rasterSource = name => ({ type: 'raster', tiles: [`${USGS}/${name}/MapServ
 export const STYLES = {
   street: POSITRON,
   streetTerrain: POSITRON,
-  topo: { version: 8, sources: { topo: rasterSource('USGSTopo') }, layers: [{ id: 'canvas', type: 'background', paint: { 'background-color': '#f4f3ee' } }, { id: 'topo', type: 'raster', source: 'topo', paint: { 'raster-fade-duration': 0 } }] },
+  topo: { version: 8, glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf', sources: { topo: rasterSource('USGSTopo') }, layers: [{ id: 'canvas', type: 'background', paint: { 'background-color': '#f4f3ee' } }, { id: 'topo', type: 'raster', source: 'topo', paint: { 'raster-fade-duration': 0 } }] },
 };
 export const BASE_OPTIONS = [
   { value: 'street', label: 'Street' },
@@ -32,6 +33,8 @@ const aqiColor = ['step', ['to-number', ['get', 'aqi'], 0], '#2f9e44', 51, '#e0b
 
 // Paint per external layer: fill+line for areas, pt for points. Layers not listed use the default point style.
 const EXT_STYLE = {
+  atmosphere: { pt: ['#147d92', 9] },
+  faults: { line: ['#86593c', 2] },
   exerciseWind: { fill: [['get', 'tone'], 0.17], line: [['get', 'tone'], 2] },
   nws: { fill: ['#c4601f', 0.16], line: ['#b9413b', 2] },
   nfhl: { fill: [['match', ['to-string', ['get', 'SFHA_TF']], ['T', 'true'], '#2f6db5', '#8fb4d9'], 0.22], line: ['#2f6db5', 1] },
@@ -76,6 +79,7 @@ const conusOnly = fc => fc?.features ? { ...fc, features: fc.features.filter(fea
 export class MapView {
   constructor(maplibregl, container, { styleKey = 'street', interactive = true, deviceMinZoom = MIN_ZOOM, showGroups = false, padding } = {}) {
     this.gl = maplibregl;
+    this.worldKey = 'street';
     this.styleKey = STYLES[styleKey] ? styleKey : 'street';
     this.deviceMinZoom = deviceMinZoom; this.showGroups = showGroups;
     this.data = { devices: EMPTY, overview: EMPTY, regions: EMPTY, zones: EMPTY, draw: EMPTY };
@@ -204,9 +208,17 @@ export class MapView {
   }
 
   onClick(e) {
-    const hit = this.hit(e.point);
+    let hit = this.hit(e.point);
     this.clearHover();
-    if (!this.drawing && hit?.kind === 'state') { const bounds=JSON.parse(hit.properties.bounds || 'null'); if(Array.isArray(bounds) && bounds.length===4 && bounds.every(Number.isFinite)) this.fitTo(bounds,{maxZoom:7}); return; }
+    if (!this.drawing && hit?.kind === 'state') {
+      const bounds = JSON.parse(hit.properties.bounds || 'null');
+      if (Array.isArray(bounds) && bounds.length === 4 && bounds.every(Number.isFinite)) {
+        // Already zoomed to this state (common on phones, where a state fits below zoom 5.5): a second click is a place click.
+        const cam = this.map?.cameraForBounds?.(bounds, { padding: this.pad, maxZoom: 7 });
+        if (!cam || this.map.getZoom() < cam.zoom - 0.4) { this.fitTo(bounds, { maxZoom: 7 }); return; }
+        hit = null;
+      } else return;
+    }
     this.handlers.click?.(e, hit);
     if (this.drawing) return;
     if (hit?.kind === 'device') this.cb.deviceClick?.(hit.properties.id);
@@ -230,6 +242,35 @@ export class MapView {
     this.handlers.base?.(key);
   }
   setStyleKey(key) { this.setBase(key); }
+
+  setWorldView(key) {
+    this.worldKey = worldView(key).id;
+    this.applyWorldStyle();
+  }
+
+  applyWorldStyle() {
+    const m = this.map, view = worldView(this.worldKey), palette = WORLD_PALETTES[view.palette];
+    for (const layer of this.baseLayers || []) {
+      if (!m.getLayer(layer.id)) continue;
+      // Restore original properties before applying the next view, including Overview.
+      const changed = this.basePaintKeys?.get(layer.id) || new Set();
+      const paint = palette ? basePaint(layer, palette) : {};
+      for (const prop of new Set([...changed, ...Object.keys(paint)])) {
+        m.setPaintProperty(layer.id, prop, paint[prop] ?? layer.paint?.[prop] ?? null);
+      }
+      this.basePaintKeys.set(layer.id, new Set(Object.keys(paint)));
+    }
+    if (!m.getLayer('ov-atmosphere-pt')) return;
+    const field = view.field || 'wind_kph';
+    const valid = ['all', ['==', ['geometry-type'], 'Point'], ['!=', ['get', field], null]];
+    m.setFilter('ov-atmosphere-pt', valid);
+    m.setPaintProperty('ov-atmosphere-pt', 'circle-color', metricColor(view));
+    m.setPaintProperty('ov-atmosphere-pt', 'circle-radius', ['interpolate',['linear'],['zoom'],3,view.id === 'wind' ? 10 : 7,8,12,12,14]);
+    m.setFilter('ov-atmosphere-label', valid);
+    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', ['round', ['get', field]]], view.unit === '°C' ? '°' : '']);
+    m.setFilter('ov-atmosphere-arrow', ['all', ...valid.slice(1), ['!=',['get','wind_direction'],null], ['>', ['get','wind_kph'],0]]);
+    this.applyVisibility('atmosphere');
+  }
 
   setOverlayVisible(id, on) {
     if (!RASTER_OVERLAYS[id]) return;
@@ -273,11 +314,11 @@ export class MapView {
     this.applyVisibility(name);
   }
 
-  extLayerIds(id) { return [`ov-${id}-fill`, `ov-${id}-line`, `ov-${id}-pt`]; }
+  extLayerIds(id) { return [`ov-${id}-fill`, `ov-${id}-line`, `ov-${id}-pt`, ...(id === 'atmosphere' ? ['ov-atmosphere-arrow','ov-atmosphere-label'] : [])]; }
 
   applyVisibility(name) {
     const ids = GROUP_LAYERS[name] || this.extLayerIds(name);
-    for (const l of ids) if (this.map.getLayer(l)) this.map.setLayoutProperty(l, 'visibility', this.visible.has(name) ? 'visible' : 'none');
+    for (const l of ids) if (this.map.getLayer(l)) this.map.setLayoutProperty(l, 'visibility', this.visible.has(name) && (l !== 'ov-atmosphere-arrow' || this.worldKey === 'wind') ? 'visible' : 'none');
   }
 
   selectZone(id) {
@@ -290,14 +331,26 @@ export class MapView {
     if (!m.getSource('ov-' + id)) m.addSource('ov-' + id, { type: 'geojson', data: this.ext[id] || EMPTY });
     const src = 'ov-' + id;
     m.addLayer({ id: `ov-${id}-fill`, type: 'fill', source: src, filter: AREA, paint: { 'fill-color': s.fill?.[0] || '#526974', 'fill-opacity': s.fill?.[1] ?? 0.1 } });
-    m.addLayer({ id: `ov-${id}-line`, type: 'line', source: src, filter: AREA, paint: { 'line-color': s.line?.[0] || '#526974', 'line-width': s.line?.[1] ?? 1 } });
+    m.addLayer({ id: `ov-${id}-line`, type: 'line', source: src, filter: id === 'faults' ? ['==', ['geometry-type'], 'LineString'] : AREA, paint: { 'line-color': s.line?.[0] || '#526974', 'line-width': s.line?.[1] ?? 1 } });
     m.addLayer({ id: `ov-${id}-pt`, type: 'circle', source: src, filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': s.pt?.[0] || '#526974', 'circle-radius': s.pt?.[1] || 5, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5, 'circle-opacity': 0.92 } });
+    if (id === 'atmosphere') {
+      if (!m.hasImage('wind-vector')) {
+        const canvas = document.createElement('canvas'); canvas.width = canvas.height = 40;
+        const c = canvas.getContext('2d'); c.strokeStyle = '#fff'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+        c.beginPath(); c.moveTo(20,33); c.lineTo(20,7); c.moveTo(12,15); c.lineTo(20,7); c.lineTo(28,15); c.stroke();
+        m.addImage('wind-vector', c.getImageData(0,0,40,40));
+      }
+      m.addLayer({ id:'ov-atmosphere-arrow',type:'symbol',source:src,layout:{'icon-image':'wind-vector','icon-size':0.7,'icon-rotate':['+', ['coalesce',['get','wind_direction'],0],180],'icon-rotation-alignment':'map','icon-allow-overlap':true},paint:{'icon-opacity':0.95} });
+      m.addLayer({ id:'ov-atmosphere-label',type:'symbol',source:src,minzoom:5,layout:{'text-field':'','text-font':['Noto Sans Regular'],'text-size':12,'text-offset':[0,1.7],'text-anchor':'top'},paint:{'text-color':'#253f50','text-halo-color':'#ffffff','text-halo-width':2} });
+    }
   }
 
   install() {
     const m = this.map;
     const add = (name, data) => { if (!m.getSource(name)) m.addSource(name, { type: 'geojson', data }); };
     try {
+      this.baseLayers = structuredClone(m.getStyle().layers);
+      this.basePaintKeys = new Map();
       this.installRaster();
       add('us-states', '/data/us-states.geojson');
       m.addLayer({id:'state-fill',type:'fill',source:'us-states',paint:{'fill-color':'#ffffff','fill-opacity':0.01}});
@@ -324,6 +377,7 @@ export class MapView {
       m.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#1676c4', 'circle-stroke-width': 2.5 } });
       if (this.radarTime) this.setRadar(this.radarTime);
       for (const name of [...Object.keys(GROUP_LAYERS), ...Object.keys(EXT_STYLE)]) this.applyVisibility(name);
+      this.applyWorldStyle();
     } catch (error) {
       this.handlers.error?.(error);
     }
@@ -331,8 +385,9 @@ export class MapView {
 
   // Topmost feature under the pointer, in priority order.
   hit(point) {
-    const order = [['device', 'dev-circle'], ['group', 'dev-groups'], ['zone', 'zones-pt'], ['zone', 'zones-fill'], ['region', 'risk-fill'], ...Object.keys(EXT_STYLE).flatMap(id => [['overlay:' + id, `ov-${id}-pt`], ['overlay:' + id, `ov-${id}-fill`]])];
-    if (this.map.getZoom() < 5.5) order.splice(1,0,['state','state-fill']);
+    const order = [['device', 'dev-circle'], ['group', 'dev-groups'], ['zone', 'zones-pt'], ...Object.keys(EXT_STYLE).map(id => ['overlay:' + id, `ov-${id}-pt`])];
+    if (this.map.getZoom() < 5.5) order.push(['state','state-fill']);
+    order.push(['zone', 'zones-fill'], ['region', 'risk-fill'], ...Object.keys(EXT_STYLE).map(id => ['overlay:' + id, `ov-${id}-fill`]), ['overlay:faults','ov-faults-line']);
     for (const [kind, layer] of order) {
       if (!this.map.getLayer(layer)) continue;
       const hits = this.map.queryRenderedFeatures(point, { layers: [layer] });
@@ -376,6 +431,11 @@ export class MapView {
 
 // Plain-language title and lines for an external feature. Unknown layers still get something readable.
 export function describeOverlayFeature(layer, p = {}) {
+  if (layer === 'atmosphere') {
+    const values = [['Wind', 'wind_kph','km/h'],['Wind from','wind_direction','°'],['Sunshine','solar_wm2','W/m²'],['UV index','uv_index',''],['Temperature','temperature_c','°C']];
+    return { title:p.name ? `${String(p.name).slice(0,80)} forecast` : 'Weather forecast sample', lines:[...values.map(([label,key,unit]) => `${label}: ${p[key] == null ? 'Not available' : `${p[key]} ${unit}`.trim()}`), p.validAt ? `Forecast valid ${new Date(p.validAt).toLocaleString()}` : 'Forecast time unavailable', 'Open-Meteo model data. Not a box measurement.'] };
+  }
+  if (layer === 'faults') return { title: String(p.name || 'Mapped fault').slice(0,120), lines:[p.age || 'Quaternary fault trace', 'USGS geological mapping. This does not predict an earthquake.'] };
   const pick = (...keys) => keys.map(k => p[k]).find(v => v !== undefined && v !== null && v !== '');
   const title = pick('event', 'headline', 'name', 'title', 'place', 'site_name', 'siteName', 'FLD_ZONE') || layer;
   const lines = [];

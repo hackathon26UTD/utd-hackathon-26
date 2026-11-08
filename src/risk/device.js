@@ -2,7 +2,7 @@
 // Rules of the ladder: missing data is unknown, stale critical evidence never turns safe,
 // offline alone is never critical, and output is advisory only.
 import {
-  ADVISORY, BOOST, COMPOUND, NWS_EVENT, OFFLINE_MIN, PRIORITY_BASE, SENSORS, SERIES_SENSORS, TIERS, TREND,
+  ADVISORY, BOOST, COMPOUND, durationText, NWS_EVENT, OFFLINE_MIN, PRIORITY_BASE, SENSORS, SERIES_SENSORS, TIERS, TREND,
   UNKNOWN_STALE_HAZARD, levelIndex, ZONE_TYPES_EVAC,
 } from './config.js';
 import { geohashEncode, pointInGeometry, validLngLat } from './geo.js';
@@ -68,12 +68,38 @@ function sentence(say, stale, nowMs, t) {
   return stale ? `${say} ${ago}. This is the last report and may be out of date.` : `${say} ${ago}.`;
 }
 
-function singleSensorReasons(latest, nowMs) {
+/**
+ * When did the sensor's sustained condition start? Prefers the loader's database answer
+ * (`onsets[sensor] = {t, bounded}`), else walks back through the readings supplied here, which
+ * only gives a lower bound. Returns {t, bounded} or null when the latest value is not in that condition.
+ */
+export function sustainedOnset(sensor, cur, readings, onsets, nowMs) {
+  const cfg = SENSORS[sensor];
+  if (!cfg?.sustain || !cfg.sustain.test(cur.value)) return null;
+  const given = onsets?.[sensor];
+  if (given && Number.isFinite(toMs(given.t)) && toMs(given.t) <= cur.t) return { t: toMs(given.t), bounded: Boolean(given.bounded) };
+  const pts = (readings || []).filter((r) => r?.sensor === sensor)
+    .map((r) => ({ t: Math.min(toMs(r.ts), nowMs), n: normalizeValue(cfg, r.value) }))
+    .filter((p) => Number.isFinite(p.t) && p.t <= cur.t).sort((a, b) => b.t - a.t);
+  let t = cur.t, broke = false;
+  for (const p of pts) {
+    if (!p.n.ok || !cfg.sustain.test(p.n.value)) { broke = true; break; }
+    t = p.t;
+  }
+  return { t, bounded: !broke };
+}
+
+function singleSensorReasons(latest, nowMs, readings, onsets) {
   const out = [];
   for (const [sensor, e] of latest) {
-    const rule = SENSORS[sensor].rules.find((r) => r.test(e.value));
+    const onset = sustainedOnset(sensor, e, readings, onsets, nowMs);
+    const held = onset ? e.t - onset.t : 0;
+    const rule = SENSORS[sensor].rules.find((r) => r.test(e.value) && (!r.forMin || (onset && held >= r.forMin * MIN)));
     if (!rule) continue;
-    out.push({ ruleId: rule.id, level: rule.level, hazard: rule.hazard, text: sentence(rule.say(e.value, e.unit), e.stale, nowMs, e.t), evidence: [evidenceOf(e)], cust: rule.cust, t: e.t });
+    const dur = onset ? `${onset.bounded ? 'at least ' : ''}${durationText(held)}` : '';
+    const reason = { ruleId: rule.id, level: rule.level, hazard: rule.hazard, text: sentence(rule.say(e.value, e.unit, dur), e.stale, nowMs, e.t), evidence: [evidenceOf(e)], cust: rule.cust, t: e.t };
+    if (onset && rule.forMin) { reason.since = onset.t; reason.heldMin = Math.floor(held / MIN); }
+    out.push(reason);
   }
   return out;
 }
@@ -177,11 +203,11 @@ function overlayCorrelations(loc, ctx, nowMs, hasWaterSignal) {
  * readings: recent raw reading docs {sensor,value,unit,ts,receivedAt,_id}. ctx: OverlayContext (may be empty).
  */
 export function assessDevice(input, ctx = {}, now = new Date()) {
-  const { device = {}, readings = [], series, location = null, link } = input;
+  const { device = {}, readings = [], series, location = null, link, onsets } = input;
   const nowMs = toMs(now);
   const { latest, discarded } = latestReadings(readings, nowMs);
 
-  let reasons = [...singleSensorReasons(latest, nowMs), ...trendReasons(latest, series, readings, nowMs)];
+  let reasons = [...singleSensorReasons(latest, nowMs, readings, onsets), ...trendReasons(latest, series, readings, nowMs)];
   const compound = compoundReasons(latest, nowMs);
   reasons = reasons.filter((r) => !compound.some((c) => levelIndex(r.level) <= levelIndex(c.level) && r.evidence.every((e) => c.needs.includes(e.sensor))));
   reasons = [...reasons, ...compound];
@@ -212,7 +238,7 @@ export function assessDevice(input, ctx = {}, now = new Date()) {
     staleHazard,
     lastSeen: seenMs ? iso(seenMs) : null,
     observedAt: observedMs ? iso(observedMs) : null,
-    reasons: reasons.map(({ ruleId, level, text, evidence, hazard, cust, t }) => ({ ruleId, level, text, evidence, hazard, cust, observedAt: t ? iso(t) : null })),
+    reasons: reasons.map(({ ruleId, level, text, evidence, hazard, cust, t, since, heldMin }) => ({ ruleId, level, text, evidence, hazard, cust, observedAt: t ? iso(t) : null, ...(since ? { since: iso(since), heldMin } : {}) })),
     correlations,
     priority,
     power: { mains: v('mains_power'), battery_pct: v('battery_pct'), mode: v('power_mode'), stale: ['mains_power', 'battery_pct', 'power_mode'].some((s) => latest.get(s)?.stale) },

@@ -1,4 +1,5 @@
 import { EXTRA_LAYERS } from './extra-feeds.js';
+import { WORLD_LAYERS } from './world-feeds.js';
 // External layer definitions: where each public feed lives, how it is cached and how it is parsed.
 // Parsers are pure so tests can feed them saved samples. Network goes through the injected `get`.
 import { FeedError } from './feed-error.js';
@@ -19,7 +20,7 @@ export function feedMetadata(layer, env = {}) {
   const area = layer.scopeKey?.(env);
   const type = ['nws', 'declarations'].includes(layer.id) ? (area === 'US' ? 'national' : 'state')
     : layer.id === 'eia' ? 'balancing-authority' : layer.scope === 'all' ? 'global' : 'requested-area';
-  return { coverage: { type, area: area || (type === 'global' ? 'world' : 'bounded map tiles') }, note: layer.note || 'Geographic context does not establish conditions at an individual home.' };
+  return { ...(layer.minZoom === 0 ? { minZoom: 0 } : {}), coverage: layer.coverage || { type, area: area || (type === 'global' ? 'world' : 'bounded map tiles') }, note: layer.note || 'Geographic context does not establish conditions at an individual home.' };
 }
 
 // ---------- parsers ----------
@@ -190,6 +191,7 @@ const keyOf = (env, name) => env[name] || '';
 // scope: 'tile' = 0.25 degree grid, 'cell' = geohash5 cell, 'all' = one document per scopeKey.
 export const LAYERS = {
   ...EXTRA_LAYERS,
+  ...WORLD_LAYERS,
   nfhl: { id: 'nfhl', name: 'FEMA flood hazard zones', scope: 'tile', ttlS: 86400, maxSpan: 0.75, maxTiles: 16, minZoom: 11, attribution: 'FEMA National Flood Hazard Layer',
     fetchMany: arcgis('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28', 'FLD_ZONE,SFHA_TF,ZONE_SUBTY,OBJECTID', pickNfhl, { extra: { maxAllowableOffset: '0.0002' }, pages: 4 }) },
   declarations: { id: 'declarations', name: 'FEMA disaster declarations', scope: 'all', scopeKey: (env) => state(env), ttlS: 86400, attribution: 'OpenFEMA and US Census TIGERweb',
