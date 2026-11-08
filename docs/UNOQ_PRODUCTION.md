@@ -21,7 +21,7 @@ Store the device's private JSON in an ignored file, mode 0600:
 On this Mac the file is `.secrets/unoq-live.json`; never commit it. Only this device's key is used. The API master key stays off the board and browser.
 
 ```sh
-adb push agents/unoq /home/arduino/safe-home-agent
+adb push agents/unoq/. /home/arduino/safe-home-agent
 node scripts/uno-to-dashboard.mjs --live --key-file .secrets/unoq-live.json \
   --hub-adb --adb /path/to/adb --serial 3058549169
 ```
