@@ -1,3 +1,4 @@
+import {customerSettings} from './customer-settings.js';
 import {startProductKit} from './product-kit.js';
 startProductKit();
 // Customer side of HomeBeacon. All text is set with textContent; the server returns an allowlisted view only.
@@ -114,7 +115,9 @@ function addView() {
   return h('details', { class: 'card', open: !!state.prefill || state.devices?.length === 0 }, h('summary', null, 'Add device'), form);
 }
 function appView() {
-  return [h('h1', null, 'Your devices'), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView()];
+  const settings = customerSettings({h,api,state,refresh,enter});
+  const connecting = new URLSearchParams(location.search).has('connect');
+  return [h('h1', null, connecting ? 'Connect your assistant' : 'Your devices'), ...(connecting ? [settings] : []), h('div', { id: 'devices', 'aria-live': 'polite' }, devicesView()), addView(), ...(!connecting ? [settings] : [])];
 }
 
 // ---------- actions ----------

@@ -132,7 +132,7 @@ export function mountDetail(ctx) {
     const power = risk?.power || {};
     const saver = power.mode && power.mode !== 'normal';
     drawer.querySelector('#dr-title').textContent = p.name && p.name !== p.id ? p.name : p.id;
-    drawer.querySelector('.dr-sub').textContent = [p.id, p.area].filter(Boolean).join(' · ') + (p.observedAt || p.lastSeen ? ` · last report ${ageText(p.lastSeen || p.observedAt, now)}` : ' · no report yet');
+    drawer.querySelector('.dr-sub').textContent = [p.id, p.area, p.selfBuilt ? 'Self-built · not verified' : null].filter(Boolean).join(' · ') + (p.observedAt || p.lastSeen ? ` · last report ${ageText(p.lastSeen || p.observedAt, now)}` : ' · no report yet');
     const chips = [
       tag(shown.status),
       `<span class="chip ${exercise ? 'warn' : 'link'}">${exercise ? 'Exercise' : 'Live'}</span>`,
