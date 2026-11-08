@@ -146,6 +146,9 @@ export function mountToolbar({ root, map, ctx }) {
   const water = Kit.toggle({ label: 'Water reports', checked: map.highlights.water, onChange: on => map.setHighlight('water', on) });
   power.id = 'quick-power'; water.id = 'quick-water';
   power.title = 'Highlight homes reporting power loss'; water.title = 'Highlight homes reporting water';
+  const radar = Kit.toggle({ label: 'Rain radar', checked: false, onChange: () => {} });
+  radar.id = 'radar-toggle'; radar.title = 'Show observed NOAA radar history';
+  radar.setAttribute('aria-controls', 'radar-controls');
 
   // ---- Zones panel (existing panel, opened from here) ----
   const zones = Kit.filterButton({ id: 'overlay-toggle', label: 'Zones', icon: glyph.zones });
@@ -172,7 +175,7 @@ export function mountToolbar({ root, map, ctx }) {
     });
   }
 
-  bar.append(group('Base map', view), group('Navigate', goTo), group('Layers', layers, hazards, zones), group('Homes', power, water), group('Assistance', ask));
+  bar.append(group('Base map', view), group('Navigate', goTo), group('Layers', layers, hazards, zones, radar), group('Homes', power, water), group('Assistance', ask));
 
   // ---- state mirror ----
   function sync() {

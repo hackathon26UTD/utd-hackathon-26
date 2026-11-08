@@ -79,6 +79,7 @@ export class MapView {
     this.deviceMinZoom = deviceMinZoom; this.showGroups = showGroups;
     this.data = { devices: EMPTY, overview: EMPTY, regions: EMPTY, zones: EMPTY, draw: EMPTY };
     this.ext = {};
+    this.radarTime = null;
     this.visible = new Set(['regions', 'zones']);
     this.rasterOn = { hillshade: this.styleKey === 'streetTerrain', hydro: false };
     this.selectedZone = '';
@@ -125,6 +126,44 @@ export class MapView {
   // The visible box limited to the lower 48, for data requests. Null when nothing visible is inside it.
   apiBbox() { return clampBbox(this.bbox()); }
   projectToScreen(lngLat) { const p = this.map.project(lngLat); return { x: p.x, y: p.y }; }
+
+  async setRadar(time) {
+    this.radarTime = time;
+    const m = this.map, token = this.radarToken = (this.radarToken || 0) + 1;
+    this.cancelRadarLoad?.();
+    if (!m.getSource('devices')) return false;
+    const remove = id => { if (m.getLayer(id)) m.removeLayer(id); if (m.getSource(id)) m.removeSource(id); };
+    if (!time) {
+      for (const id of ['weather-radar-a', 'weather-radar-b']) remove(id);
+      this.radarCurrent = null; return false;
+    }
+    const old = m.getLayer(this.radarCurrent || '') ? this.radarCurrent : null;
+    const id = old === 'weather-radar-a' ? 'weather-radar-b' : 'weather-radar-a';
+    remove(id);
+    const base = 'https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows';
+    const query = `service=WMS&version=1.1.1&request=GetMap&layers=conus_bref_qcd&styles=&format=image%2Fpng&transparent=true&srs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(time)}&bbox={bbox-epsg-3857}`;
+    m.addSource(id, { type: 'raster', tiles: [`${base}?${query}`], tileSize: 256, maxzoom: 8, bounds: [-126, 23, -65, 51], attribution: '<a href="https://opengeo.ncep.noaa.gov/geoserver/www/index.html">NOAA MRMS radar</a>' });
+    // Keep the previous image until every visible tile of the incoming frame is ready.
+    m.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 450 }, 'raster-resampling': 'linear', 'raster-fade-duration': 0 } }, m.getLayer('dev-groups') ? 'dev-groups' : undefined);
+    const ready = await new Promise(resolve => {
+      const finish = ok => { clearTimeout(timeout); m.off('sourcedata', loaded); m.off('error', failed); if (this.cancelRadarLoad === cancel) this.cancelRadarLoad = null; resolve(ok); };
+      const loaded = e => { if (e.sourceId === id && m.getSource(id) && m.isSourceLoaded(id)) finish(true); };
+      const failed = e => { if (e.sourceId === id) finish(false); };
+      const cancel = () => finish(false);
+      const timeout = setTimeout(() => finish(false), 15000);
+      this.cancelRadarLoad = cancel;
+      m.on('sourcedata', loaded); m.on('error', failed);
+      if (m.isSourceLoaded(id)) finish(true);
+    });
+    if (token !== this.radarToken) return false;
+    if (!ready) { remove(id); return false; }
+    this.radarCurrent = id;
+    m.setPaintProperty(id, 'raster-opacity', 0.68);
+    if (old && m.getLayer(old)) m.setPaintProperty(old, 'raster-opacity', 0);
+    await new Promise(resolve => setTimeout(resolve, 470));
+    if (token === this.radarToken && old) remove(old);
+    return true;
+  }
 
   setDrawing(on) { this.drawing = on; this.clearHover(); this.map.getCanvas().style.cursor = on ? 'crosshair' : ''; this.map.doubleClickZoom[on ? 'disable' : 'enable'](); }
 
@@ -274,6 +313,7 @@ export class MapView {
       m.addLayer({ id: 'draw-fill', type: 'fill', source: 'draw', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#1676c4', 'fill-opacity': 0.15 } });
       m.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#1676c4', 'line-width': 2.5, 'line-dasharray': [2, 1] } });
       m.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#1676c4', 'circle-stroke-width': 2.5 } });
+      if (this.radarTime) this.setRadar(this.radarTime);
       for (const name of [...Object.keys(GROUP_LAYERS), ...Object.keys(EXT_STYLE)]) this.applyVisibility(name);
     } catch (error) {
       this.handlers.error?.(error);

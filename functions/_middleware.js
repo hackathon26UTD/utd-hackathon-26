@@ -5,7 +5,7 @@ const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://tiles.openfreemap.org https://basemap.nationalmap.gov; connect-src 'self' https://tiles.openfreemap.org https://basemap.nationalmap.gov; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https://tiles.openfreemap.org https://basemap.nationalmap.gov https://opengeo.ncep.noaa.gov; connect-src 'self' https://tiles.openfreemap.org https://basemap.nationalmap.gov https://opengeo.ncep.noaa.gov; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
 };
 
 function secure(response, path) {
