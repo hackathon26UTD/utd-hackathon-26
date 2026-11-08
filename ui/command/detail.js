@@ -88,9 +88,9 @@ export function mountDetail(ctx) {
       const el = document.createElement('div'); el.id = 'dr-p-' + k; el.className = 'dr-panel'; el.setAttribute('role', 'tabpanel'); el.setAttribute('aria-labelledby', 'tab-' + k); el.hidden = true;
       if (k === 'conditions') {
         const top = document.createElement('div'); top.className = 'dr-cond-top';
-        const ex = document.createElement('section'); ex.className = 'dr-explain'; ex.setAttribute('aria-label', 'Model help');
+        const ex = document.createElement('section'); ex.className = 'dr-explain'; ex.setAttribute('aria-label', 'Nemotron investigation');
         const act = document.createElement('div'); act.className = 'dr-cond-actions';
-        const assist = document.createElement('details'); assist.className='dr-more'; assist.hidden=exercise; const summary=document.createElement('summary'); summary.textContent='Ask about this device'; assist.append(summary,ex); el.append(top,assist,act);
+        const assist = document.createElement('details'); assist.className='dr-more'; const summary=document.createElement('summary'); summary.textContent='Nemotron investigation'; assist.append(summary,ex); el.append(top,assist,act);
       } else if (k === 'workflow') {
         const wf = document.createElement('div'); wf.className = 'dr-wf'; el.append(wf);
       } else { const b = document.createElement('div'); b.className = 'dr-body'; el.append(b); }
