@@ -10,6 +10,25 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
   let rotating = !motion.matches, visible = true, hinge, lidAngle = -.15, lidTarget = -.15;
   const scene = new THREE.Scene();
+  // A real 3D floor grid is depth-occluded by the enclosure, never painted on its surfaces.
+  const floorGrid = new THREE.GridHelper(700,28);
+  const floorMaterial = new THREE.ShaderMaterial({
+    transparent:true,depthWrite:false,
+    uniforms:{tint:{value:new THREE.Color()},alpha:{value:.24}},
+    vertexShader:'varying vec2 floorPosition; void main(){floorPosition=position.xz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:'uniform vec3 tint; uniform float alpha; varying vec2 floorPosition; void main(){gl_FragColor=vec4(tint,alpha*(1.0-smoothstep(140.0,340.0,length(floorPosition))));}',
+  });
+  floorGrid.material.dispose();floorGrid.material=floorMaterial;floorGrid.position.y=-1.3;scene.add(floorGrid);
+  disposables.push(floorGrid.geometry,floorMaterial);
+  const syncFloorTheme = () => {
+    const dark=document.documentElement.dataset.hbkitTheme==='dark';
+    floorMaterial.uniforms.tint.value.set(dark?0xaaaaaa:0x777777);
+    floorMaterial.uniforms.alpha.value=dark?.27:.25;
+    if(renderer&&!dead)renderer.render(scene,camera);
+  };
+  const themeObserver=new MutationObserver(syncFloorTheme);
+  themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['data-hbkit-theme']});
+  syncFloorTheme();
   const camera = new THREE.PerspectiveCamera(34, 1, 1, 2000);
   camera.position.set(310, 255, 360);
   const model = new THREE.Group(); scene.add(model);
@@ -51,7 +70,7 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
   motion.addEventListener('change', motionChange); document.addEventListener('visibilitychange', visibility);
 
   const cleanup = () => {
-    dead = true; cancelAnimationFrame(frame); observer?.disconnect(); resize.disconnect();
+    dead = true; themeObserver.disconnect(); cancelAnimationFrame(frame); observer?.disconnect(); resize.disconnect();
     controls?.dispose(); renderer?.dispose();
     disposables.forEach(d => d.dispose());
     motion.removeEventListener('change', motionChange); document.removeEventListener('visibilitychange', visibility);
