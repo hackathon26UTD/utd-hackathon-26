@@ -1,5 +1,8 @@
 # HomeBeacon design contract
 
+> Current command-center direction: [map-only design contract](design/COMMAND_CENTER_MAP_ONLY.md). Ayan rejected the deployed command layout. Map only, tools on demand, no KPI row or persistent side rail. Prior layout descriptions below are historical and do not constitute acceptance.
+
+
 > Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
 
 
