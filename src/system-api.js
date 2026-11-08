@@ -16,9 +16,34 @@ const wrap = fn => async ctx => {
 const dbOf = (ctx, fn) => withDb(ctx.env || {}, ctx.injectedDb, fn);
 const noDemo = auth => { if (auth.demo) throw new HttpError(403, 'A team operator account is required for system investigation.'); };
 const method = (ctx, allowed) => { if (!allowed.includes(ctx.request.method)) throw new HttpError(405, 'Method not allowed'); };
+const RUN_LEASE_MS = 180_000; // 55s inference deadline plus database/request overhead.
+async function recoverRun(runs, run, now = new Date()) {
+  if (run?.state === 'running' && now.getTime() - new Date(run.createdAt).getTime() > RUN_LEASE_MS) {
+    await runs.updateOne({ _id: run._id, state: 'running', createdAt: run.createdAt }, { $set: {
+      state: 'failed', completedAt: now,
+      error: 'This investigation did not finish within its time limit. Start a new run with fresh evidence.',
+    } });
+    return runs.findOne({ _id: run._id });
+  }
+  return run;
+}
+// Return only cited, allowlisted snapshot fields. Never expose the stored run/actor or raw device documents.
+const citedEvidence = r => {
+  const wanted = new Set(r.checkpoint?.evidenceIds || []);
+  const pick = (row, kind, fields) => ({ id: row.id, kind, ...Object.fromEntries(fields.filter(k => row[k] !== undefined).map(k => [k, row[k]])) });
+  return [
+    ...(r.evidence?.observations || []).filter(x => wanted.has(x.id)).map(x => pick(x, 'reading', ['deviceId', 'sensor', 'value', 'observedAt', 'receivedAt', 'stale', 'delayed'])),
+    ...(r.evidence?.events || []).filter(x => wanted.has(x.id)).map(x => pick(x, 'event', ['deviceId', 'type', 'observedAt', 'receivedAt'])),
+    ...(r.evidence?.incidents || []).filter(x => wanted.has(x.id)).map(x => pick(x, 'incident', ['deviceId', 'type', 'severity', 'status', 'detectedAt', 'lastObservedAt'])),
+    ...(r.externalContext?.sources || []).flatMap(source => (source.records || []).filter(x => wanted.has(x.id)).map(x => ({
+      id: x.id, kind: 'context', sourceId: source.id, fetchedAt: source.fetchedAt, stale: source.stale,
+    }))),
+  ];
+};
 const runOut = r => ({ id: r._id, state: r.state, mode: r.mode, deviceId: r.deviceId, model: r.model,
   engine: r.engine, simulated: r.engine === 'simulator',
   createdAt: r.createdAt, completedAt: r.completedAt || null, trace: r.trace || [], checkpoint: r.checkpoint || null,
+  citedEvidence: citedEvidence(r),
   error: r.error || null, modelVerified: r.state === 'completed' && r.engine === 'nemotron' });
 
 export const opsSystem = wrap(async (ctx, url) => {
@@ -37,7 +62,7 @@ export const opsAgent = wrap(async (ctx, url) => {
   return dbOf(ctx, async db => {
     const runs = db.collection('system_agent_runs');
     if (ctx.request.method === 'GET') {
-      const r = await runs.findOne({ _id: url.searchParams.get('run_id'), actor: auth.actor, mode: auth.exercise ? 'exercise' : 'live' });
+      const r = await recoverRun(runs, await runs.findOne({ _id: url.searchParams.get('run_id'), actor: auth.actor, mode: auth.exercise ? 'exercise' : 'live' }), ctx.now);
       if (!r) throw new HttpError(404, 'Investigation not found');
       return json(runOut(r));
     }
@@ -61,7 +86,7 @@ export const opsAgent = wrap(async (ctx, url) => {
     const now = ctx.now || new Date(), mode = auth.exercise ? 'exercise' : 'live';
     const id = await sha256Hex(`${auth.actor}:${mode}:${body.requestId}`);
     const fingerprint = await sha256Hex(JSON.stringify({ deviceId: body.deviceId, goalHours, budget, engine }));
-    const previous = await runs.findOne({ _id: id });
+    const previous = await recoverRun(runs, await runs.findOne({ _id: id }), now);
     if (previous) {
       if (previous.fingerprint !== fingerprint) throw new HttpError(409, 'requestId was used with different inputs');
       return json(runOut(previous), previous.state === 'running' ? 202 : 200);
@@ -82,23 +107,25 @@ export const opsAgent = wrap(async (ctx, url) => {
     try { await runs.insertOne(run); }
     catch (e) {
       if (e.code !== 11000) throw e;
-      const current = await runs.findOne({ _id: id });
+      const current = await recoverRun(runs, await runs.findOne({ _id: id }), now);
       if (current.fingerprint !== fingerprint) throw new HttpError(409, 'requestId was used with different inputs');
       return json(runOut(current), current.state === 'running' ? 202 : 200);
     }
     try {
       const result = await investigateSystem({ evidence, budget, goalHours, externalContext,
         complete: engine === 'simulator' ? simulatedCompletion(evidence) : input => nemotronCompletion(ctx.env, input, ctx.fetcher),
-        recordStep: step => runs.updateOne({ _id: id }, { $push: { trace: step } }),
+        recordStep: step => runs.updateOne({ _id: id, state: 'running' }, { $push: { trace: step } }),
       });
       if (engine === 'simulator') result.checkpoint.interpretationSource = 'simulator_not_ai';
       const done = { state: 'completed', checkpoint: result.checkpoint, completedAt: new Date() };
-      await runs.updateOne({ _id: id }, { $set: done });
+      const saved = await runs.updateOne({ _id: id, state: 'running' }, { $set: done });
+      if (!saved.modifiedCount) return json(runOut(await runs.findOne({ _id: id })), 200);
       return json(runOut({ ...run, ...done, trace: result.trace }), 201);
     } catch (e) {
       const error = e instanceof HttpError ? e.message : 'Investigation failed; deterministic policies remain available.';
-      await runs.updateOne({ _id: id }, { $set: { state: 'failed', error, completedAt: new Date() } });
-      throw e;
+      await runs.updateOne({ _id: id, state: 'running' }, { $set: { state: 'failed', error, completedAt: new Date() } });
+      // The caller can recover this actor-scoped run and inspect completed steps, even after a provider failure.
+      return json(runOut(await runs.findOne({ _id: id })), e instanceof HttpError ? e.status : 503);
     }
   });
 });

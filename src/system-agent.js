@@ -3,6 +3,7 @@ import { powerBudget } from '../domain/system-policy.js';
 import { correlateSignals } from './system-evidence.js';
 import { summarizeModelContext } from './model-context.js';
 import { buildPack } from './harness/pack.js';
+import { prepareModelEvidence, MODEL_REQUEST_CHARS, MODEL_CONVERSATION_RESERVE_CHARS, MODEL_AGENT_PACK_TOKENS } from './system-model-input.js';
 
 const noArgs = { type: 'object', properties: {}, additionalProperties: false };
 const tool = (name, description, parameters = noArgs) => ({ type: 'function', function: { name, description, parameters } });
@@ -25,14 +26,17 @@ External context is cache-only. Use only records actually supplied, cite their c
 No prose-only answer: finish by saving the evidence-linked checkpoint. Do not disclose internal reasoning; record only concise findings and tool actions.`;
 
 export async function investigateSystem({ evidence, budget, goalHours = 24, externalContext = summarizeModelContext({}, { mode: evidence.mode }), complete, recordStep = async () => {}, harness = true }) {
-  const messages = [ { role: 'system', content: harness === false ? PROMPT : `${PROMPT}\n\n${buildPack({ purpose: 'agent' }).text}` }, { role: 'user', content: JSON.stringify({ task: 'Investigate this home and prepare the next review action.',
+  const messages = [ { role: 'system', content: harness === false ? PROMPT : `${PROMPT}\n\n${buildPack({ purpose: 'agent', budgetTokens: MODEL_AGENT_PACK_TOKENS }).text}` }, { role: 'user', content: JSON.stringify({ task: 'Investigate this home and prepare the next review action.',
     targetDeviceId: evidence.targetDeviceId, mode: evidence.mode, generatedAt: evidence.generatedAt, goalHours }) } ];
-  const used = new Set(), ids = new Set([...evidence.observations, ...evidence.events, ...evidence.incidents].map(x => x.id));
-  const contextIds = new Set(externalContext.sources.filter(source => source.sourceDataProvided).flatMap(source => source.records.map(record => record.id)));
+  const modelInput = prepareModelEvidence({ evidence, externalContext, budget, goalHours,
+    maxChars: MODEL_REQUEST_CHARS - JSON.stringify({ messages, tools: SYSTEM_TOOLS }).length - MODEL_CONVERSATION_RESERVE_CHARS });
+  const used = new Set(), ids = modelInput.evidenceIds, contextIds = modelInput.contextIds;
+  const priorTools = new Map();
   const seenCalls = new Set(), trace = [];
   const signal = AbortSignal.timeout(55_000);
   let calls = 0;
   for (let round = 0; round < 4; round++) {
+    if (JSON.stringify({ messages, tools: SYSTEM_TOOLS }).length > MODEL_REQUEST_CHARS) throw new HttpError(502, 'Investigation reached the model input budget. No completed checkpoint was saved.');
     const message = await complete({ messages, tools: SYSTEM_TOOLS, signal });
     if (!Array.isArray(message?.tool_calls) || !message.tool_calls.length || message.tool_calls.length > 3) throw new HttpError(502, 'Agent returned an invalid tool plan.');
     const checked = message.tool_calls.map(call => {
@@ -52,9 +56,9 @@ export async function investigateSystem({ evidence, budget, goalHours = 24, exte
       if (++calls > 8) throw new HttpError(502, 'Agent tool limit reached.');
       const name = call.function.name;
       let result;
-      if (name === 'read_sensor_timeline') result = { observations: evidence.observations, events: evidence.events, incidents: evidence.incidents, coverage: evidence.coverage, scope: evidence.scope, externalContext };
-      if (name === 'correlate_signals') result = correlateSignals(evidence);
-      if (name === 'plan_power_budget') result = { policies: evidence.policies, budget: powerBudget(evidence.policies, budget, goalHours) };
+      if (name !== 'save_review_checkpoint') result = priorTools.has(name)
+        ? { alreadyProvidedInToolCall: priorTools.get(name), note: 'Use that earlier result from this same immutable evidence snapshot.' }
+        : modelInput.tools[name];
       if (name === 'save_review_checkpoint') {
         if (!['read_sensor_timeline', 'correlate_signals', 'plan_power_budget'].every(t => used.has(t))) throw new HttpError(502, 'Agent skipped a required investigation step.');
         if (Object.keys(args).some(k => !['summary', 'evidenceIds', 'nextAction'].includes(k)) || typeof args.summary !== 'string' || !args.summary.trim() || args.summary.length > 1200 ||
@@ -63,10 +67,11 @@ export async function investigateSystem({ evidence, budget, goalHours = 24, exte
         result = { state: 'pending_review', interpretation: args.summary.trim(), interpretationSource: 'model_unverified', evidenceIds: [...new Set(args.evidenceIds)],
           nextAction: args.nextAction, policies: evidence.policies, budget: powerBudget(evidence.policies, budget, goalHours),
           relations: correlateSignals(evidence).relations, sourceGeneratedAt: evidence.generatedAt,
-          externalContext,
+          externalContext: modelInput.externalContext, modelCoverage: modelInput.coverage,
           hardwareApplied: false, messagesSent: false };
       }
       used.add(name);
+      if (!priorTools.has(name)) priorTools.set(name, call.id);
       const step = { number: calls, tool: name, status: 'completed' };
       trace.push(step);
       await recordStep(step);
