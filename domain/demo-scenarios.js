@@ -1,4 +1,5 @@
 import { exerciseProperties } from './exercise.js';
+import { DEMO_ADDRESSES } from './demo-addresses.js';
 
 // Public, fictional snapshots only. This module has no I/O or application credentials.
 export const DEFAULT_DEMO_SCENARIO = 'water-hurricane';
@@ -32,10 +33,10 @@ function homes(now) {
     loss: !home.values.mains_power, water: home.values.water_detected,
     unknown: home.stale, battery: home.values.battery_pct, temperature: home.values.temp_c,
   }));
-  // Same 63 Florida locations and event assignments as the approved ui/command/exercise.js fixtures.
+  // Preserve the exercise identities and event assignments, anchored to mapped buildings.
   const florida = Array.from({ length: 63 }, (_, i) => ({
-    id: `HB-${2001 + i}`, name: `Home ${2001 + i}`, area: 'Florida · hurricane exercise',
-    coordinates: [-82.64 + i % 9 * 0.042, 27.83 + Math.floor(i / 9) * 0.043],
+    id: `HB-${2001 + i}`, name: `Home ${2001 + i}`, area: DEMO_ADDRESSES.tampa[i].address,
+    coordinates: [...DEMO_ADDRESSES.tampa[i].coordinates],
     loss: i % 4 === 0 || i % 7 === 0, water: i % 9 === 0, unknown: i % 11 === 0,
     battery: 24 + i * 13 % 72, temperature: 26 + i % 5,
   }));
@@ -97,6 +98,6 @@ export function createDemoScenario(id = DEFAULT_DEMO_SCENARIO, now = Date.now())
     scenarios: DEMO_SCENARIOS.map(scenario => ({ ...scenario })),
     properties, summary,
     overlays: { exerciseWind: { type: 'FeatureCollection', features } },
-    note: 'All homes, observations and storm areas are fictional. This read-only demo does not contact households, send device commands or access live account data.',
+    note: 'Device readings and storm areas are fictional. Building locations are map references, not registered customers. This read-only demo does not contact households, send device commands or access live account data.',
   };
 }

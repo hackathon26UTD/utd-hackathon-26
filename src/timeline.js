@@ -13,9 +13,9 @@ import { ObjectId } from 'mongodb';
 
 export const ADVISORY = 'Advisory only. A person must review this.';
 export const NODE_DEFS = [
-  ['observation', 'Box observation', 'recorded'], ['local_record', 'Local record', 'not_recorded'], ['gateway_mesh', 'Gateway and mesh', 'derived'],
-  ['cloud_ingest', 'Cloud ingest', 'recorded'], ['rules_latch', 'Rules and incident latch', 'derived'], ['risk_ladder', 'Risk ladder', 'derived'],
-  ['operator_review', 'Operator review', 'recorded'], ['message_help', 'Message and help status', 'recorded'],
+  ['observation', 'Box observation', 'recorded'], ['local_record', 'Local record', 'not_recorded'], ['gateway_mesh', 'Connection path', 'derived'],
+  ['cloud_ingest', 'Received by server', 'recorded'], ['rules_latch', 'Sensor checks', 'derived'], ['risk_ladder', 'Device status', 'derived'],
+  ['operator_review', 'Operator review', 'recorded'], ['message_help', 'Customer updates', 'recorded'],
 ];
 export const NODE_IDS = NODE_DEFS.map((n) => n[0]);
 export const EDGES = [
@@ -152,7 +152,7 @@ function buildNodes(x) {
   });
   // 2 Local record: the cloud is never told what the box holds on its own.
   mk('local_record', 'not_reported', { lastAt: null, evidence: [], note: 'The box keeps its own copy. The cloud is not told what it holds.' });
-  // 3 Gateway and mesh
+  // 3 Connection path
   const silent = events.filter((e) => e.nodeId === 'gateway_mesh' && e.text.startsWith('A paired box stopped'));
   const lastSilent = silent.at(-1);
   const siblingSeen = siblings.map((s) => t(s.lastSeen)).filter(Number.isFinite);
@@ -162,7 +162,7 @@ function buildNodes(x) {
     counts: { pairedBoxes: siblings.length, restarts: byNode.gateway_mesh.filter((e) => e.text.startsWith('The box restarted')).length },
     note: silentNow ? 'A paired box stopped reporting and has not been heard from since.' : siblings.length ? 'A paired box exists at this home. The cloud has no direct record of the mesh link.' : 'The cloud has no direct record of the mesh link.',
   });
-  // 4 Cloud ingest
+  // 4 Received by server
   const stuck = receipts.filter((r) => ['reserved', 'persisted'].includes(r.state) && nowMs - t(r.createdAt) > FRESH_MS);
   const fallback = receipts.filter((r) => r.telemetry?.clockSource === 'server_fallback');
   const delayed = byNode.cloud_ingest.filter((e) => e.kind === 'delayed').length;
@@ -174,7 +174,7 @@ function buildNodes(x) {
     lastAt: lastReceived === null ? null : iso(lastReceived), counts: { receipts: receipts.length, delayed, stuck: stuck.length, serverClock: fallback.length },
     note: stuck.length ? `${stuck.length} report${stuck.length === 1 ? ' is' : 's are'} stored but not finished.` : fallback.length ? 'Some reports had no device clock, so server time was used.' : lastReceived === null ? 'Nothing has been received in this window.' : '',
   });
-  // 5 Rules and incident latch
+  // 5 Sensor checks
   const open = incidents.filter((i) => ['open', 'acknowledged'].includes(i.status));
   const hot = open.some((i) => ['critical', 'high'].includes(i.severity));
   const latchStatus = open.length ? (hot ? 'critical' : 'warn') : incidents.length ? 'ok' : !lastReading ? 'unknown' : readAge > FRESH_MS ? 'stale' : 'ok';
@@ -183,7 +183,7 @@ function buildNodes(x) {
     note: open.length ? 'An incident stays open until a person reviews it, however old the readings are.' : incidents.length ? 'Incidents in this window were closed by a person.' : readAge > FRESH_MS || !lastReading ? 'No incident is latched, but the readings are not current.' : 'No incident is latched.',
     evidence: [...open, ...incidents.filter((i) => !open.includes(i))].slice(0, 5).map((i) => ({ id: `incident:${i._id}`, kind: 'incident', at: iso(i.createdAt || i.detectedAt) })),
   });
-  // 6 Risk ladder: a stale critical reading stays critical and is marked last known.
+  // 6 Device status: a stale critical reading stays critical and is marked last known.
   const level = assessment?.status;
   const lastKnown = Boolean(assessment?.reasons?.some((r) => r.evidence?.some((e) => e.stale)));
   const riskStatus = !assessment ? 'unknown' : level === 'critical' ? 'critical' : ['elevated', 'watch'].includes(level) ? 'warn' : level === 'normal' ? 'ok' : 'unknown';
@@ -201,7 +201,7 @@ function buildNodes(x) {
     counts: { actions: acted.length, modelReviews: run ? 1 : 0 },
     note: waiting ? 'Waiting for a person to review.' : acted.length ? 'A person has acted on this device in this window.' : 'No review is recorded.',
   });
-  // 8 Message and help status
+  // 8 Customer updates
   const helpOpen = help && ['review_queued', 'follow_up_assigned', 'help_on_the_way'].includes(help.status);
   const pendingAck = deliveries.filter((m) => m.requiresAck && !['acked', 'expired', 'cancelled'].includes(m.effective));
   const msgStatus = helpOpen || pendingAck.length ? 'warn' : help?.status === 'resolved' || deliveries.some((m) => m.effective === 'acked') ? 'ok' : 'unknown';

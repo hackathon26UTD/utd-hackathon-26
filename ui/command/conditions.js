@@ -11,12 +11,12 @@ export const OBSERVATION_FRESH_S = 120;
 export const NODE_DEFS = [
   { id: 'observation', label: 'Observation', short: 'Box reading', what: 'The latest sensor reading the box took, such as water, power, battery and temperature.', limit: 'A reading is a moment in time. It says nothing about what happened between reports.' },
   { id: 'local_record', label: 'Local record', short: 'On the box', what: 'The history the box keeps on its own storage.', limit: 'The cloud does not receive this record, so it is shown as not reported.' },
-  { id: 'gateway_mesh', label: 'Gateway and mesh', short: 'Relay path', what: 'How a report reaches the internet: the home gateway or a nearby box acting as a relay.', limit: 'The relay path is not reported to the cloud unless a box announces it, so it stays unknown.' },
-  { id: 'cloud_ingest', label: 'Cloud ingest', short: 'Received', what: 'The cloud received the report, stored it once and stamped the time it arrived.', limit: 'A delay between the reading time and the arrival time can come from the network or the box clock.' },
-  { id: 'rules_latch', label: 'Rules and incident', short: 'Checks', what: 'Fixed rules compare readings with limits. A rule that trips latches an incident until a person clears it.', limit: 'Rules look at one home. They do not know about the street or the weather.' },
-  { id: 'risk_ladder', label: 'Risk ladder', short: 'Status', what: 'The tier shown on the map. It combines open incidents, the newest readings and nearby context.', limit: 'A tier is an alert level for people to review. It is not a finding about the building.' },
+  { id: 'gateway_mesh', label: 'Connection path', short: 'Relay path', what: 'How a report reaches the internet: the home gateway or a nearby box acting as a relay.', limit: 'The relay path is not reported to the cloud unless a box announces it, so it stays unknown.' },
+  { id: 'cloud_ingest', label: 'Received by server', short: 'Received', what: 'The cloud received the report, stored it once and stamped the time it arrived.', limit: 'A delay between the reading time and the arrival time can come from the network or the box clock.' },
+  { id: 'rules_latch', label: 'Sensor checks', short: 'Checks', what: 'Fixed rules compare readings with limits. A rule that trips latches an incident until a person clears it.', limit: 'Rules look at one home. They do not know about the street or the weather.' },
+  { id: 'risk_ladder', label: 'Device status', short: 'Status', what: 'The tier shown on the map. It combines open incidents, the newest readings and nearby context.', limit: 'A tier is an alert level for people to review. It is not a finding about the building.' },
   { id: 'operator_review', label: 'Operator review', short: 'A person', what: 'Where a person looks at the evidence and decides what to do.', limit: 'Nothing here is automatic. A missing record means nobody has recorded a review.' },
-  { id: 'message_help', label: 'Message and help', short: 'Customer', what: 'Messages sent to the box screen and the help status the customer can see.', limit: 'A message is delivered when the box next checks in. Delivery is not the same as being read.' },
+  { id: 'message_help', label: 'Customer updates', short: 'Customer', what: 'Messages sent to the box screen and the help status the customer can see.', limit: 'A message is delivered when the box next checks in. Delivery is not the same as being read.' },
 ];
 export const NODE_IDS = NODE_DEFS.map(n => n.id);
 export const NODE_LABEL = Object.fromEntries(NODE_DEFS.map(n => [n.id, n.label]));

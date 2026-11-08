@@ -194,3 +194,26 @@
 @media(max-width:420px){.dr-path ol{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.wf-edge.is-hot{animation:none}.dr *,.wf *{transition:none!important;animation:none!important}}
 @media(forced-colors:active){.wf-node,.dr-step{border:2px solid CanvasText}.wf-node.is-selected{outline:3px solid Highlight}}
+
+/* Full device workspace; the primary navigation stays available. */
+.cc .dr{left:var(--workspace-nav-width,196px);right:0;width:auto;max-width:none;box-shadow:none;z-index:25}
+.cc.sidebar-collapsed .dr{left:64px}
+.cc .dr-tabs{padding:0 22px;flex-shrink:0;gap:0}
+.cc .dr-tabs .kit-main-tabs__tab{border:0;border-radius:0;background:transparent;box-shadow:none;min-height:48px}
+.cc .dr-tabs .kit-main-tabs__tab[aria-selected=true]{border-bottom:3px solid var(--kit-accent)}
+.dr-more{margin:16px 0;border-bottom:1px solid var(--kit-line);padding:12px 0}
+.dr-more summary{cursor:pointer;font-weight:600}
+.dr-location img{display:block;width:min(100%,600px);height:auto;margin-top:12px;border-radius:8px}
+.dr[data-tab=workflow] .dr-panels{padding:0 18px 18px}
+.dr[data-tab=workflow] .wf-viewport{height:max(480px,calc(100dvh - 300px))}
+.dr .wf-node{overflow-wrap:anywhere}
+.dr .wf-node-panel,.dr .wf-log{overflow-wrap:anywhere}
+@media(max-width:759px){.cc .dr,.cc.sidebar-collapsed .dr{left:0}.dr[data-tab=workflow] .wf-viewport{height:65dvh}.dr-chips{max-width:100%}}
+
+.dr-signals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.dr-signal{padding:14px;border:1px solid var(--kit-line);border-radius:8px;min-width:0}.dr-signal span,.dr-signal strong{display:block;overflow-wrap:anywhere}.dr-signal.ok{background:#e1f2ea;color:#14563f}.dr-signal.warn{background:#fff2ce;color:#765300}.dr-signal.unknown{background:#edf0f2;color:#455a64}.dr-hero{grid-template-columns:1fr}.dr-headline{font-size:24px}.dr-path ol{grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:600px){.dr-signals{grid-template-columns:1fr}.dr-path ol{grid-template-columns:1fr 1fr}}
+
+.cc .dr-tabs{gap:8px}.cc .dr-tabs .kit-main-tabs__tab{padding:12px 18px!important;flex:0 0 auto!important}.dr .wf-n-src{display:none}.dr .wf-n-title{white-space:normal;line-height:1.2}.dr .wf-legend span{background:var(--kit-surface)}
+
+.dr .wf-pan-tip{padding-right:70px}
+
+.dr-signal.critical{background:#fce8e6;color:#a51c30}
