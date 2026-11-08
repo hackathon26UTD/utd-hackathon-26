@@ -182,3 +182,8 @@ Ayan selected the U.S. disaster overview, then regions and neighborhoods. All fi
 - Inspected desktop/mobile renders; corrected overlapping national labels and map-control/card overlap. The prototype has no KPI row, side rail or default selected house. It uses no cookie-consent interruption; privacy/access is an on-demand tool.
 - Ten rendered route/state checks passed automated accessibility/error/overflow/card-bounds checks. Search, layer toggles, Escape, normal/reduced motion and camera continuity exercised. At 1920x1080, map fills viewport and app chrome leaves 97.7% unobstructed at rest.
 - User visual review, complete national source integration and the actual production replacement remain pending. A local proposal does not prove those complete.
+
+## 2026-11-07 | Ayan | Direction accepted for Astra
+- Ayan answered the rendered composition review: "Use this direction for Astra and refine the details."
+- Recorded approval in the canonical design brief, Astra instructions and prototype README. Added a requirement-by-requirement handoff audit and the next owner's implementation boundary.
+- Requirements/directional review is ready for the teammate using Astra. The production map-only replacement and complete national data coverage are explicitly not claimed complete.

@@ -1,6 +1,6 @@
 # HomeBeacon map review prototype
 
-Ayan's workstream. Isolated interaction proposal for the teammate using Astra. Not production and not accepted design.
+Ayan's workstream. Isolated interaction proposal for the teammate using Astra. Ayan approved this direction for Astra to develop and refine. This is not a production implementation.
 
 ## Run
 
@@ -48,7 +48,7 @@ Fictional devices are intentionally placed for review. They do not identify actu
 
 ## Still needed
 
-Ayan's rendered design review; national source/zone resolution; Alaska/Hawaii navigation; full failed/stale/retry states; message/zone/assistant flows; light-theme review; production integration and full role/data regression. This prototype does not complete the production redesign.
+Detailed implementation review; national source/zone resolution; Alaska/Hawaii navigation; full failed/stale/retry states; message/zone/assistant flows; light-theme review; production integration and full role/data regression. This prototype does not complete the production redesign.
 
 ## Review evidence
 
