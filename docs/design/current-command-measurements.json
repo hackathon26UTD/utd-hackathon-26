@@ -1,0 +1,108 @@
+{
+  "before": {
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "map": {
+      "x": 359,
+      "y": 379.53125,
+      "width": 722,
+      "height": 766,
+      "visibleArea": 419098.4375
+    },
+    "header": {
+      "x": 80,
+      "y": 121.234375,
+      "width": 1360,
+      "height": 126.921875,
+      "visibleArea": 172613.75
+    },
+    "rail": {
+      "x": 0,
+      "y": 121.234375,
+      "width": 80,
+      "height": 1401.03125,
+      "visibleArea": 67101.25
+    },
+    "stats": {
+      "x": 80,
+      "y": 286.546875,
+      "width": 1360,
+      "height": 91.984375,
+      "visibleArea": 125098.75
+    },
+    "queue": {
+      "x": 99,
+      "y": 379.53125,
+      "width": 260,
+      "height": 766,
+      "visibleArea": 150921.875
+    },
+    "detail": {
+      "x": 1081,
+      "y": 379.53125,
+      "width": 340,
+      "height": 766,
+      "visibleArea": 197359.375
+    },
+    "cookie": {
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 121.234375,
+      "visibleArea": 174577.5
+    },
+    "kitSelects": 6
+  },
+  "after": {
+    "viewport": {
+      "width": 1440,
+      "height": 960
+    },
+    "map": {
+      "x": 359,
+      "y": -183.703125,
+      "width": 722,
+      "height": 766,
+      "visibleArea": 420418.34375
+    },
+    "header": {
+      "x": 80,
+      "y": -442,
+      "width": 1360,
+      "height": 126.921875,
+      "visibleArea": 0
+    },
+    "rail": {
+      "x": 0,
+      "y": -442,
+      "width": 80,
+      "height": 1401.03125,
+      "visibleArea": 76722.5
+    },
+    "stats": {
+      "x": 80,
+      "y": -276.6875,
+      "width": 1360,
+      "height": 91.984375,
+      "visibleArea": 0
+    },
+    "queue": {
+      "x": 99,
+      "y": -183.703125,
+      "width": 260,
+      "height": 766,
+      "visibleArea": 151397.1875
+    },
+    "detail": {
+      "x": 1081,
+      "y": -183.703125,
+      "width": 340,
+      "height": 766,
+      "visibleArea": 197980.9375
+    },
+    "cookie": null,
+    "kitSelects": 6
+  }
+}
