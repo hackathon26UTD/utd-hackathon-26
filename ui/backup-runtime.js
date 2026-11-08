@@ -13,19 +13,19 @@ export function runtimeText(hours) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 export function backupRuntime(h) {
-  const output = h('strong', {id:'backup-estimate'}, 'Not measured');
+  const output = h('strong', {id:'backup-estimate'}, 'About 6 hours');
   const form = h('form',{onsubmit:e=>{
     e.preventDefault();const fields=new FormData(e.currentTarget);
     const hours=estimateBackupHours(Number(fields.get('capacity')),Number(fields.get('draw')));
     output.textContent=hours===null?'Enter valid capacity and current':runtimeText(hours)+' estimated';
-  }},h('p',{class:'fine'},'Use usable capacity for one cell and current measured at the battery pack. The estimate includes a 15% reserve. Converter losses, temperature and battery age can reduce runtime.'),
+  }},h('p',{class:'fine'},'Illustrative assumptions: 1,000 mAh usable capacity, 150 mA average pack current and a 15% reserve. These are not measurements of your device. Replace them with measured values; load, voltage cutoff, temperature and battery age affect runtime.'),
   h('div',{class:'backup-fields'},
-    h('label',null,'Capacity per cell (mAh)',h('input',{name:'capacity',type:'number',min:'1',max:'5000',step:'any',required:true,placeholder:'From battery data'})),
-    h('label',null,'Pack current (mA)',h('input',{name:'draw',type:'number',min:'.01',max:'10000',step:'any',required:true,placeholder:'Measured at the pack'}))),
+    h('label',null,'Capacity per cell (mAh)',h('input',{name:'capacity',type:'number',min:'1',max:'5000',step:'any',required:true,value:'1000'})),
+    h('label',null,'Pack current (mA)',h('input',{name:'draw',type:'number',min:'.01',max:'10000',step:'any',required:true,value:'150'}))),
   h('button',{type:'submit'},'Estimate runtime'));
   return h('section',{class:'backup-runtime','aria-label':'Battery backup'},
-    h('div',{class:'backup-header'},h('div',null,h('span',{class:'box-kicker'},'BATTERY BACKUP'),h('p',null,'2 × AAA · 3 V nominal')),h('div',{class:'backup-result'},h('small',null,'Estimated backup time'),output)),
-    h('p',{class:'fine'},'24/7 Life Super Alkaline Plus · 1.5 V per cell · connected in series'),
-    h('details',null,h('summary',null,'Calculate from battery measurements'),form),
-    h('p',{class:'fine'},'For wall-power loss. A lost Wi-Fi connection alone does not indicate battery use.'));
+    h('div',{class:'backup-header'},h('div',null,h('span',{class:'box-kicker'},'BATTERY BACKUP'),h('p',null,'When wall power is lost')),h('div',{class:'backup-result'},h('small',null,'Estimated backup time'),output)),
+    h('p',{class:'fine'},'Illustrative estimate · not measured'),
+    h('details',null,h('summary',null,'Estimate assumptions'),form),
+    null);
 }
