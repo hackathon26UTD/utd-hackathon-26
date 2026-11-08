@@ -13,7 +13,7 @@ export function plainEmail(subject,paragraphs,links=[]) {
 export async function sendHouseholdEmail(env,{to,id,payload},{fetcher=fetch}={}) {
   if(!emailConfigured(env))return {status:'disabled'};
   try {
-    const r=await fetcher('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'homebeacon/'+id},body:JSON.stringify({from:env.HOME_EMAIL_FROM,to:[to],...payload}),signal:AbortSignal.timeout(10000),redirect:'error'});
+    const r=await fetcher('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'homebeacon/'+id},body:JSON.stringify({from:env.HOME_EMAIL_FROM,to:[to],...payload}),signal:AbortSignal.timeout(10000),redirect:'manual'});
     if(!r.ok)return {status:r.status===429||r.status>=500||r.status===409?'retry':'rejected',httpStatus:r.status};
     const body=JSON.parse(await bodyText(r,10000));
     return typeof body.id==='string'&&body.id.length<200?{status:'accepted',providerId:body.id}:{status:'retry'};
