@@ -50,7 +50,7 @@ Request-form answers submitted with the cart: the project is a neighborhood disa
 - **No air-quality / gas sensor on HARP** (no MQ-2, MQ-135, BME680, SGP30). Borrow one or drop air quality from the pitch; use flame + alarm-sound detection and outdoor AirNow data in the command center instead.
 - **No LiPo.** AA pack is the backup. The ESP32-S3 Sense has battery pads if a LiPo turns up.
 - **No LoRa.** ESP-NOW is the short-range stand-in; say so in the pitch.
-- **Box A pins are scarce:** the camera and SD card use most of the ESP32-S3 Sense GPIO. Keep box A to DHT11, water level, sound, button, buzzer, tilt switch. Put GY-521, flame, PIR and OLED on box B.
+- **Box A pins are scarce:** the camera and SD card use most of the ESP32-S3 Sense GPIO, so box A uses a shared I2C bus (D4/D5) for the DS1307 clock (0x68), GY-521 (0x69, AD0 to 3.3 V) and OLED (0x3C). Final map (implemented in `firmware/box_a/config.h`): D0 water S, D1 water power, D2 sound DO, D3 wall-power sense, D4/D5 I2C, D6 button, D7 buzzer. Box B (`firmware/box_b/config.h`): PIR 26, flame DO 27 / AO 34, tilt 25, wall-power 35, battery 32, I2C 21/22. No DHT11 was in the hardware received.
 
 ### Communication design
 
@@ -90,7 +90,7 @@ Suggested rules: `water_level > <wet threshold>` (critical), `flame == 1`, `temp
   - Serial Monitor 115200 baud. If an S3 upload fails: hold BOOT, tap RESET, upload.
 - **Alternative: PlatformIO in VS Code** pins library versions in a committed `platformio.ini`; about 15 minutes more setup.
 - **Arduino Uno Q: Arduino App Lab** for both halves (MCU sketch + Linux-side Python hub). Arduino IDE 2 can still program the MCU side.
-- Device keys: register each box with `POST /api/devices` using `API_ADMIN_KEY` (from Ayan), then put the returned `dk_...` key in `clients/esp32/secrets.h` (git-ignored).
+- Device keys: `npm run provision` (needs `API_ADMIN_KEY` from Ayan) registers both boxes, assigns them to synthetic demo homes and writes the git-ignored `firmware/*/secrets.h`. Full build/flash/test guide: [firmware/TESTING.md](../firmware/TESTING.md). Datasheets: [DATASHEETS.md](DATASHEETS.md).
 
 ---
 
