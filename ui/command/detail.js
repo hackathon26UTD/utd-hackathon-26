@@ -161,7 +161,7 @@ export function mountDetail(ctx) {
     const unavailable = D?.state === 'unavailable' ? `<p class="soft-note">${esc(failText(D.status, 'Full device detail', D.error))} Showing the summary only.</p>` : D?.state === 'loading' ? '<p class="soft-note">Loading device detail.</p>' : '';
     if (tab === 'conditions') {
       const c = tl.conditions && Array.isArray(tl.conditions.what) ? tl.conditions : deriveConditions({ p, risk, latest: dev.latest || p.live?.latest || latestFromValues(p.values, p.observedAt), now, exercise });
-      setHtml(drawer.querySelector('.dr-cond-top'), unavailable + conditionsHtml(p, shown, c, tl, link, power, now, D));
+      setHtml(drawer.querySelector('.dr-cond-top'), conditionsHtml(p, shown, c, tl, link, power, now, D));
       setHtml(drawer.querySelector('.dr-cond-actions'), actionsHtml(p, risk));
     } else if (tab === 'workflow') {
       if (!DR.wf) { DR.wf = mountWorkflow({ root: drawer.querySelector('.dr-wf'), ctx }); DR.wfSig = ''; }

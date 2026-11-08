@@ -9,6 +9,19 @@ const response = (displayPreview = {wifiConnected: true, source: 'simulation'}) 
   id: 'uno-q', state: 'ok', data: {device: {id: 'uno-q'}, mode: 'live', displayPreview},
 });
 
+test('startup preference keeps the configured card connected before and throughout detail failures', () => {
+  const ctx = {...operator, displayPreferences: {wifiConnectedDeviceIds: ['uno-q', 'box-a', 'box-b']}};
+  for (const state of [null, {id: 'uno-q', state: 'loading', data: null}, {id: 'uno-q', state: 'unavailable', status: 503, data: null}, response(null)]) {
+    assert.equal(wifiPreviewEnabled(ctx, device, state), true);
+    assert.equal(wifiPreviewEnabled(ctx, {id: 'unconfigured-box'}, state), false);
+  }
+  assert.equal(wifiPreviewEnabled({...ctx, displayPreferences: {wifiConnectedDeviceIds: []}}, device, response()), false, 'startup setting can disable an old detail flag');
+  assert.equal(wifiPreviewEnabled(ctx, device, null, true), false);
+  assert.equal(wifiPreviewEnabled({...ctx, demo: true}, device, null), false);
+  assert.equal(wifiPreviewEnabled({...ctx, role: 'demo'}, device, null), false);
+  assert.equal(wifiPreviewEnabled(ctx, {...device, synthetic: true}, null), false);
+});
+
 test('a backend preview enables automatically and is absent without the server flag', () => {
   assert.equal(wifiPreviewEnabled(operator, device, response()), true);
   for (const preview of [null, {}, {wifiConnected: true}, {wifiConnected: 'true', source: 'simulation'}, {wifiConnected: true, source: 'sensor'}, {wifiConnected: false, source: 'simulation'}]) {
