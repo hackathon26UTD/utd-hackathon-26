@@ -149,7 +149,7 @@ function openTool(title) {
 function results(panel, query = "") {
   panel.replaceChildren();
   let matches = 0;
-  for (const region of regions) {
+  for (const region of currentScenario === "snapshot" ? regions : []) {
     if ((region.name + " " + region.area).toLowerCase().includes(query.toLowerCase())) {
       const b = node("button", "result");
       b.append(node("strong", null, region.name), node("small", null, region.area + " \xB7 official snapshot"));
@@ -193,7 +193,7 @@ function layers() {
 }
 function activity() {
   const p = openTool("Activity");
-  p.append(K.historyList({ title: "Design sample", items: [{ what: "Water sensor reported water", who: "HB-1003 \xB7 fictional", when: "2 min ago", tone: "bad" }, { what: "No recent observations", who: "HB-1004 \xB7 fictional", when: "32 min since observation", tone: "muted" }] }), node("p", "fine-print", "Static review content. No simulated live update loop is running."));
+  p.append(K.historyList({ title: currentScenario === "hurricane" ? "Hurricane exercise" : "Alert-snapshot exercise", items: visibleHomes().slice(0, 5).map(h => ({what:h.reason,who:h.id+" · fictional",when:h.age,tone:h.tone})) }), node("p", "fine-print", "Static review content. No simulated live update loop is running."));
 }
 function privacy() {
   const p = openTool("Privacy and access");
@@ -209,7 +209,7 @@ function privacy() {
 const menu = K.buttonMenu({ label: "Map tools", text: "Tools", items: [{ key: "search", label: "Find an area or home", onSelect: search }, { key: "layers", label: "Layers and sources", onSelect: layers }, { key: "activity", label: "Activity", onSelect: activity }, { key: "event", label: "Preview exercise report", onSelect: previewReport }, { key: "privacy", label: "Privacy and access", onSelect: privacy }, { divider: true }, { key: "national", label: "U.S. overview", onSelect: overview }, { key: "example", label: "Inspect fictional house", onSelect: () => selectHome(visibleHomes()[0], menu) }] });
 $("#tools").append(menu);
 function previewReport() {
-  const home = homes[0], entry = markers.find((m) => m.h.id === home.id);
+  const home = visibleHomes().find(h => h.id === selected?.id) || visibleHomes()[0], entry = markers.find((m) => m.h.id === home.id);
   if (!entry) return;
   home.age = "Observed just now \xB7 exercise preview";
   if (!reduce) entry.button.animate([{ boxShadow: "0 0 0 4px #f6a623bb" }, { boxShadow: "0 0 0 20px #f6a62300" }], { duration: 700, iterations: 1 });
