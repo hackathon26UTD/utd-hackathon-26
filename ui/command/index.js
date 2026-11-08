@@ -1,3 +1,4 @@
+import {mountWeatherPlayback} from './weather-playback.js';
 import { mountNews } from './news.js';
 import { simulationWind } from './wind-flow.js';
 import { mountSimulationStudio } from '../simulation-studio.js';
@@ -153,7 +154,8 @@ export async function mountCommand(env) {
 
   const detailPanel = mountDetail(ctx);
   const overlays = mountOverlays(ctx);
-  mountRadar(mv, document);
+  mountRadar(mv, document, {onActivate:()=>ctx.toolbar.setWorld('street')});
+  ctx.weatherPlayback=mountWeatherPlayback(ctx,$('.map-wrap'));
   const news=mountNews(ctx,$('#news-content'));ctx.news=news;
   const bottom = mountBottom(ctx);
   mountDialogs(ctx);
@@ -179,6 +181,7 @@ export async function mountCommand(env) {
   const viewFocus = view => view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
   function cancelViewAnimations() { viewAnimations.forEach(animation => animation.cancel()); viewAnimations = []; }
   async function transitionWorkspace(view, { animate = true, focusTarget = null } = {}) {
+    if(view!=='demo')studio?.pause();
     const id = ++transitionId;
     const outgoing = viewElement(S.workspaceView);
     const outgoingOpacity = Number(getComputedStyle(outgoing).opacity);
@@ -372,7 +375,7 @@ export async function mountCommand(env) {
     S.detailOpen = false; S.selectedId = null; S.selectedRegion = null;
     S.filter = 'all'; S.search = ''; S.layerIds = null;
     $('#search').value = ''; $('#filter').value = 'all'; $('#filter').dispatchEvent(new Event('change', { bubbles: true }));
-    mv.simulationWind=simulationWind(id);mv.windFlow.update();
+    mv.simulationWind=S.embed?simulationWind(id):undefined;mv.windFlow.update();
     const wind = r.data.overlays?.exerciseWind || { type: 'FeatureCollection', features: [] };
     mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length && mv.worldKey==='street');
     const zonesOn = false;
@@ -590,11 +593,11 @@ export async function mountCommand(env) {
   // ---- start ----
 
   if (demo && !S.embed && !SCENARIOS.some(s=>s.id===requestedScenario)) {
-    const controls = document.createElement('div'); $('.map-wrap').append(controls);
+    const controls = document.createElement('div'); $('#simulation-studio').after(controls);
     studio = mountSimulationStudio($('#simulation-studio'), controls, {
       onFrame: frame => {
         S.base = frame.properties; S.demoMeta = frame.scenario; S.demoIssuedAt = frame.issuedAt; S.demoScenario = 'custom'; S.simulationFrame = frame;
-        mv.simulationWind=simulationWind('custom',frame.config,frame.minute);mv.windFlow.update();
+        mv.simulationWind=undefined;mv.windFlow.update();
         const wind=frame.overlays.exerciseWind; mv.setExt('exerciseWind',wind); mv.setVisible('exerciseWind',!!wind.features.length && mv.worldKey==='street');
         mv.setVisible('zones',false); S.ovOn.delete('zones');
         $('#notice').textContent = 'Simulation · '+frame.phase+' · minute '+frame.minute+' · fictional devices';
