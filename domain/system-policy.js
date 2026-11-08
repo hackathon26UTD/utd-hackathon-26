@@ -15,7 +15,7 @@ const bool = (v) => v === true || v === 1 ? true : v === false || v === 0 ? fals
 export function devicePolicy(device, now = new Date()) {
   const latest = device.latest || {};
   const value = (k) => freshValue(latest[k], now);
-  const mains = bool(value('mains_power'));
+  const mains = device.mainsObservationConflict === true ? null : bool(value('mains_power'));
   const water = bool(value('water_detected'));
   const flame = bool(value('flame'));
   const air = bool(value('smoke_alarm'));
@@ -27,7 +27,7 @@ export function devicePolicy(device, now = new Date()) {
     bool(oldValue('smoke_alarm')) === true || oldValue('sound_hits') >= 6 ||
     (typeof oldValue('temp_c') === 'number' && oldValue('temp_c') >= 55);
   const critical = lastKnownCritical || water === true || flame === true || air === true || value('sound_hits') >= 6 ||
-    (typeof value('temp_c') === 'number' && value('temp_c') >= 55) || device.latchedCritical === true;
+    (typeof value('temp_c') === 'number' && value('temp_c') >= 55) || device.latchedCritical === true || device.criticalObservationConflict === true;
   const mode = critical ? 'critical' : mains === true ? 'normal' : 'saver';
   const wifi = bool(value('wifi_connected'));
   const wan = bool(value('wan_connected'));
@@ -36,7 +36,9 @@ export function devicePolicy(device, now = new Date()) {
     wifi === false ? 'wifi_unavailable' : wifi === true ? 'wifi_only_uplink_unverified' : 'unknown';
   return {
     deviceId: device.id, mode, mains, link,
-    reason: critical ? 'Current/last-known critical observation or unresolved critical incident; preserve sensing and reporting. Stale evidence needs review.' :
+    reason: device.criticalObservationConflict === true ? 'Latest same-time reports disagree and include a critical observation. Preserve critical functions pending source review.' :
+      critical ? 'Current/last-known critical observation or unresolved critical incident; preserve sensing and reporting. Stale evidence needs review.' :
+      device.mainsObservationConflict === true ? 'Latest same-time external-power reports disagree; power is unknown. Conserve optional loads pending source review.' :
       mains === true ? 'Recent external-power observation.' : 'External power is lost or unverified; conserve optional loads.',
     ...POWER_PROFILES[mode],
     preserve: ['local_sensor_sampling', 'local_alarm', 'help_button', 'durable_event_log', 'esp_now_receive'],

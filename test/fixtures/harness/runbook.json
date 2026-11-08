@@ -189,7 +189,7 @@
    "purpose": "agent",
    "question": "Investigate the water signal on this box and save a checkpoint.",
    "pack": [
-    "review_water_observation",
+    "runtime narrows nextAction",
     "save_review_checkpoint"
    ],
    "good": {
