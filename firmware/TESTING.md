@@ -11,10 +11,10 @@ If A loses Internet and B gets it, B becomes the gateway automatically and A's m
 
 | | Box A (`firmware/box_a`) | Box B (`firmware/box_b`) |
 | --- | --- | --- |
-| Board (Arduino IDE 2) | **XIAO_ESP32S3**, PSRAM **OPI PSRAM** | **ESP32 Dev Module**, Partition Scheme **Huge APP** |
-| Sensors | water (D0, powered from D1), sound DO (D2), mains sense (D3), button (D6), buzzer (D7), camera + microSD | PIR (26), flame DO/AO (27/34), tilt (25), mains sense (35), battery (32) |
-| I2C (shared bus) | D4 SDA / D5 SCL: DS1307 0x68, GY-521 **0x69**, SSD1306 0x3C | 21 SDA / 22 SCL: GY-521, SSD1306 |
-| Role | Mesh node; gateway when it has Internet (upload queue on microSD) | Mesh node; gateway when it has Internet (RAM queue). Extra boxes (C, D...) use this sketch |
+| Board (Arduino IDE 2) | **XIAO_ESP32S3**, PSRAM **OPI PSRAM** | **XIAO_ESP32C3**, USB CDC On Boot **Enabled**, Partition Scheme **Huge APP** |
+| Sensors | water (D0, powered from D1), sound DO (D2), mains sense (D3), button (D6), buzzer (D7), camera + microSD | **none for the demo** (all `USE_*` 0). Optional: PIR D3, flame DO/AO D6/D0, tilt D7, mains D1, battery D2 |
+| I2C (shared bus) | D4 SDA / D5 SCL: DS1307 0x68, GY-521 **0x69**, SSD1306 0x3C | D4 SDA / D5 SCL: GY-521 (`USE_MPU`) |
+| Role | Mesh node; gateway when it has Internet (upload queue on microSD) | Demo: **relay-only** mesh node (`CAN_BE_GATEWAY 0`): heartbeats every 10 s go through the mesh to box A, which uploads them. Extra boxes (C, D...) use this sketch |
 
 I2C saves pins: the clock, accelerometer and screen all share two wires. Everything on I2C is auto-detected at boot, so a missing part is reported, not fatal. **GY-521 on box A: wire its AD0 pin to 3.3 V** so it moves to 0x69; otherwise it collides with the DS1307 at 0x68.
 
@@ -48,6 +48,31 @@ If nothing arrives: MACs swapped or mistyped, the two boards have different keys
 - **Mains sense:** USB/wall 5 V → 10 kΩ → *pin* → 10 kΩ → GND (≈2.5 V when present). Run the board from the AA pack through the Power MB with diodes so it keeps running when USB is pulled. Measure the pin voltage before connecting. No divider wired? Set `USE_MAINS_SENSE 0` in `config.h`.
 - **Battery sense (box B):** 9 V pack → 20 kΩ → pin 32 → 10 kΩ → GND (≈3 V max). Set `USE_BATTERY 0` if not wired.
 - **Water sensor + goes to D1, not 3.3 V.** The firmware powers it only while reading so the traces do not corrode.
+
+## 0b. Box B on the XIAO ESP32-C3 (demo: mesh-only box)
+
+Box B carries no sensors. It exists to prove the mesh: it never joins Wi-Fi, and its `box.boot` event, a heartbeat reading every 10 s and `ping` travel AES-encrypted over ESP-NOW to box A, which uploads them. On the dashboard box B shows up as its own device with fresh readings but no sensor values. It still scans for the hotspot (`WIFI_SSID` in its `secrets.h`) only to sit on box A's channel.
+
+Build and flash (antenna attached; board MAC `58:8C:81:AD:24:C4`; needs the provisioned, git-ignored `firmware/box_b/secrets.h`):
+
+```bash
+npm run firmware:sync
+arduino-cli compile --fqbn esp32:esp32:XIAO_ESP32C3:PartitionScheme=huge_app --build-path firmware/.build/box_b_c3 firmware/box_b
+arduino-cli upload -p COM<N> --fqbn esp32:esp32:XIAO_ESP32C3:PartitionScheme=huge_app --input-dir firmware/.build/box_b_c3
+```
+
+Arduino IDE 2: board **XIAO_ESP32C3**, USB CDC On Boot **Enabled** (the default; `CDCOnBoot=cdc` in this core means *Disabled*), Partition Scheme **Huge APP (3MB No OTA/1MB SPIFFS)**. If the port does not show up, hold BOOT, tap RESET, release BOOT, then upload.
+
+| Check (Serial Monitor 115200) | Pass when |
+| --- | --- |
+| Boot banner | `HomeBeacon box B (XIAO ESP32-C3) starting`, `mesh=1`, `[wifi] relay-only (no upload); mesh on channel N (hotspot)` |
+| `mesh` | `gateway: A (1 hops, ...)`, radio failures 0 |
+| `ping` | `PASS: acknowledged by gateway A` |
+| `queue` | own messages waiting 0 |
+| Box A serial / dashboard | box A logs `[event] box B: box.boot (0 hops)` and an `HB {...}` line for box B every ~10 s; box B's device `lastSeen` refreshes on the dashboard |
+| Unplug box B 30 s | box A raises `box_B.silent` (S8) |
+
+Adding a sensor later: wire it at 3.3 V to the pin in `config.h` (analog only on D0–D2; keep D8/D9 free at boot), set its `USE_*` to 1, rebuild. Set `CAN_BE_GATEWAY 1` to let box B upload itself (needed for the M1 gateway-handover test).
 
 ## 1. One-time setup
 

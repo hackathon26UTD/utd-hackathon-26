@@ -630,3 +630,13 @@ Release complete: PR #58 merged as `b210de8eb0990b53541fefec473cb372e7811723`. P
 Both preview and primary production match all 16 checked built assets, pass public routes/readiness and preserve private-route 401s. Actual production Chrome confirms the demo banner, End demo returning anonymous visitors to login, phone fit and zero page errors. Operator-session preservation and shared-demo deletion are covered by controlled browser/API fixtures, not a claimed real operator login.
 
 At 15:07 UTC production readback confirmed the connected Uno Q at 35.5 °C, 3183 MB available memory, load 0.03, uptime 1265 seconds and Wi-Fi disconnected, with a fresh lastSeen. The host USB process continues uploading. Hazard status stays unknown, no location is invented, and Box A's previous critical sensor record is not altered. Controller setup, private-key location, stop/restart steps and remaining standalone/sensor/location work are recorded in UNOQ_PRODUCTION.md. No outgoing messages or fake production observations were sent. This final evidence update is documentation-only.
+
+## November 8, 2026 — Box B ported to XIAO ESP32-C3 (mesh-only demo box)
+
+Request: port `firmware/box_b` from a classic ESP32 dev board to the team's Seeed XIAO ESP32-C3. User decision: box B carries no sensors and exists to demo the mesh; it relays through box A, which uploads.
+
+Changes: `config.h` uses the C3 pin map (D0–D10, analog only on D0–D2) with every sensor switch at 0 (new `USE_MPU`), `PIN_LED -1` (no user LED), and new `CAN_BE_GATEWAY 0`. In relay-only mode `box_b.ino` skips the uplink and history sync and never joins Wi-Fi. It scans for the hotspot only to share box A's channel, re-scanning every 30 s while no gateway is heard. It still sends `box.boot`, a 10 s heartbeat reading and `ping`. `scripts/firmware.mjs` FQBN is now `esp32:esp32:XIAO_ESP32C3:PartitionScheme=huge_app`. In core 3.3.12, CDC On Boot defaults to Enabled and the `CDCOnBoot=cdc` option means Disabled, so it is not set. TESTING.md has a new section 0b for build, upload and checks.
+
+Verification: arduino-cli compile with the real git-ignored secrets passed (1,203,017 bytes, 38% of Huge APP; 14% RAM). Not yet flashed or tested on hardware; `common/*` and box A untouched.
+
+Next: user uploads `firmware/.build/box_b_c3` (or `box_b.ino.merged.bin` at 0x0, which contains secrets: keep private) and checks `ping` → `PASS: acknowledged by gateway A`.
