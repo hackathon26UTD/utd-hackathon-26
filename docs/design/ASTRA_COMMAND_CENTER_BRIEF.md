@@ -2,13 +2,13 @@
 
 You are helping Ayan's workstream redesign an existing operational map. Start with `COMMAND_CENTER_MAP_ONLY.md`, not the previous deployed layout. The current design was explicitly rejected. Coordinate with the team and preserve existing APIs.
 
-**Locked:** default is a full-viewport map, all tools open on demand. Remove KPI cards, the permanent side rail, the permanent home queue, the default-selected home and the always-open inspector/activity panels. Disaster regions lead the wide map; individual devices appear as you zoom in. Device details appear only after deliberate selection, in an expandable card anchored to that house. Do not create another ordinary dashboard around a small map.
+**Locked:** default is a full-viewport U.S. disaster overview, all tools open on demand. Remove KPI cards, the permanent side rail, the permanent home queue, the default-selected home and the always-open inspector/activity panels. Disaster regions lead the wide map; individual devices appear as you zoom in. Device details appear only after deliberate selection, in an expandable card anchored to that house. Do not create another ordinary dashboard around a small map.
 
 **Locked interaction:** a compact house card expands in place at the geographic anchor. Compose Kit.sectionBox/Kit.details/Kit.foldOpen content inside the MapLibre anchor; do not substitute a right-hand drawer or invent a Kit.mapCard component.
 
 **Compact card:** status, why attention is needed, last report time. Everything else expands on demand.
 
-**Pending:** initial geographic coverage. Do not silently settle that choice or imply national coverage from Texas-only data. The source brief separates Ayan's decisions from proposals.
+**Geography:** U.S. overview, then regions and neighborhoods, then individual houses. National source discovery/aggregation is required; existing Texas-only data is not national coverage. Exact visual/motion treatment still needs review. The source brief separates Ayan's decisions from proposals.
 
 Use the actual Argus library under `ui/kit/vendor/` and its picked standards. Read `docs/UI_KIT.md`, the registry, and the specific component APIs. Compose actual factories for search, menus, layer controls, inspection, message forms and histories. A universal class-decorating observer over old markup does not satisfy this request. Keep vendor files unchanged.
 

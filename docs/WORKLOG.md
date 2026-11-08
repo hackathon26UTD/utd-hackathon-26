@@ -172,3 +172,5 @@ Ayan requested gathering requirements in an evolving design document for a teamm
 Ayan then selected "Expandable card anchored to the selected house." Updated the design contract and Astra brief to lock compact/expanded geographic cards and reject the former floating inspector alternative. Compact card information priority is the next open question.
 
 Ayan selected compact-card content: status, attention reason and last report time. He also selected a disaster-region-first map, with individual devices revealed on zoom. Updated semantic zoom and source-geometry truth requirements. Asked the initial geographic coverage question because current data is Texas-focused and must not be represented as national coverage.
+
+Ayan selected the U.S. disaster overview, then regions and neighborhoods. All five foundational layout/content/geography decisions are now recorded. Added national data/aggregation/source-geometry gaps and explicit truthfulness/performance requirements; no nationwide coverage is claimed from existing Texas endpoints. Exact visual/motion review remains for the Astra design pass.
