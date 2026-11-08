@@ -21,7 +21,12 @@ export function mountRadar(mapView, root) {
     label.textContent = `NOAA radar · ${new Date(time).toLocaleString()}${Date.now() - Date.parse(time) > 20 * 60000 ? ' · delayed' : ''}`;
     mapView.setRadar(time);
   }
-  async function refresh() {
+  function start() {
+    stop();
+    play.textContent = 'Pause'; play.setAttribute('aria-pressed', 'true');
+    timer = setInterval(() => { if (!document.hidden) { index = (index + 1) % frames.length; draw(); } }, 1200);
+  }
+  async function refresh(autoplay = false) {
     const request = ++generation;
     try {
       const response = await fetch(CAPS, { signal: AbortSignal.timeout(12000) });
@@ -30,6 +35,7 @@ export function mountRadar(mapView, root) {
       if (!active || request !== generation) return;
       frames = next.filter((_, i) => i % 3 === 0 || i === next.length - 1); index = frames.length - 1;
       slider.max = String(index); slider.disabled = false; play.disabled = false; draw();
+      if (autoplay) start();
     } catch {
       if (!active || request !== generation) return;
       stop(); mapView.setRadar(null); slider.disabled = true; play.disabled = true;
@@ -38,14 +44,13 @@ export function mountRadar(mapView, root) {
   }
   button.addEventListener('click', () => {
     active = !active; button.setAttribute('aria-pressed', String(active)); panel.hidden = !active;
-    if (active) { label.textContent = 'Loading NOAA radar…'; refresh(); }
+    if (active) { label.textContent = 'Loading NOAA radar…'; refresh(true); }
     else { generation++; stop(); mapView.setRadar(null); }
   });
   slider.addEventListener('input', () => { stop(); index = Number(slider.value); draw(); });
   play.addEventListener('click', () => {
     if (timer) return stop();
-    play.textContent = 'Pause'; play.setAttribute('aria-pressed', 'true');
-    timer = setInterval(() => { index = (index + 1) % frames.length; draw(); }, 900);
+    start();
   });
   setInterval(() => { if (active && !timer && !document.hidden && index === frames.length - 1) refresh(); }, 300000);
 }
