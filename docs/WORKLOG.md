@@ -641,6 +641,10 @@ Replaced the drag-only clipped workflow with native scrolling and readable width
 
 Local checks: build passes; four updated actual-Chrome workflow checks pass with zero page errors, including native wheel scrolling, final-node explanation, phone history access, keyboard interaction, 100-event refresh and scoped phone accessibility. Desktop and phone screenshots were reviewed. Integrated app and final release results follow below.
 
+Release complete: PR #59 merged as `48a55f2a68e3277b8d518b1f7fffda7c93bfa829`. Preview run `42493656889` passed at `https://929a14f0.utd-hackathon-26.pages.dev`; production run `42493977370` passed at `https://3f87ffb9.utd-hackathon-26.pages.dev`. CI has 597 passing tests, zero failures and four existing environment skips (ArduinoJson/Chromium); database checks and build pass. The four targeted actual-Chrome workflow checks and 46 focused unit checks pass locally. The integrated app confirms removed compose/polling controls and intact demo/live navigation.
+
+Preview and primary production both match all 16 checked built assets, pass readiness/public routes and preserve protected-route 401s. Actual public simulation browser checks confirm native wheel scrolling, final checkpoint explanations, phone history access, no playback controls/energy animation, no generated-history label and no compose actions, with zero page errors. The first preview phone check raced responsive redraw; waiting for layout frames resolved the test without a product change. Screenshots were reviewed. Complete manual accessibility review remains separate. No physical device or data records were changed; only UI and documentation were released.
+
 
 ## November 8 — Nemotron fleet review and responder briefs (Ayan integration workstream)
 
