@@ -8,7 +8,7 @@ HomeBeacon sends a small set of branded emails through the Resend REST API. It i
 |---|---|---|---|
 | `RESEND_API_KEY` | secret | none | Turns email on. No key means no email and no extra database connections. |
 | `EMAIL_ENABLED` | plain | on when a key exists | Set `false` to switch off without removing the key. |
-| `EMAIL_FROM` | plain | `HomeBeacon <alerts@parity.endyland.com>` | Sender. Must be on a domain verified in Resend. |
+| `EMAIL_FROM` | plain | `SafeHome <alerts@safehome.endyland.com>` | Sender. Must be on a domain verified in Resend. |
 | `EMAIL_REPLY_TO` | plain | none | Optional reply address. |
 | `EMAIL_OPERATOR_TO` | plain | none | Comma separated operator addresses for incident alerts and digests. |
 | `EMAIL_TEST_ALLOWLIST` | plain | none | Real addresses allowed as test recipients. Sinks always work. |
@@ -16,7 +16,7 @@ HomeBeacon sends a small set of branded emails through the Resend REST API. It i
 
 Set the secret with `wrangler pages secret put RESEND_API_KEY`. Never put it in the repo, a board or a browser bundle.
 
-Switching sender domain: verify the domain in Resend, then set `EMAIL_FROM`. The current default uses `parity.endyland.com`, verified on the owner's account.
+Switching sender domain: verify the domain in Resend, then set `EMAIL_FROM`. The default sender domain is `safehome.endyland.com`, verified in Resend on November 8, 2026 (DKIM, SPF, MX and return-path records live in the endyland.com Cloudflare zone, and the pre-change zone export is kept off-repo).
 
 ## Emails
 
