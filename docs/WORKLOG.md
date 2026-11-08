@@ -464,3 +464,15 @@ Validation used a separate release worktree because another active workflow was 
 
 
 Final map checks: independent feed and UI reviews passed after fixing explicit error summaries, mixed/null metric coverage, saved-baseline persistence, keyboard focus during refresh, national forecast-point selection and grid-series display. The clean release has 386 passing tests, zero skips. Headless Chrome checks passed actual demo controls, mobile/reduced-motion/reload behavior, automated legend accessibility, protected-feed isolation, operator browser fixtures for stale/permission/missing/partial states, and actual MapLibre rendering of captured upstream samples/fault traces with zero tile/renderer errors. The two new authenticated local Pages endpoints returned fresh, nonpartial 200 responses with 60 forecast points and 91 bounded Bay Area traces. No household fixtures or outgoing messages were added. Manual accessibility, broader provider uptime and physical device behavior remain outside these checks.
+
+## 2026-11-08 ~02:30: per-sensor alert thresholds with durations (Dhruv)
+
+Request: thresholds for every sensor situation on the dashboard, including how long a condition lasts (power out for this long is an issue; water sensor wet).
+
+Found: the risk engine only judged the newest reading, and it ignored the names the box firmware actually sends to `/api/ingest` (`water_raw`, `flame`, `tilt`, `accel_dev_mg`, `sound_hits`, `battery_mv`), so real box readings never raised alerts.
+
+Changes (branch `feat/sensor-thresholds`, worktree `../hb-thresholds`): `src/risk/config.js` adds those sensors, `sustain` conditions and `forMin` duration rules (mains off 1 h elevated / 4 h critical, water wet 2 min critical, alarm sound 2 min critical, tipped 10 min, freezing 2 h, moisture 30 min) plus a mains-off-and-cold compound rule. `src/risk/device.js` measures how long a condition has held up to the latest report; `src/risk/load.js` (`loadOnsets`) finds the true start in MongoDB because the engine only receives three readings per sensor. The command center Settings menu has a read-only Alert thresholds dialog generated from the config, with search. `docs/risk.md` documents the table.
+
+Verification: new `test/thresholds.test.js` (35 tests, including in-memory MongoDB onset lookup and config/filter agreement) and the existing 89 risk tests pass. Full suite: 401 pass; 3 firmware compile tests fail only because this machine has no `c++` compiler. Production build passes (existing unenv warning). Local Pages runtime on 8797: dialog opens from Settings, lists 26 sensor groups / 50 rules, search works, no horizontal overflow at 375 px, no console errors. Not verified: thresholds against physical box readings; water/sound values still need calibration on hardware. Nothing committed, pushed or deployed.
+
+Next: review, commit and open a PR; calibrate `WATER_WET_RAW`/`SOUND_HITS_ALARM` on the boards and update both places together.

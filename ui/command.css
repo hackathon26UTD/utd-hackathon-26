@@ -83,6 +83,11 @@ table.readings{width:100%;border-collapse:collapse;font-size:12px}.readings th{t
 
 /* Shared operator dialogs. */
 dialog{max-height:94vh;overflow:auto}dialog.wide{max-width:640px;padding:22px 26px}dialog.wide form{gap:14px}dialog.wide h2{margin:0}dialog.wide p{margin:0}
+#threshold-dialog{display:none;width:min(680px,calc(100vw - 32px))}#threshold-dialog[open]{display:flex;flex-direction:column;gap:12px}
+.threshold-filter{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}.threshold-filter input{font:inherit;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+#threshold-list{display:flex;flex-direction:column;gap:14px}.threshold-group h3{margin:0 0 6px;font-size:14px}.threshold-group h3 small{display:block;font-weight:400;font-size:11px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}.threshold-group p{font-size:13px}
+.threshold-table{width:100%;border-collapse:collapse;font-size:13px}.threshold-table th{text-align:left;font-weight:600;font-size:11px;color:var(--muted);padding:4px 8px 4px 0;border-bottom:1px solid var(--line)}.threshold-table td{padding:6px 8px 6px 0;border-bottom:1px solid var(--line);vertical-align:top}.threshold-table td:first-child{width:92px}.threshold-table td:last-child{width:130px}
+@media(max-width:520px){.threshold-table td:last-child{width:auto}.threshold-table td:first-child{width:76px}}
 .oled{margin:6px 0 0;padding:10px 12px;background:#0b0f10;color:#d7f2e4;font:13px/1.35 ui-monospace,monospace;border-radius:4px;height:calc(8 * 1.35em + 20px);width:calc(21ch + 24px);white-space:pre;overflow:hidden;border:2px solid #2a3a40}.oled.urgent{border-color:#d9534f;color:#ffd9d6}
 fieldset{border:1px solid var(--line);border-radius:4px;padding:10px 14px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}.pair dd{font:600 22px ui-monospace,monospace;margin:4px 0;letter-spacing:2px}
 .toasts{position:fixed;bottom:18px;right:18px;display:grid;gap:8px;z-index:30;max-width:340px}.toast{margin:0;background:#1d2926;color:#fff;padding:10px 14px;border-radius:4px;font-size:13px;box-shadow:0 3px 12px #00000018}.toast.bad{background:#8f2a24}
