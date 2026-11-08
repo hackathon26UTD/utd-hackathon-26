@@ -330,7 +330,7 @@ export const OVERLAYS = [
   { id: 'shelters', name: 'Open shelters', note: 'FEMA shelter listings', minZoom: 0 },
   { id: 'firms', name: 'Fire detections', note: 'NASA FIRMS. Needs an API key on the server.', minZoom: 0 },
   { id: 'airnow', name: 'Air quality', note: 'AirNow. Needs an API key on the server.', minZoom: 0 },
-  { id: 'eia', name: 'Grid outages', note: 'EIA. Needs an API key on the server.', minZoom: 0 },
+  { id: 'eia', name: 'Regional electricity demand', note: 'EIA / ERCOT demand context, not household outage locations. Requires a server API key.', minZoom: 0 },
 ];
 
 export const SOURCE_STATUS_TEXT = { ok: 'Current', stale: 'Out of date', error: 'Error', needs_key: 'Needs key', unverified: 'Unverified' };

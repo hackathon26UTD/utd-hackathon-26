@@ -88,6 +88,8 @@ test('parsers keep only safe, small fields and tolerate odd upstream shapes', ()
   assert.throws(() => parseAirnow({ WebServiceError: 'x' }), /unreadable/);
   assert.equal(parseAirnow([{ Latitude: 32.9, Longitude: -96.7, ParameterName: 'PM2.5', AQI: 61, Category: { Name: 'Moderate' } }]).features[0].properties.aqi, 61);
   assert.equal(parseEia({ response: { data: [{ period: 'p', respondent: 'ERCO', value: '45000', 'value-units': 'megawatthours' }] } }).extra.series[0].value, 45000);
+  assert.throws(() => parseNws({ status: 'temporarily unavailable' }), /unreadable/);
+  assert.equal(parseNws({ features: [], pagination: { next: 'https://api.weather.gov/next' } }).truncated, true);
 });
 
 test('rain levels and Open-Meteo parsing; missing hours stay unknown', () => {
@@ -257,10 +259,14 @@ test('a layer is fetched once per TTL, then served from the cache', async () => 
   assert.equal(first.hb.stale, false);
   assert.equal(first.hb.ageS, 0);
   assert.equal(first.hb.source, 'FEMA flood hazard zones');
+  assert.equal(first.hb.delivery, 'refreshed');
+  assert.equal(first.hb.refreshStatus, 'ok');
   assert.ok(f.calls.every((u) => u.includes('f=geojson') && u.includes('outSR=4326')));
   const again = await refreshLayer(db, {}, 'nfhl', BOX, { fetcher: f, now: later(3600) });
   assert.equal(f.calls.length, calls, 'no new upstream calls while fresh');
   assert.equal(again.hb.ageS, 3600);
+  assert.equal(again.hb.delivery, 'cached');
+  assert.equal(again.hb.refreshStatus, 'not_requested');
   const expired = await refreshLayer(db, {}, 'nfhl', BOX, { fetcher: f, now: later(86401) });
   assert.ok(f.calls.length > calls);
   assert.equal(expired.hb.ageS, 0);
@@ -274,6 +280,8 @@ test('upstream failure serves the last copy flagged stale; with no copy it is a 
   assert.equal(stale.hb.stale, true);
   assert.equal(stale.hb.ageS, 600);
   assert.equal(stale.features.length, 2);
+  assert.equal(stale.hb.delivery, 'cached');
+  assert.equal(stale.hb.refreshStatus, 'error');
   const status = (await getFeedStatus(db, { now: later(600) })).find((s) => s.id === 'nws');
   assert.equal(status.status, 'stale');
   assert.match(status.lastError, /error \(503\)/);
@@ -419,7 +427,69 @@ test('refreshContext warms stale layers then reads, ignoring failures', async ()
   const ctx = await refreshContext(db, {}, { bbox: BOX, layers: ['nws', 'nfhl'], now: NOW, fetcher: f });
   assert.equal(ctx.nws.length, 2);
   assert.deepEqual(ctx.nfhl, []);
-  assert.equal(ctx.status.nfhl.status, 'unverified');
+  assert.equal(ctx.status.nfhl.status, 'error', 'an attempted source failure must not become never-checked');
+  assert.match(ctx.status.nfhl.lastError, /error \(500\)/);
+});
+
+test('NWS state and optional national scopes use separate data and failure metadata', async () => {
+  const f = stub([['api.weather.gov/alerts', () => reply(nwsBody)]]);
+  await refreshLayer(db, {}, 'nws', null, { fetcher: f, now: NOW });
+  assert.equal(new URL(f.calls[0]).searchParams.get('area'), 'TX');
+  const floridaBefore = (await getFeedStatus(db, { env: { FEEDS_STATE: 'FL' }, now: NOW })).find(s => s.id === 'nws');
+  assert.equal(floridaBefore.status, 'unverified');
+  assert.deepEqual(floridaBefore.coverage, { type: 'state', area: 'FL' });
+  await assert.rejects(refreshLayer(db, { FEEDS_STATE: 'FL' }, 'nws', null, { fetcher: stub([['api.weather.gov', reply('down', 503)]]), now: NOW }));
+  const texas = (await getFeedStatus(db, { now: NOW })).find(s => s.id === 'nws');
+  assert.equal(texas.status, 'ok');
+  assert.equal(texas.lastError, undefined, 'Florida failure cannot contaminate Texas source status');
+  const florida = await readCachedOverlays(db, { layers: ['nws'], env: { FEEDS_STATE: 'FL' }, now: NOW });
+  assert.equal(florida.status.nws.status, 'error');
+  const national = await refreshLayer(db, { NWS_SCOPE: 'national' }, 'nws', null, { fetcher: f, now: NOW });
+  assert.equal(new URL(f.calls.at(-1)).search, '');
+  assert.deepEqual(national.hb.coverage, { type: 'national', area: 'US' });
+  const sources = await getFeedStatus(db, { env: { NWS_SCOPE: 'national' }, now: NOW });
+  assert.equal(sources.find(s => s.id === 'nws').featureCount, 2, 'national status must not double-count the Texas cache');
+  assert.deepEqual(sources.find(s => s.id === 'declarations').coverage, { type: 'state', area: 'TX' }, 'national NWS does not imply national FEMA coverage');
+});
+
+test('malformed NWS upstream responses preserve the last good copy with failure status', async () => {
+  await refreshLayer(db, {}, 'nws', null, { fetcher: stub(routes()), now: NOW });
+  const result = await refreshLayer(db, {}, 'nws', null, { fetcher: stub([['api.weather.gov', reply({ message: 'bad response' })]]), now: later(180) });
+  assert.equal(result.features.length, 2);
+  assert.equal(result.hb.stale, true);
+  assert.equal(result.hb.refreshStatus, 'error');
+  assert.match(result.hb.lastError, /unreadable/);
+});
+
+test('cached EIA context preserves demand series and never presents it as household outage data', async () => {
+  const env = { EIA_API_KEY: 'test-only-key' };
+  const f = stub([['api.eia.gov', reply({ response: { data: [{ period: '2026-11-07T17', respondent: 'ERCO', value: '45000', 'value-units': 'megawatthours' }] } })]]);
+  await refreshLayer(db, env, 'eia', null, { fetcher: f, now: NOW });
+  const before = f.calls.length;
+  const ctx = await readCachedOverlays(db, { layers: ['eia'], env, now: later(60) });
+  assert.equal(f.calls.length, before);
+  assert.equal(ctx.eia.metric, 'electricity_demand');
+  assert.equal(ctx.eia.outageData, false);
+  assert.equal(ctx.eia.series[0].value, 45000);
+  assert.deepEqual(ctx.status.eia.coverage, { type: 'balancing-authority', area: 'ERCO' });
+  assert.equal(ctx.status.eia.dataState, 'cached');
+  assert.equal(ctx.status.eia.ageS, 60);
+  const missingKey = await readCachedOverlays(db, { layers: ['eia'], now: later(60) });
+  assert.equal(missingKey.status.eia.status, 'needs_key');
+  assert.equal(missingKey.status.eia.dataState, 'cached', 'existing evidence and inability to refresh are separate states');
+  assert.equal(missingKey.eia.series.length, 1);
+  const source = (await getFeedStatus(db, { now: later(60) })).find(s => s.id === 'eia');
+  assert.equal(source.status, 'needs_key');
+  assert.equal(source.dataState, 'cached');
+  assert.equal(JSON.stringify(ctx).includes(env.EIA_API_KEY), false);
+});
+
+test('weather cells alone do not imply a requested area for unrelated tile feeds', async () => {
+  const ctx = await readCachedOverlays(db, { layers: ['weather', 'nfhl', 'airnow'], cells: ['9vgm0'], now: NOW });
+  assert.equal(ctx.status.weather.status, 'unverified');
+  assert.equal(ctx.status.nfhl.status, 'unverified', 'no requested tile bbox is not an upstream error');
+  assert.equal(ctx.status.airnow.status, 'needs_key');
+  assert.equal(ctx.status.nfhl.dataState, 'unavailable');
 });
 
 // ---------- feed endpoints ----------

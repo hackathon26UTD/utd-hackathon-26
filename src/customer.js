@@ -275,6 +275,7 @@ const routes = {
     if (password.length < 10 || password.length > 512) return reply({ error: 'Use a password of at least 10 characters.' }, 400);
     if (!contactName) return reply({ error: 'Enter a contact name of up to 60 characters.' }, 400);
     if (typeof body.consent !== 'boolean') return reply({ error: 'Choose whether the response team may contact you.' }, 400);
+    if (body.acceptTerms !== true) return reply({ error: 'Please agree to the prototype terms before creating your account.' }, 400);
     const nickname = body.nickname === undefined ? null : plain(body.nickname, 40, { min: 1 });
     if (body.nickname !== undefined && !nickname) return reply({ error: 'Use a device name of up to 40 characters.' }, 400);
     return run(ctx, async db => {
@@ -293,10 +294,10 @@ const routes = {
       try { link = await claimDevice(db, { email, serial, code: body.code, contactName, consent: body.consent, nickname }, deps); }
       catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
       if (!existing) {
-        try { await accounts.insertOne({ _id: email, hash, salt, createdAt: now }); }
+        try { await accounts.insertOne({ _id: email, hash, salt, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
         catch { await unlinkQuiet(db, link); return reply({ error: FAIL_TEXT }, 400); }
       }
-      await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing }, exercise: link.exercise });
+      await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing, termsVersion: '2026-11-07', acceptedTerms: true }, exercise: link.exercise });
       const token = await issueCustomerSession(ctx.env, email);
       return reply({ authenticated: true, linked: true, id: link._id }, 201, { 'Set-Cookie': customerCookie(token) });
     });

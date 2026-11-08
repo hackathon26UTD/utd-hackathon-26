@@ -17,23 +17,22 @@ const root = path.join(kitDir, '..', '..');
 const read = (f) => fs.readFileSync(path.join(kitDir, 'vendor/css', f), 'utf8');
 
 /* ------------------------------------------------------------------ palette */
-// Beacon / lamp-at-dusk. Dark = dusk (aubergine-indigo ground, lamp-white ink,
-// signal amber). Light = lamp-lit paper (warm paper, indigo ink, burnt amber).
+// Quiet neutral surfaces, dark green actions, and explicit status colors.
 const CORE = {
     light: {
-        '--kit-bg': '#f5efe3',
-        '--kit-surface': '#fffcf5',
-        '--kit-surface-2': '#faf5e9',
-        '--kit-line': '#e6dcc6',
-        '--kit-line-2': '#d2c5a8',
-        '--kit-ink': '#1d1a26',
-        '--kit-ink-2': '#4a4557',
-        '--kit-ink-3': '#656072',
-        '--kit-accent': '#b45f06',
-        '--kit-accent-ink': '#8a4600',
-        '--kit-accent-tint': '#fcefd6',
-        '--kit-accent-line': '#efcf98',
-        '--kit-accent-tint-hover': '#f8e3bd',
+        '--kit-bg': '#f6f7f7',
+        '--kit-surface': '#ffffff',
+        '--kit-surface-2': '#f0f3f1',
+        '--kit-line': '#dce2df',
+        '--kit-line-2': '#b8c5bf',
+        '--kit-ink': '#1d2926',
+        '--kit-ink-2': '#3d4b45',
+        '--kit-ink-3': '#52605b',
+        '--kit-accent': '#17634f',
+        '--kit-accent-ink': '#155641',
+        '--kit-accent-tint': '#eaf3ee',
+        '--kit-accent-line': '#b9d4c7',
+        '--kit-accent-tint-hover': '#dcece3',
         '--kit-ok': '#12775a',
         '--kit-ok-tint': '#e1f2ea',
         '--kit-ok-line': '#bddccd',
@@ -44,35 +43,35 @@ const CORE = {
         '--kit-bad-line': '#e6b3b1',
         '--kit-amber': '#d98a0e',
         '--kit-need-warn': '#d99a1c',
-        '--kit-hero': '#9a5200',
-        '--kit-hero-hover': '#7f4300',
+        '--kit-hero': '#17634f',
+        '--kit-hero-hover': '#124d3d',
         '--kit-hero-fg': '#ffffff',
         '--kit-status-dot-info': '#1f5fbf',
         '--kit-notification-info': '#2f6fd0',
-        '--kit-chart-tip-ground': '#1d1a26',
-        '--kit-chart-tip-ink': '#fff8ea',
-        '--kit-chart-tip-line': '#1d1a26',
+        '--kit-chart-tip-ground': '#1d2926',
+        '--kit-chart-tip-ink': '#edf3ef',
+        '--kit-chart-tip-line': '#1d2926',
         '--kit-danger-fill': '#c0262d',
         '--kit-danger-fill-hover': '#a11d24',
         '--kit-danger-fill-ink': '#ffffff',
-        '--kit-skip-link-bg': '#7f4300',
-        '--kit-slider-ring': '#e8a032',
+        '--kit-skip-link-bg': '#124d3d',
+        '--kit-slider-ring': '#17634f',
         '--kit-file-drop-refused': '#b4232c'
     },
     dark: {
-        '--kit-bg': '#14121c',
-        '--kit-surface': '#1d1b28',
-        '--kit-surface-2': '#191722',
-        '--kit-line': '#2d2a3b',
-        '--kit-line-2': '#423e55',
-        '--kit-ink': '#f8f1e5',
-        '--kit-ink-2': '#d3cbdd',
-        '--kit-ink-3': '#aaa2ba',
-        '--kit-accent': '#f6a623',
-        '--kit-accent-ink': '#ffc660',
-        '--kit-accent-tint': '#2b2012',
-        '--kit-accent-line': '#5c4417',
-        '--kit-accent-tint-hover': '#37281a',
+        '--kit-bg': '#151c19',
+        '--kit-surface': '#1c2520',
+        '--kit-surface-2': '#18211c',
+        '--kit-line': '#35433b',
+        '--kit-line-2': '#4d5e54',
+        '--kit-ink': '#edf3ef',
+        '--kit-ink-2': '#ccd8cf',
+        '--kit-ink-3': '#abbcb0',
+        '--kit-accent': '#81d5b1',
+        '--kit-accent-ink': '#99e0c1',
+        '--kit-accent-tint': '#1d352a',
+        '--kit-accent-line': '#416351',
+        '--kit-accent-tint-hover': '#294536',
         '--kit-ok': '#5fd3a6',
         '--kit-ok-tint': '#102620',
         '--kit-ok-line': '#1f4a3c',
@@ -81,27 +80,27 @@ const CORE = {
         '--kit-bad': '#ff8088',
         '--kit-bad-tint': '#2d171c',
         '--kit-bad-line': '#70303b',
-        '--kit-amber': '#f6a623',
+        '--kit-amber': '#81d5b1',
         '--kit-need-warn': '#f0b03a',
-        '--kit-hero': '#f6a623',
-        '--kit-hero-hover': '#ffb940',
-        '--kit-hero-fg': '#1c1204',
+        '--kit-hero': '#81d5b1',
+        '--kit-hero-hover': '#a3e3c7',
+        '--kit-hero-fg': '#11261b',
         '--kit-status-dot-info': '#7db7ff',
         '--kit-notification-info': '#7db7ff',
-        '--kit-chart-tip-ground': '#2a2738',
-        '--kit-chart-tip-ink': '#f8f1e5',
-        '--kit-chart-tip-line': '#423e55',
+        '--kit-chart-tip-ground': '#26382d',
+        '--kit-chart-tip-ink': '#edf3ef',
+        '--kit-chart-tip-line': '#4d5e54',
         '--kit-danger-fill': '#d93a44',
         '--kit-danger-fill-hover': '#c02e38',
         '--kit-danger-fill-ink': '#ffffff',
-        '--kit-skip-link-bg': '#f6a623',
-        '--kit-slider-ring': '#f6a623',
+        '--kit-skip-link-bg': '#81d5b1',
+        '--kit-slider-ring': '#81d5b1',
         '--kit-file-drop-refused': '#ff8088'
     }
 };
 const FONTS = {
-    display: "'Young Serif', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif",
-    sans: "'Hanken Grotesk Variable', 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    display: "'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    sans: "'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif",
     mono: "'Spline Sans Mono Variable', 'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
 };
 
@@ -163,17 +162,17 @@ function recolor(token, value, theme) {
         // pure white / black overlays stay as they are
         if (s < 0.04 && (l > 0.97 || l < 0.03) && c.a < 1) return lit;
         // exact white surface in light -> the paper surface
-        if (!dark && c.a === 1 && l > 0.995) return '#fffcf5';
+        if (!dark && c.a === 1 && l > 0.995) return '#ffffff';
         const neutral = s < 0.2 || (h >= 190 && h <= 260 && s < 0.4);
         if (neutral) {
-            const nh = dark ? 255 : 38;
-            const ns = dark ? Math.min(0.18, 0.04 + s * 0.4) : Math.min(0.3, 0.06 + s * 0.8) * (1 - Math.max(0, l - 0.96) * 8);
-            return out({ ...fromHsl({ h: nh, s: l > 0.985 && !dark ? 0.35 : ns, l }), a: c.a });
+            const nh = 145;
+            const ns = dark ? Math.min(0.12, 0.02 + s * 0.3) : Math.min(0.08, 0.02 + s * 0.3) * (1 - Math.max(0, l - 0.96) * 8);
+            return out({ ...fromHsl({ h: nh, s: ns, l }), a: c.a });
         }
         const red = h >= 330 || h <= 14;
         if (red) {
             if (BAD_NAME.test(token) && !ACCENT_NAME.test(token)) return out({ ...fromHsl({ h: 356, s, l }), a: c.a });
-            return out({ ...fromHsl({ h: 36, s: Math.min(1, s * 1.1), l: dark ? Math.max(l, 0.3) : l }), a: c.a });
+            return out({ ...fromHsl({ h: 155, s: Math.min(0.55, s), l: dark ? Math.max(l, 0.3) : l }), a: c.a });
         }
         if (h > 14 && h <= 64) return out({ ...fromHsl({ h: 47, s, l }), a: c.a }); // amber -> caution yellow
         if (h >= 90 && h <= 175) return out({ ...fromHsl({ h: 158, s, l }), a: c.a }); // green -> beacon teal-green
@@ -245,10 +244,8 @@ let css = `/* ==================================================================
  *   node ui/kit/tools/make-theme.mjs
  * Do not hand-edit tokens here; edit CORE in the generator and re-run.
  *
- * Identity: beacon / lamp at dusk. Dark is dusk (aubergine-indigo ground,
- * lamp-white ink, signal amber). Light is lamp-lit paper (warm paper, indigo
- * ink, burnt amber). It replaces ARGUS's neutral grey + wine/red + Inter/
- * Fraunces/JetBrains Mono. Anatomy, states, radii, motion and sizes are the
+ * Identity: neutral surfaces, green actions, and clear status colors.
+ * Geist provides one consistent type family across the product. Anatomy, states, radii, motion and sizes are the
  * kit's own and are not touched.
  *
  * Selectors are the kit's own two token selectors, repeated, so this sheet

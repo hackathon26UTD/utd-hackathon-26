@@ -1,5 +1,9 @@
 # Development and logging plan
 
+## System investigation workstream
+
+See [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md). `npm run system:demo` exercises an isolated MongoDB-backed, explicitly simulated four-tool investigation; `npm run nvidia:check` is an opt-in live model check once a private key exists. New operator endpoints expose evidence and persist review checkpoints without modifying the map UI. The next hardware gate is a verified AA power path and measured current draw; reference power policies are not yet wired into sketches. Coordinate with Dhruv before firmware integration and Ayan before adding map controls.
+
 ## Immediate infrastructure work
 
 1. Use the private `hackathon26UTD/utd-hackathon-26` organization repo; bring across the prepared starter and logs through a reviewed PR.
