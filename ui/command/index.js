@@ -1,5 +1,6 @@
 import {mountFleet} from '../fleet.js'; // Fleet UI ownership hook.
 import '../fleet.css';
+import { mountFleetReview } from './fleet-review.js';
 import {endDemoSession} from './demo-session.js';
 import {mountWeatherPlayback} from './weather-playback.js';
 import { mountNews } from './news.js';
@@ -34,7 +35,7 @@ const requestedScenario = route.get('scenario') === 'hurricane' ? 'water-hurrica
 function layout({ demo, role, footer, brand }) {
   return `<div class="shell cc map-only vertical-shell${embedded ? ' is-embedded' : demo || exerciseMode ? ' has-demo-banner' : ''}"><main id="main" class="workspace"><h1 class="sr-only">Safe Home response map</h1>
 <header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="Safe Home website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>Safe Home</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span></header>
-${!embedded && (demo || exerciseMode) ? `<section class="demo-banner" aria-label="Demo simulation"><span><strong>Demo simulation</strong><span class="demo-banner-note"> · Generated data</span></span><button id="end-demo" type="button">End demo</button><span id="demo-exit-error" role="alert"></span></section>` : ''}
+${!embedded && (demo || exerciseMode) ? `<section class="demo-banner" aria-label="${demo ? 'Demo simulation' : 'Exercise records'}"><span><strong>${demo ? 'Demo simulation' : 'Exercise records'}</strong><span class="demo-banner-note"> · ${demo ? 'Generated data' : 'Separate from live data'}</span></span><button id="end-demo" type="button">${demo ? 'End demo' : 'Return to live'}</button><span id="demo-exit-error" role="alert"></span></section>` : ''}
 <div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. Optional radar shows real observations.' : 'Lower 48 states · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
 <aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div><details class="cc-more sidebar-settings" id="command-more"><summary aria-label="Workspace settings" title="Workspace settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6"/></svg><span class="settings-label">Settings</span></summary><div class="cc-more-menu"><div id="command-display-options"></div>${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button id="thresholds">Alert thresholds</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
@@ -47,6 +48,7 @@ ${!embedded && (demo || exerciseMode) ? `<section class="demo-banner" aria-label
 <svg id="detail-connector" aria-hidden="true"><path></path></svg><section id="detail" class="detail" aria-label="Selected home details" aria-live="polite" hidden></section></section>
 <section id="timeline" class="timeline cc-bottom" aria-label="Activity" hidden><div class="panel-title"><div><h2 id="activity-title" tabindex="-1">Activity</h2><p class="view-lead">Device updates, operator logs and message delivery.</p></div><button id="activity-close" class="small">Close</button></div><div class="activity-content"><div class="activity-toolbar"><span class="live-pill" id="live-pill" role="status">Connecting</span><div class="tabs" role="tablist" aria-label="Activity"><button role="tab" data-btab="feed" aria-selected="true">Updates</button><button role="tab" data-btab="logs" aria-selected="false">Logs</button><button role="tab" data-btab="sent" aria-selected="false">Sent messages</button></div></div><div id="bottom-body" class="bottom-body" role="tabpanel"></div></div></section>
 <section id="news-panel" class="full-view news-view" aria-labelledby="news-title" hidden><div class="panel-title"><div><h2 id="news-title" tabindex="-1">News</h2><p class="view-lead">Live watches, warnings and advisories from the National Weather Service.</p></div><button data-close-view>Back to map</button></div><div id="news-content" class="full-view-body"></div></section>
+<section id="review-panel" class="full-view review-view" aria-labelledby="review-title" hidden><div class="panel-title"><div><h2 id="review-title" tabindex="-1">Review</h2><p class="view-lead">See which homes need attention, inspect the evidence and prepare a review checkpoint.</p></div><button data-close-view class="small">Back to map</button></div><div id="review-content" class="full-view-body"></div></section>
 <section id="overview-panel" class="full-view overview-view" aria-labelledby="overview-title" hidden><div class="panel-title"><div><h2 id="overview-title" tabindex="-1">Overview</h2><p class="view-lead">Reported conditions across the homes in this workspace.</p></div><button data-close-view class="small">Back to map</button></div><div id="overview-content" class="full-view-body"></div></section>
 <section id="demo-panel" class="full-view demo-view" aria-labelledby="demo-title" hidden><div class="panel-title"><div><h2 id="demo-title" tabindex="-1">Simulations</h2><p class="view-lead">Set up a world, choose an event, then follow the reports.</p></div><button data-close-view class="small">Back to map</button></div><div class="full-view-body"><div id="simulation-studio"></div><div id="legacy-simulation" hidden><p class="demo-boundary">Synthetic data only. Scenarios never change connected devices or send messages.</p><div id="demo-scenarios" class="scenario-grid">${SCENARIOS.map(s => `<button class="scenario-option" data-scenario="${s.id}" aria-pressed="false"><strong>${s.label}</strong><span>${s.description}</span></button>`).join('')}</div><div id="demo-summary" class="demo-summary"></div><div class="demo-actions"><button id="demo-show-map" class="primary">Explore this scenario on the map</button><button id="demo-show-overview">See overview</button><p id="demo-status" role="status"></p></div><p class="muted">Each selection loads a new read-only scenario snapshot. Nothing advances automatically.</p></div></div></section>
 </main></div>
@@ -86,13 +88,14 @@ export async function mountCommand(env) {
   $('#end-demo')?.addEventListener('click', async () => {
     const button=$('#end-demo');button.disabled=true;studio?.pause();
     try { await endDemoSession(role); }
-    catch { $('#demo-exit-error').textContent='Could not end demo. Try again.';button.disabled=false; }
+    catch { $('#demo-exit-error').textContent=demo ? 'Could not end demo. Try again.' : 'Could not return to live data. Try again.';button.disabled=false; }
   });
   ctx.renderAll = () => renderAll();
 
   // Real Argus section-menu component; local layout adapts it to this workspace.
   const navItems = [
     { id: 'map', label: 'Map', icon: ['m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2z', 'M9 3v16M15 5v16'] },
+    { id: 'review', label: 'Review', icon: ['M9 3h6l2 3h3v15H4V6h3z', 'm8 13 2 2 6-6'] },
     { id: 'overview', label: 'Overview', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
     { id: 'homes', label: 'Devices', icon: ['M5 3h14v18H5z', 'M9 7h6M9 11h6M10 17h4'] },
     { id: 'fleet', label: 'Fleet', icon: ['M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z'] },
@@ -111,7 +114,7 @@ export async function mountCommand(env) {
     onSelect: id => { if (narrowScreen.matches) setNavCollapsed(true); ctx.openWorkspace(id); },
   });
   $('#workspace-menu').append(navigation.el);
-  const controlledPanels = { fleet: 'fleet-panel', map: 'map', overview: 'overview-panel', homes: 'device-panel', activity: 'timeline', demo: 'demo-panel' };
+  const controlledPanels = { fleet: 'fleet-panel', map: 'map', review: 'review-panel', news: 'news-panel', overview: 'overview-panel', homes: 'device-panel', activity: 'timeline', demo: 'demo-panel' };
   navItems.forEach(item => {
     const link = navigation.el.querySelector(`[data-id="${item.id}"]`);
     link.dataset.view = item.id;
@@ -165,6 +168,8 @@ export async function mountCommand(env) {
   // ---- panels ----
 
   const detailPanel = mountDetail(ctx);
+  const review = mountFleetReview(ctx, $('#review-content'));
+  mv.map.once('remove', () => review.destroy());
   const overlays = mountOverlays(ctx);
   mountRadar(mv, document, {onActivate:()=>ctx.toolbar.setWorld('street')});
   ctx.weatherPlayback=mountWeatherPlayback(ctx,$('.map-wrap'));
@@ -175,7 +180,7 @@ export async function mountCommand(env) {
   ctx.loadRegions = () => loadRegions();
   ctx.afterSend = () => { if (S.bottomTab === 'sent') bottom.show('sent'); if (S.selectedId) detailPanel.loadDetail(S.selectedId, { quiet: true }); };
 
-  const viewPanels = { fleet: '#fleet-panel', news:'#news-panel', homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
+  const viewPanels = { fleet: '#fleet-panel', review: '#review-panel', news:'#news-panel', homes: '#device-panel', activity: '#timeline', overview: '#overview-panel', demo: '#demo-panel' };
   let transitionId = 0, viewAnimations = [];
   function setWorkspaceView(view) {
     if (view !== 'fleet') fleet.hide();
@@ -191,7 +196,7 @@ export async function mountCommand(env) {
     document.querySelectorAll('[data-view]').forEach(link => link.setAttribute('aria-expanded', String(link.dataset.view === (view || 'map'))));
   }
   const viewElement = view => view ? $(viewPanels[view]) : $('.board');
-  const viewFocus = view => view==='fleet'?$('#fleet-title'):view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
+  const viewFocus = view => view === 'fleet' ? $('#fleet-title') : view === 'review' ? $('#review-title') : view==='news'?$('#news-title'):view === 'homes' ? $('#search') : view === 'activity' ? $('#activity-title') : view === 'overview' ? $('#overview-title') : view === 'demo' ? $('#demo-title') : $('[data-view="map"]');
   function cancelViewAnimations() { viewAnimations.forEach(animation => animation.cancel()); viewAnimations = []; }
   async function transitionWorkspace(view, { animate = true, focusTarget = null } = {}) {
     if(view!=='demo')studio?.pause();
@@ -237,6 +242,7 @@ export async function mountCommand(env) {
     $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false');
     if (view === 'homes') { $('#queue-title').textContent = 'Devices'; renderList(); }
     else if(view==='fleet')fleet.refresh();
+    else if (view === 'review') review.open();
     else if(view==='news')news.refresh();
     else if (view === 'overview') renderOverview();
     else if (view === 'demo') { studio?.pause(); renderDemo(); }
@@ -293,7 +299,7 @@ export async function mountCommand(env) {
     requestAnimationFrame(() => {
       if (!S.detailOpen || S.workspaceView) return;
       const active = document.activeElement;
-      if (active === document.body || active === S.detailReturnFocus || active === $('[data-view="map"]') || active?.closest('#device-panel,#overview-panel')) (document.querySelector('#device-drawer:not([hidden]) #detail-close') || document.querySelector('#detail:not([hidden]) #region-detail-close'))?.focus({ preventScroll: true });
+      if (active === document.body || active === S.detailReturnFocus || active === $('[data-view="map"]') || active?.closest('#device-panel,#overview-panel,#review-panel')) (document.querySelector('#device-drawer:not([hidden]) #detail-close') || document.querySelector('#detail:not([hidden]) #region-detail-close'))?.focus({ preventScroll: true });
     });
   }
   ctx.closeDetail = ({ restoreFocus = true } = {}) => {
@@ -630,7 +636,8 @@ export async function mountCommand(env) {
   if (S.selectedId) detailPanel.loadDetail(S.selectedId);
   if(!S.embed)news.start();
   if (!studio) overlays.loadZones();
-  if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
+  if (!S.embed && route.get('view') === 'review') ctx.openWorkspace('review');
+  else if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
   mv.map.once('load', () => loadRegions());
   setInterval(renderPill, 1000);
   setInterval(() => {
