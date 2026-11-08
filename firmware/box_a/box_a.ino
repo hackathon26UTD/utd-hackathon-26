@@ -27,6 +27,7 @@
 #include "mesh.h"
 #include "uplink.h"
 #include "local_history.h"
+#include "history_sync.h"
 #if USE_CAMERA
 #include "esp_camera.h"
 #endif
@@ -242,7 +243,7 @@ void handleSerial() {
     else if (cmd == "api") { if (selfCfg()) uplink::selftest(selfCfg()->deviceId, selfCfg()->deviceKey); }
     else if (cmd == "mesh") mesh::printStatus();
     else if (cmd == "ping") cmdPing();
-    else if (cmd == "history") local_history::print();
+    else if (cmd == "history") { local_history::print(); history_sync::print(); }
     else if (cmd == "queue") Serial.printf("[queue] %u uploads waiting (%s); %d own messages waiting for a gateway ACK\n", (unsigned)uplink::queued(), sdOk ? "SD" : "RAM", mesh::pendingCount());
     else if (cmd == "selftest") selftest();
     else Serial.println("unknown command; type help");
@@ -271,11 +272,12 @@ void setup() {
   historyFlags |= F_SOUND_VALID;
 #endif
   if (mpuOk) historyFlags |= F_ACCEL_VALID;
-  local_history::begin({historyFlags, false, SHAKE_MILLI_G, SOUND_HITS_ALARM});
 
   WiFi.mode(WIFI_STA);
   mesh::onDeliver = deliver; mesh::onObserve = observe; mesh::onTime = setClock;
   mesh::begin(MY_NODE_ID, NODES, NODE_COUNT, ESPNOW_PMK, ESPNOW_LMK);
+  const MeshNodeCfg *historyNode = mesh::nodeCfg(MY_NODE_ID);
+  local_history::begin({historyFlags, false, SHAKE_MILLI_G, SOUND_HITS_ALARM}, historyNode ? historyNode->deviceId : nullptr);
   uplink::begin(WIFI_SSID, WIFI_PASS, API_BASE, sdOk, FALLBACK_CHANNEL);
 
   Serial.printf("boot #%u | sd=%d cam=%d rtc=%d mpu=%d oled=%d mesh=%d (%d boxes) | MAC %s\n", mesh::bootCount, sdOk, camOk, rtcOk, mpuOk, oledOk, mesh::ready, NODE_COUNT, WiFi.macAddress().c_str());
@@ -289,6 +291,7 @@ void loop() {
   local_history::loop();
   mesh::loop();
   uplink::loop();
+  history_sync::loop();
   pollSound();
 
   bool down = digitalRead(PIN_BUTTON) == LOW;

@@ -19,6 +19,7 @@
 #include "mesh.h"
 #include "uplink.h"
 #include "local_history.h"
+#include "history_sync.h"
 
 static const MeshNodeCfg NODES[] = MESH_NODES;
 constexpr int NODE_COUNT = sizeof(NODES) / sizeof(NODES[0]);
@@ -120,7 +121,7 @@ void handleSerial() {
     else if (cmd == "ping") cmdPing();
     else if (cmd == "wifi") Serial.printf("[wifi] %s ch=%d internet=%s\n", uplink::wifiUp() ? "connected" : "offline", WiFi.channel(), uplink::apiHealthy ? "yes" : "no");
     else if (cmd == "api") { const MeshNodeCfg *n = mesh::nodeCfg(MY_NODE_ID); if (n) uplink::selftest(n->deviceId, n->deviceKey); }
-    else if (cmd == "history") local_history::print();
+    else if (cmd == "history") { local_history::print(); history_sync::print(); }
     else if (cmd == "queue") Serial.printf("[queue] %u uploads waiting (RAM); %d own messages waiting for a gateway ACK\n", (unsigned)uplink::queued(), mesh::pendingCount());
     else if (cmd == "selftest") { Serial.println("=== selftest ==="); Serial.printf("[mesh] %s\n", mesh::ready ? "PASS" : "FAIL"); cmdSensors(); mesh::printStatus(); Serial.println("Run `ping` to test delivery through the mesh."); }
     else Serial.println("unknown command; type help");
@@ -143,11 +144,12 @@ void setup() {
   historyFlags |= F_TILT_VALID;
 #endif
   if (mpuOk) historyFlags |= F_ACCEL_VALID;
-  local_history::begin({historyFlags, USE_BATTERY != 0, SHAKE_MILLI_G, 1});
 
   WiFi.mode(WIFI_STA);
   mesh::onDeliver = deliver; mesh::onObserve = observe; mesh::onTime = setClock;
   mesh::begin(MY_NODE_ID, NODES, NODE_COUNT, ESPNOW_PMK, ESPNOW_LMK);
+  const MeshNodeCfg *historyNode = mesh::nodeCfg(MY_NODE_ID);
+  local_history::begin({historyFlags, USE_BATTERY != 0, SHAKE_MILLI_G, 1}, historyNode ? historyNode->deviceId : nullptr);
   uplink::begin(WIFI_SSID, WIFI_PASS, API_BASE, false, FALLBACK_CHANNEL);
   Serial.printf("boot #%u | mesh=%d (%d boxes) mpu=%d | MAC %s | PIR warming up %d s\n", mesh::bootCount, mesh::ready, NODE_COUNT, mpuOk, WiFi.macAddress().c_str(), PIR_WARMUP_MS / 1000);
   sample(); prev = cur;
@@ -159,6 +161,7 @@ void loop() {
   local_history::loop();
   mesh::loop();
   uplink::loop();
+  history_sync::loop();
   if (millis() - lastSample >= SAMPLE_MS) {
     lastSample = millis(); sample();
     if (cur.motion && !prev.motion) sendEvent("motion.detected");
