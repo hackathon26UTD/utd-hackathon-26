@@ -16,7 +16,7 @@
 // ── Feature switches: set to 0 for anything not wired, so it is reported as "not measured". ──
 #define USE_MAINS_SENSE  1
 #define USE_SOUND        1
-#define USE_CAMERA       1   // snapshot to SD on water/flame/help events
+#define USE_CAMERA       0   // off: privacy, power and demo risk outweigh a photo nobody sees (set 1 to re-enable)
 
 // ── Thresholds (calibrate with the `water` and `mains` serial commands) ──
 #define WATER_WET_RAW      1500   // analog 0-4095; read dry and in a cup of water, pick the midpoint
