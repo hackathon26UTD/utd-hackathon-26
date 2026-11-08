@@ -1,4 +1,4 @@
-November 8 onboarding update: `feat/device-onboarding` implements CLI batch inventory, private pairing cards, customer linking/management, operator fleet and receipt-based availability. See [ONBOARDING.md](ONBOARDING.md) and latest WORKLOG for current verification/deployment state. The canonical Uno Q hub receives real host-assisted controller readings at its pre-registered UT Dallas home; an earlier duplicate controller is disabled with history retained.
+November 8 onboarding release: PR #63 is merged and production verified through main `23e3522` (run `42497040807`). It implements CLI batch inventory, private pairing cards, customer linking/management, operator fleet and receipt-based availability. See [ONBOARDING.md](ONBOARDING.md) and latest WORKLOG for current verification/deployment state. The canonical Uno Q hub receives real host-assisted controller readings at its pre-registered UT Dallas home; an earlier duplicate controller is disabled with history retained.
 
 # Safe Home current project context
 

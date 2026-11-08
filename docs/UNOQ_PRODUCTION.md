@@ -6,6 +6,8 @@ The current host uploader runs from `/private/tmp/hb-onboard`, PID recorded in `
 
 Stable agent 0.1.0 and private configuration are staged on the Q under `/home/arduino/.local/share/safe-home/agent`, `/home/arduino/.config/safe-home/unoq.toml`, and `/home/arduino/.config/safe-home/device-key` (mode 600). Self-test passed. Root installation requires the board sudo password and no service is started. Wi-Fi is down; the Mac bridge remains the actual uplink. The private claim card/label is in ignored `.secrets/unoq-hub-pairing.json` and `.secrets/unoq-hub-label.html`. No customer has been linked.
 
+At 09:54:57 CST the host accepted its last sample before stopping on a non-202 response. The original response status was not retained, so its cause is unconfirmed. Readback established the last stored sample; it was not replayed. A new independent measured sample returned 202 at 09:56:48, and the fresh-sample uploader was restarted. Subsequent reports were accepted about every eleven seconds. This is observed recovery, not a claim of uninterrupted or autonomous operation.
+
 Earlier evidence follows for history, not current startup instructions.
 
 # Real Uno Q controller setup

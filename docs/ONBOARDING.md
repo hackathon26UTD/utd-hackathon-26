@@ -1,6 +1,6 @@
 # Safe Home box onboarding
 
-Ayan's workstream, November 8, 2026. Implemented on `feat/device-onboarding`; see WORKLOG for deployment evidence. This replaces the interrupted design document with the actual contract. Mesh auto-enrollment remains a later phase.
+Ayan's workstream, November 8, 2026. Released in PR #63 and verified on production through main `23e3522`; see WORKLOG for deployment evidence. This replaces the interrupted design document with the actual contract. Mesh auto-enrollment remains a later phase.
 
 ## Customer journey
 
