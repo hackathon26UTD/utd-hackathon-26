@@ -113,6 +113,7 @@ export async function mountCommand(env) {
     if (save) { try { localStorage.setItem('homebeacon-sidebar-collapsed', String(collapsed)); } catch { /* optional preference */ } }
   }
   mountDisplaySettings($('#command-display-options'));
+  ctx.navigation = { get collapsed() { return navCollapsed; }, setCollapsed: setNavCollapsed };
   setNavCollapsed(navCollapsed);
   $('#sidebar-toggle').onclick = () => setNavCollapsed(!navCollapsed, { save: true });
   narrowScreen.addEventListener('change', e => { if (e.matches) setNavCollapsed(true); });
