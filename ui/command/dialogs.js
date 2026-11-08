@@ -102,7 +102,7 @@ export function mountDialogs(ctx) {
     $('#source-dialog').showModal();
     const out = $('#source-list');
     if (ctx.demo) {
-      out.innerHTML = '<p><strong>USDA / USGS The National Map</strong><br>Satellite and aerial imagery provides geographic context. Image dates, resolution and coverage vary; it is not live disaster imagery.</p><p><strong>Exercise observations</strong><br>Dallas and Florida homes, readings, wind exposure and zones are fictional. Wind circles are not official storm radii or a forecast.</p><p>Sign in as an operator to load public weather and hazard feeds. National imagery does not imply national monitoring coverage.</p>';
+      out.innerHTML = '<p><strong>OpenFreeMap and USGS The National Map</strong><br>The street map is OpenStreetMap data. Topographic, hillshade and rivers layers are optional USGS maps. They give geographic context only.</p><p><strong>Exercise observations</strong><br>Dallas and Florida homes, readings, wind exposure and zones are fictional. Wind circles are not official storm radii or a forecast.</p><p>Sign in as an operator to load public weather and hazard feeds. National imagery does not imply national monitoring coverage.</p>';
       return;
     }
     out.textContent = 'Loading source status.';
@@ -111,7 +111,7 @@ export function mountDialogs(ctx) {
     if (f.ok) {
       S.feeds = new Map((f.data?.sources || []).map(s => [s.id, s]));
       const weatherArea = S.feeds.get('nws')?.coverage?.area;
-      $('#quick-weather').textContent = weatherArea ? 'Weather · ' + String(weatherArea).slice(0, 30) : 'Weather';
+      ctx.toolbar?.sync(); // MAP-V2
       html += (f.data?.sources || []).map(s => `<p><strong>${esc(s.name || s.id)}</strong><br>${esc(SOURCE_STATUS_TEXT[s.status] || s.status)}${s.fetchedAt ? ' · Updated ' + esc(ageText(s.fetchedAt)) : ''}${s.featureCount != null ? ' · ' + esc(s.featureCount) + ' items' : ''}${s.coverage?.area ? `<br><small>Coverage: ${esc(s.coverage.area)}${s.coverage.type ? ' (' + esc(s.coverage.type) + ')' : ''}</small>` : ''}${s.note ? `<br><small>${esc(s.note)}</small>` : ''}${s.attribution ? `<br><small>${esc(s.attribution)}</small>` : ''}</p>`).join('');
     }
     if (w.ok) {
@@ -145,7 +145,7 @@ export function mountDialogs(ctx) {
   const openBuilder = e => {
     let panel = $('#layer-dialog');
     if (!panel) panel = createBuilder();
-    builderReturnFocus = e.currentTarget;
+    builderReturnFocus = ctx.builderReturnOverride || e.currentTarget; ctx.builderReturnOverride = null; // MAP-V2
     $('#command-more').open = false;
     ctx.closeWorkspace?.({ focus: false });
     ctx.closeDetail?.({ restoreFocus: false });
