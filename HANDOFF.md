@@ -1,3 +1,5 @@
+November 8 workflow cleanup: latest request removes replay controls/animation and redundant simulation history text. The workflow now uses native scrolling, and unsupported device/area send actions are removed. Read [WORKFLOW_CANVAS.md](docs/WORKFLOW_CANVAS.md) and the latest WORKLOG.
+
 November 8 production/demo follow-up (PR #58, merged b210de8, production verified): compact End demo banner returns to the protected live workspace. The real Uno Q controller now reports system values through USB and the host. Read [UNOQ_PRODUCTION.md](docs/UNOQ_PRODUCTION.md) for its identity, start/stop procedure and remaining sensor/Wi-Fi/location gaps. Release evidence is in WORKLOG.
 
 November 8 operations readiness (branch `feat/ops-readiness`, not deployed): DB speed-ups, `npm run hb` CLI, Uno Q agent, Resend email, NVIDIA grounding harness. Read [docs/TOMORROW.md](docs/TOMORROW.md) first for the demo day checklist, verified vs unverified items and fallbacks.
