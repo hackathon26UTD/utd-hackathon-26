@@ -8,7 +8,7 @@ Safe Home is an unattended home disaster recorder and a shared review workspace.
 
 Five-step Simulations use one deterministic browser/HTTP/CLI/MCP engine. Synthetic frames remain isolated from live telemetry. Personal assistants use customer OAuth scope or an encrypted account-owned NVIDIA key; operator model investigation is separate. Box-side bounded local history/reference learning and website archives exist in code. Physical flash state, calibration, endurance, fallback networking and replay still require board checks.
 
-The latest verified release before the naming work is workflow PR #45, production commit `0086310`, run `42469054959`. Household sharing was verified in PR #44; world views in #43; simulations/history in #41. Exact runtime evidence and newer release results belong in [WORKLOG.md](WORKLOG.md), not a stale green workflow screenshot.
+The Safe Home naming/documentation release is PR #46, production commit `d6c7484`, run `42470384846`. The preceding workflow release is PR #45, production commit `0086310`, run `42469054959`. Household sharing was verified in PR #44; world views in #43; simulations/history in #41. Exact runtime evidence and newer release results belong in [WORKLOG.md](WORKLOG.md), not a stale green workflow screenshot.
 
 ## Fixed implementation choices
 
