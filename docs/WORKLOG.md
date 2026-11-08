@@ -633,6 +633,14 @@ Both preview and primary production match all 16 checked built assets, pass publ
 
 At 15:07 UTC production readback confirmed the connected Uno Q at 35.5 °C, 3183 MB available memory, load 0.03, uptime 1265 seconds and Wi-Fi disconnected, with a fresh lastSeen. The host USB process continues uploading. Hazard status stays unknown, no location is invented, and Box A's previous critical sensor record is not altered. Controller setup, private-key location, stop/restart steps and remaining standalone/sensor/location work are recorded in UNOQ_PRODUCTION.md. No outgoing messages or fake production observations were sent. This final evidence update is documentation-only.
 
+## November 8, 2026 — Ayan static workflow and unsupported-action cleanup
+
+Request: scroll farther through the workflow, remove timeline playback/animation and “Simulation · generated history.”, and remove sending because the box cannot receive/display it. Isolated branch `work/workflow-scroll-cleanup` starts from current main `5a21244`; open teammate PRs #31/#15 remain untouched.
+
+Replaced the drag-only clipped workflow with native scrolling and readable width fitting. All checkpoints stay visible at their latest state; removed playback controls/timers, staged reveals, arrow pulses and animated history scrolling. History and inline rule/evidence explanations remain, with phone history below the canvas. Retained the top demo banner and meaningful missing/truncated-history notices. Removed device/area compose actions, New message and board-message-polling controls, while preserving follow-up, existing message history and backend contracts. No physical device, secret, dataset, risk-rule or provider configuration changes.
+
+Local checks: build passes; four updated actual-Chrome workflow checks pass with zero page errors, including native wheel scrolling, final-node explanation, phone history access, keyboard interaction, 100-event refresh and scoped phone accessibility. Desktop and phone screenshots were reviewed. Integrated app and final release results follow below.
+
 
 ## November 8 — Nemotron fleet review and responder briefs (Ayan integration workstream)
 
