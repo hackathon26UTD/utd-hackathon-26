@@ -1,5 +1,7 @@
 # Safe Home current project context
 
+November 8 monitoring/weather follow-up (PR #52, production verified in `65fddf2`, run `42489529431`): fixed homepage monitoring descriptions; fictional device playback stays in Simulations; map Wind/Rain forecast use 24 API hours without changing device reports. NOAA radar retains observed-history playback. See [Public weather and News](PUBLIC_WEATHER_NEWS.md) and WORKLOG.
+
 November 8 public-weather release (PR #48, `6e4df46`, production run `42474287844` attempt 2 verified): public hazards, a live NWS News tab, local official alert boundaries, mainland zoom limits and buffered NOAA radar playback. Private device access remains protected. See [Public weather and News](PUBLIC_WEATHER_NEWS.md) and WORKLOG for release evidence.
 
 Updated November 8, 2026. Safe Home is the current product name; HomeBeacon is the former name and remains in compatibility identifiers and historical records. Read [BRAND.md](BRAND.md), [README](../README.md), [Architecture](ARCHITECTURE.md) and the [documentation index](README.md).
