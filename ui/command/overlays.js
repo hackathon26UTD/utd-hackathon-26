@@ -66,7 +66,7 @@ export function mountOverlays(ctx) {
   $('#overlay-close').onclick = () => { $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false'); $('#overlay-toggle').focus(); };
 
   function toggle(id, on) {
-    if (ctx.demo && OVERLAYS.some(o => o.id === id)) return;
+
     on ? S.ovOn.add(id) : S.ovOn.delete(id);
     mv.setVisible(id, on);
     if (id === 'regions') ctx.loadRegions();
@@ -77,15 +77,14 @@ export function mountOverlays(ctx) {
   // ---- public layers ----
 
   async function loadFeeds() {
-    if (ctx.demo) { S.feedState = 'read_only'; render(); return; }
-    const r = await api('/api/feeds');
+
+    const r = await api('/api/public/feeds');
     S.feedState = r.ok ? 'ok' : 'unavailable';
     if (r.ok) S.feeds = new Map((r.data?.sources || []).map(s => [s.id, s]));
     render();
   }
 
   async function loadOverlay(id) {
-    if (ctx.demo) return;
     const def = OVERLAYS.find(o => o.id === id);
     S.ov[id] = S.ov[id] || {};
     if (def?.minZoom && mv.zoom < def.minZoom) { render(); return; }
@@ -94,7 +93,7 @@ export function mountOverlays(ctx) {
     const request = (S.ov[id].request || 0) + 1;
     S.ov[id] = { ...S.ov[id], request, loading:true };
     render();
-    const r = await api(overlayUrl(id, box));
+    const r = await api(overlayUrl(id, box).replace('/api/overlays','/api/public/overlays'));
     if (S.ov[id].request !== request) return;
     if (r.ok && r.data) {
       mv.setExt(id, r.data);

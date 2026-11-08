@@ -49,8 +49,8 @@ export function mountWorldControls({ root, map, ctx }) {
       map.setOverlayVisible('hydro',!!next.hydro);
       map.setHighlight('power',!!next.power);
       map.setHighlight('water',next.id === 'flood');
-      for (const layer of next.layers) setOverlay(ctx,layer,true);
-      if (!ctx.demo) ctx.overlays.loadFeeds();
+      for (const layer of next.layers) if(!(ctx.demo&&next.id==='wind'&&layer==='atmosphere'))setOverlay(ctx,layer,true);
+      ctx.overlays.loadFeeds();
     } else { baseline = null; saveBaseline(); }
     select.kitSet(next.id);
     root.dataset.worldView = next.id;
@@ -67,7 +67,7 @@ export function mountWorldControls({ root, map, ctx }) {
     const restoreFocus = document.activeElement === legend.querySelector('summary');
     const focusedLink = legend.contains(document.activeElement) ? document.activeElement.getAttribute('href') : null;
     const heading = node('div','','world-legend-heading');
-    heading.append(node('strong',active.label),node('span',active.unit || (ctx.demo ? 'Simulation' : 'Source layers')));
+    heading.append(node('strong',active.label),node('span',active.unit || (ctx.demo&&active.id==='wind' ? 'Simulation' : 'Source layers')));
     fragment.append(heading);
     if(active.id==='wind'){
       const playback=node('button',map.windFlow.paused?'Play wind':'Pause wind','world-wind-playback');playback.type='button';
@@ -91,20 +91,20 @@ export function mountWorldControls({ root, map, ctx }) {
       for (const id of active.layers) {
         const def = OVERLAYS.find(v => v.id === id), state = ctx.S.ov?.[id], feed = ctx.S.feeds?.get(id);
         const metricState = selectedSourceState(id,state,active.field);
-        const input = { demo:ctx.demo,view:active,id,state:metricState,feed,zoom:map.zoom,minZoom:def?.minZoom,enabled:ctx.S.ovOn?.has(id) };
+        const input = { demo:ctx.demo&&active.id==='wind',view:active,id,state:metricState,feed,zoom:map.zoom,minZoom:def?.minZoom,enabled:ctx.S.ovOn?.has(id) };
         const status = viewSourceState(input);
         states.push({text:status,attention:viewSourceNeedsAttention(input)});
         const row = node('div','','world-source'); row.append(node('strong',def?.name || id),node('p',status));
-        if (!ctx.demo && state?.hb?.attribution) {
+        if (state?.hb?.attribution) {
           const attribution = node(SOURCE_LINKS[id] ? 'a' : 'p',state.hb.attribution);
           if (SOURCE_LINKS[id]) { attribution.href=SOURCE_LINKS[id]; attribution.target='_blank'; attribution.rel='noopener noreferrer'; }
           row.append(attribution);
         }
-        if (!ctx.demo && state?.hb?.fetchedAt) row.append(node('p',`Retrieved ${ageText(state.hb.fetchedAt)}`));
-        if (!ctx.demo && state?.validAt) row.append(node('p',`Forecast valid ${new Date(state.validAt).toLocaleString()}`));
-        if (!ctx.demo && state?.hb?.coverage?.area) row.append(node('p',`Coverage: ${state.hb.coverage.area}`));
+        if (state?.hb?.fetchedAt) row.append(node('p',`Retrieved ${ageText(state.hb.fetchedAt)}`));
+        if (state?.validAt) row.append(node('p',`Forecast valid ${new Date(state.validAt).toLocaleString()}`));
+        if (state?.hb?.coverage?.area) row.append(node('p',`Coverage: ${state.hb.coverage.area}`));
         const reading = gridSummary(id,state);
-        if (!ctx.demo && reading) row.append(node('p',reading));
+        if (reading) row.append(node('p',reading));
         sources.append(row);
       }
       const problem = states.find(s => s.attention);
@@ -125,7 +125,7 @@ export function mountWorldControls({ root, map, ctx }) {
     try {
       saved = localStorage.getItem(KEY);
       const b = JSON.parse(localStorage.getItem(BASELINE_KEY) || 'null');
-      const allowed = new Set(['regions','zones','exerciseWind',...OVERLAYS.map(o=>o.id)]);
+      const allowed = new Set(['regions','exerciseWind',...OVERLAYS.map(o=>o.id)]);
       if (worldView(saved).id !== 'street' && b && ['street','topo','streetTerrain'].includes(b.base) && Array.isArray(b.overlays) && Array.isArray(b.visible)) {
         baseline = {base:b.base,overlays:new Set(b.overlays.filter(v=>allowed.has(v))),visible:new Set(b.visible.filter(v=>allowed.has(v))),raster:{hillshade:b.raster?.hillshade===true,hydro:b.raster?.hydro===true},highlights:{power:b.highlights?.power===true,water:b.highlights?.water===true}};
       }
