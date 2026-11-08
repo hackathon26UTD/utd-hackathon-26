@@ -486,3 +486,15 @@ Combined-release follow-up: preserved Dhruv's concurrently merged PR #42 (`e3181
 
 
 Final follow-up `b8d3a70` passed production run `42464035022`. Exact production assets match the rebuilt combined release (`command-EF7IUQEK.js`); readiness/public routes and protected-feed boundaries passed again. Actual production Chrome legacy-hurricane reload and simulation playback confirmed UV/Sunshine remain free of synthetic wind shading while Wind retains it. No further source changes remain in this workstream.
+
+## November 8, 2026 — Ayan household sharing workstream
+
+Request: other household emails can view selected devices and choose updates; show official storm/weather context and local news. Ayan subsequently said not to worry about email setup. Sender configuration and real outgoing email are deferred; delivery remains off.
+
+Used a fresh isolated worktree from main f7a8481. Preserved the original active checkout’s other workflow edits and inspected current PRs (#31 public feed key script, #15 unrelated FutureYou). Implemented generation-bound household ownership, selected live device links, one-use expiring private invitations, viewer/email-only roles, revocation/leave and customer read-only reports. Actual Argus dropdowns, small rounded controls, responsive sharing settings and about-ten-second report refresh. Normal owner APIs and device keys remain separate.
+
+Official NWS point alerts and twelve-hour forecasts retain original timestamps. Regional RSS headlines are fixed to advertised Dallas Free Press, Fort Worth Report, KUT, WUSF and KPBS feeds; uncovered/failed sources are explicit. KERA’s old feed now redirects to a website and was replaced with the working North Texas publishers. News never changes risk or dispatch. Weather source links omit registered coordinates. Cache projections expire alerts/forecast periods/headlines at response time.
+
+Prepared optional opt-in mail implementation remains disabled, including verification, scoped unsubscribe, encrypted durable outbox, bounded retries/idempotency and signed callback handling. No real mail or production household fixtures were used. Independent review found email rename-away/back could revive sharing; rename now atomically closes owned households/revokes affected shares while retaining device ownership. Review also found cached expiry, queued condition freshness, callback ordering and mobile/retry defects; targeted fixes and regression evidence are recorded with final release results below.
+
+Local verification so far: npm ci/build pass; actual disposable MongoDB/Pages Chrome create/invite/accept/revoke passes, no page errors or mobile overflow; real local Pages forecasts and regional headlines fetched. Unit/security/full-suite counts and deployment evidence are appended after final review. Physical hardware, real email delivery, legal/privacy and complete manual accessibility review are not established by these checks.
