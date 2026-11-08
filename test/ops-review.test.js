@@ -12,7 +12,8 @@ import { emailArgv } from '../scripts/commands/email.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const INSTALL = join(ROOT, 'agents/unoq/packaging/install.sh');
-const hasPython = !spawnSync('python3', ['--version']).error;
+// The installer needs Python 3.11 or newer (the Uno Q's Debian ships it); older runners skip these tests.
+const hasPython = spawnSync('python3', ['-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)']).status === 0;
 const sink = () => { const b = { text: '', isTTY: false, on() {}, write(s) { b.text += s; return true; } }; return b; };
 async function cli(argv, env = {}) {
   const stdout = sink(); const stderr = sink();

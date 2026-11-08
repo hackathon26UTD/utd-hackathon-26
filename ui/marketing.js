@@ -36,10 +36,10 @@ export function mountMarketing({brand, footer}) {
           <div class="home-preview-frame"><iframe id="home-preview" src="/demo?embed=hero&amp;scenario=normal&amp;weather=wind" title="Non-interactive map illustration with simulated readings" tabindex="-1" inert loading="eager" referrerpolicy="same-origin"></iframe></div>
           <figcaption class="home-preview-controls"><span>Simulated overview <span id="home-preview-label">Normal day</span></span><button id="home-preview-pause" type="button" aria-label="Pause overview animation">Pause</button></figcaption>
         </figure>
-        <div class="home-example"><p class="home-example-label">Example device</p><dl class="home-signals" aria-label="Simulated device readings">
-          <div><dt>${icon('power')}Power</dt><dd id="example-power">On</dd></div>
-          <div><dt>${icon('wifi')}Wi-Fi</dt><dd id="example-wifi">Connected</dd></div>
-          <div><dt>${icon('conditions')}Conditions</dt><dd id="example-conditions">No disaster or disturbances detected.</dd></div>
+        <div class="home-example"><p class="home-example-label">What the box monitors</p><dl class="home-signals" aria-label="What Safe Home monitors">
+          <div><dt>${icon('power')}Power</dt><dd>Checks whether home power is on or off. A backup battery is designed to keep the box recording during an outage.</dd></div>
+          <div><dt>${icon('wifi')}Wi-Fi</dt><dd>Checks its connection. If Wi-Fi drops, the box keeps a local record to send when the connection returns.</dd></div>
+          <div><dt>${icon('conditions')}Conditions</dt><dd>Checks connected sensors for water, heat, humidity and alarm signals. Changes are flagged for someone to review.</dd></div>
         </dl></div>
       </section>
       <section class="home-purpose home-width" id="how-it-works" aria-labelledby="home-purpose-title">
@@ -69,13 +69,12 @@ export function mountMarketing({brand, footer}) {
   preview.addEventListener('load',()=>{ready=true;paintPlayback();});
   document.addEventListener('visibilitychange',paintPlayback);document.addEventListener('homebeacon:motion',paintPlayback);
   new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;paintPlayback();},{threshold:.1}).observe(preview);
-  const examples={normal:['On','Connected','No disaster or disturbances detected.'],'power-outage':['Backup power','Disconnected','Power interruption detected.'],'water-hurricane':['Backup power','Disconnected','Water detected. Needs review.'],recovery:['Restored','Connected','Earlier water report needs review.']};
+  const scenarios=new Set(['normal','power-outage','water-hurricane','recovery']);
   window.addEventListener('message',event=>{
     if(event.origin!==location.origin||event.source!==preview.contentWindow||event.data?.type!=='homebeacon:preview-state')return;
     if(!ready){ready=true;paintPlayback();}
-    const values=examples[event.data.scenarioId];if(!values)return;
+    if(!scenarios.has(event.data.scenarioId))return;
     label.textContent=event.data.label+' · wind illustration';
-    ['power','wifi','conditions'].forEach((id,i)=>{app.querySelector('#example-'+id).textContent=values[i];});
   });
   paintPlayback();
 }

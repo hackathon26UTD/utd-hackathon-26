@@ -41,3 +41,11 @@ Unit/database coverage: public GET versus private/mutation access, active-alert 
 - [NOAA GeoServer](https://opengeo.ncep.noaa.gov/geoserver/www/index.html)
 - [OpenFreeMap setup and attribution](https://openfreemap.org/quick_start/)
 - [OSM attribution placement guidance](https://osmfoundation.org/wiki/Licence/Attribution_Guidelines)
+
+## Weather-only map playback (November 8 follow-up)
+
+The floating fictional-device timeline now lives inside **Simulations**. Leaving that setup pauses its clock. The map's Wind and new Rain forecast views instead expose 24 hourly Open-Meteo timestamps, at the existing 60 sampled mainland locations. Selecting or playing a forecast hour updates only the atmosphere map source; device readings, device event history, risk, messages and NWS alerts are not replayed or recalculated. Standalone simulation maps use these real public forecasts too. Only the non-interactive homepage wind illustration remains synthetic.
+
+The atmosphere cache uses `conus-samples-hourly-v2`. Its existing current-hour features remain compatible, adding `rain_mm`; optional `extra.forecastFrames` carries timestamped wind/direction/rain values keyed to the same feature IDs. Requests use `forecast_hours=24`. Rain is the provider's `rain + showers` in mm over the hour ending at the label, excluding snowfall. Missing values stay null. Times, units, coordinates, location ordering and aligned 24-row arrays are validated. Unrelated temperature/UV/solar fields are cleared from a future weather-only frame and restored from the current snapshot when leaving playback. No interpolated weather field or future household condition is invented.
+
+The weather player pauses on view changes, hidden tabs and reduced motion; manual selection remains available. Visible forecast views refresh after 30 minutes or when returning to the tab. Selecting NOAA Rain radar closes forecast playback, since NOAA supplies observed history on a different clock. The two panels never overlap. Future rain forecasts remain separate from observed radar and FEMA flood zones. Provider field definitions: [Open-Meteo hourly documentation](https://open-meteo.com/en/docs).

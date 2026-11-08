@@ -49,13 +49,13 @@ export function mountWorldControls({ root, map, ctx }) {
       map.setOverlayVisible('hydro',!!next.hydro);
       map.setHighlight('power',!!next.power);
       map.setHighlight('water',next.id === 'flood');
-      for (const layer of next.layers) if(!(ctx.demo&&next.id==='wind'&&layer==='atmosphere'))setOverlay(ctx,layer,true);
+      for (const layer of next.layers) if(!(ctx.embed&&next.id==='wind'&&layer==='atmosphere'))setOverlay(ctx,layer,true);
       ctx.overlays.loadFeeds();
     } else { baseline = null; saveBaseline(); }
     select.kitSet(next.id);
     root.dataset.worldView = next.id;
     try { localStorage.setItem(KEY,next.id); } catch { /* optional preference */ }
-    changing = false; sync(); ctx.toolbar?.sync();
+    changing = false; ctx.weatherPlayback?.setView(next.id);sync(); ctx.toolbar?.sync();
   }
 
   function sync() {
@@ -67,14 +67,14 @@ export function mountWorldControls({ root, map, ctx }) {
     const restoreFocus = document.activeElement === legend.querySelector('summary');
     const focusedLink = legend.contains(document.activeElement) ? document.activeElement.getAttribute('href') : null;
     const heading = node('div','','world-legend-heading');
-    heading.append(node('strong',active.label),node('span',active.unit || (ctx.demo&&active.id==='wind' ? 'Simulation' : 'Source layers')));
+    heading.append(node('strong',active.label),node('span',active.unit || (ctx.embed&&active.id==='wind' ? 'Simulation' : 'Source layers')));
     fragment.append(heading);
     if(active.id==='wind'){
       const playback=node('button',map.windFlow.paused?'Play wind':'Pause wind','world-wind-playback');playback.type='button';
       playback.disabled=!allowsMotion();if(playback.disabled)playback.textContent='Motion reduced';
       playback.addEventListener('click',()=>{map.windFlow.setPaused(!map.windFlow.paused);playback.textContent=map.windFlow.paused?'Play wind':'Pause wind';});fragment.append(playback);
     }
-    const colors = ctx.demo&&active.id==='wind'?[]:active.stops?.map(([n,color]) => [color,String(n)]) || active.swatches || [];
+    const colors = ctx.embed&&active.id==='wind'?[]:active.stops?.map(([n,color]) => [color,String(n)]) || active.swatches || [];
     if (colors.length) {
       const scale = node('div','','world-scale');
       for (const [color,label] of colors) {
@@ -83,7 +83,7 @@ export function mountWorldControls({ root, map, ctx }) {
       }
       fragment.append(scale);
     }
-    fragment.append(node('p',ctx.demo&&active.id==='wind'?'Illustrated wind speeds and flow. Simulation only.':active.note,'world-note'));
+    fragment.append(node('p',ctx.embed&&active.id==='wind'?'Illustrated wind speeds and flow. Simulation only.':active.note,'world-note'));
     if (active.layers.length) {
       const sources = node('details','','world-sources');
       const summary = node('summary','Sources & coverage'); sources.append(summary);
@@ -91,7 +91,7 @@ export function mountWorldControls({ root, map, ctx }) {
       for (const id of active.layers) {
         const def = OVERLAYS.find(v => v.id === id), state = ctx.S.ov?.[id], feed = ctx.S.feeds?.get(id);
         const metricState = selectedSourceState(id,state,active.field);
-        const input = { demo:ctx.demo&&active.id==='wind',view:active,id,state:metricState,feed,zoom:map.zoom,minZoom:def?.minZoom,enabled:ctx.S.ovOn?.has(id) };
+        const input = { demo:ctx.embed&&active.id==='wind',view:active,id,state:metricState,feed,zoom:map.zoom,minZoom:def?.minZoom,enabled:ctx.S.ovOn?.has(id) };
         const status = viewSourceState(input);
         states.push({text:status,attention:viewSourceNeedsAttention(input)});
         const row = node('div','','world-source'); row.append(node('strong',def?.name || id),node('p',status));
