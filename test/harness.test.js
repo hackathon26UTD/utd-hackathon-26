@@ -31,7 +31,7 @@ for (const kind of ['thresholds', 'runbook', 'knowledge']) {
 
 // ---------- thresholds: derived values equal independent literals ----------
 test('derived thresholds match known literals', () => {
-  assert.deepEqual(rule('temp_c', 'temp_critical'), { id: 'temp_critical', level: 'critical', hazard: 'fire', op: '>=', value: 55 });
+  assert.deepEqual(rule('temp_c', 'temp_critical'), { id: 'temp_critical', level: 'critical', hazard: 'fire', forMin: 0, op: '>=', value: 55 });
   assert.equal(rule('temp_c', 'temp_high').value, 48);
   assert.equal(rule('temp_c', 'temp_watch_hot').value, 40);
   assert.deepEqual([rule('temp_c', 'temp_watch_cold').op, rule('temp_c', 'temp_watch_cold').value], ['<=', 0]);
@@ -52,7 +52,7 @@ test('derived thresholds match known literals', () => {
   assert.equal(T.power.criticalTempC.value, 55);
   assert.equal(T.power.criticalSoundHits.value, 6);
   assert.deepEqual([T.power.goalHoursMin, T.power.goalHoursMax, T.power.reserveFractionDefault], [1, 168, 0.15]);
-  assert.match(T.compound[0].text, /battery_pct <= 30/);
+  assert.match(T.compound[0].text, /battery at or below 30 percent/);
 });
 
 test('every rule fires at its own trigger value and not just outside it', () => {
@@ -61,10 +61,12 @@ test('every rule fires at its own trigger value and not just outside it', () => 
   for (const s of T.sensors) {
     const top = new Map();
     for (const r of s.rules) {
+      // Duration rules (forMin) need the condition to have held for that long, so a single reading cannot trigger them.
+      if (r.forMin) { assert.ok(!fired(s.sensor, r.value).includes(r.id), `${s.sensor} ${r.id} needs ${r.forMin} minutes`); continue; }
       assert.ok(fired(s.sensor, r.value).includes(r.id), `${s.sensor} ${r.id} should fire at ${r.value}`);
       top.set(r.id, r);
     }
-    if (s.kind === 'num') for (const r of s.rules) {
+    if (s.kind === 'num') for (const r of s.rules.filter(x => !x.forMin)) {
       const outside = r.op === '>=' ? r.value - 0.5 : r.value + 0.5;
       if (outside >= s.min && outside <= s.max) assert.ok(!fired(s.sensor, outside).includes(r.id), `${s.sensor} ${r.id} should not fire at ${outside}`);
     }
