@@ -719,3 +719,5 @@ Release reconciliation: while PR62 checks passed, teammate PR63 device onboardin
 ## November 8, 2026 — Saif customer background refinement
 
 Added the requested static 24px grid-and-dot texture to the customer portal with a soft edge fade, lighter gray intersections in light mode and faint white intersections in dark mode. Decoration is CSS-only, noninteractive and behind content. Corrected the previous customer dark selectors from data-theme to the actual data-hbkit-theme attribute, applied charcoal page surfaces and adjusted shortcut/hint colors. Browser checked both themes and restored the original light preference. Adjusted canvas stacking so the decorative glow remains behind the 3D model. UI build and whitespace checks pass. Local branch codex/customer-grid-background; not merged/deployed.
+
+User rejected the full-page texture as too prominent. Replaced it with a much fainter grid confined to the 3D stage, softly masked to disappear before vitals and text. Removed the page-wide pseudo-element. Local browser confirms plain account/vitals background and model-only texture; UI build passes. Not pushed or deployed.
