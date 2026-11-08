@@ -91,15 +91,24 @@ export function mountOverlays(ctx) {
     if (def?.minZoom && mv.zoom < def.minZoom) { render(); return; }
     const box = mv.apiBbox();
     if (!box) { S.ov[id] = { ...S.ov[id], error: 'Move the map over the lower 48 states to load this layer.' }; render(); return; }
+    const request = (S.ov[id].request || 0) + 1;
+    S.ov[id] = { ...S.ov[id], request, loading:true };
+    render();
     const r = await api(overlayUrl(id, box));
+    if (S.ov[id].request !== request) return;
     if (r.ok && r.data) {
       mv.setExt(id, r.data);
-      S.ov[id] = { hb: r.data.hb || null, count: (r.data.features || []).length, extra:r.data.extra||null, error: '' };
+      S.ov[id] = { request, hb: r.data.hb || null, count: (r.data.features || []).length, extra:r.data.extra||null, error: '' };
+      if (id === 'atmosphere') {
+        S.ov[id].metrics = Object.fromEntries(['wind_kph','solar_wm2','uv_index','temperature_c'].map(key => [key,(r.data.features || []).filter(f => Number.isFinite(f.properties?.[key])).length]));
+        S.ov[id].validAt = (r.data.features || []).map(f => f.properties?.validAt).filter(t => Number.isFinite(Date.parse(t))).sort()[0] || null;
+      }
     } else if (r.status === 401) {
       S.ov[id] = { ...S.ov[id], error: ctx.demo ? 'Sign in to load public layers.' : failText(401) };
     } else {
       S.ov[id] = { ...S.ov[id], error: failText(r.status, 'This layer', r.error) + (S.ov[id].count ? ' Showing the last saved view.' : '') };
     }
+    S.ov[id].loading = false;
     render();
   }
 

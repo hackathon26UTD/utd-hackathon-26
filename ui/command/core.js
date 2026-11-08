@@ -326,6 +326,8 @@ export function drawPreview(points, pin = false) {
 // ---- Overlay catalog ----
 
 export const OVERLAYS = [
+  {id:'atmosphere',name:'Wind, sun & UV forecast',note:'Open-Meteo forecast samples, not continuous observed coverage',minZoom:0},
+  {id:'faults',name:'USGS fault traces',note:'Mapped Quaternary geology, not an earthquake forecast. Zoom into a local area.',minZoom:10},
   {id:'nwps',name:'NOAA river flood guidance',note:'Observed and forecast river conditions with native units',minZoom:10},
   {id:'weather',name:'Forecast precipitation',note:'Open-Meteo forecast rainfall, not observed flood extent',minZoom:11},
   {id:'ercot',name:'ERCOT supply and demand',note:'Texas grid series, not home outage locations',minZoom:0},
