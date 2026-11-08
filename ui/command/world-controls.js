@@ -4,6 +4,7 @@ import { setOverlay } from './overlays.js';
 
 const KEY = 'homebeacon-world-view';
 const BASELINE_KEY = 'homebeacon-world-baseline';
+const SOURCE_LINKS = { atmosphere:'https://open-meteo.com/', faults:'https://www.usgs.gov/programs/earthquake-hazards/earthquake-geology' };
 const node = (tag, text, cls) => { const el = document.createElement(tag); if (text) el.textContent = text; if (cls) el.className = cls; return el; };
 
 export function mountWorldControls({ root, map, ctx }) {
@@ -62,6 +63,7 @@ export function mountWorldControls({ root, map, ctx }) {
     if (legend.hidden) return;
     const fragment = document.createDocumentFragment();
     const restoreFocus = document.activeElement === legend.querySelector('summary');
+    const focusedLink = legend.contains(document.activeElement) ? document.activeElement.getAttribute('href') : null;
     const heading = node('div','','world-legend-heading');
     heading.append(node('strong',active.label),node('span',active.unit || (ctx.demo ? 'Simulation' : 'Source layers')));
     fragment.append(heading);
@@ -86,9 +88,14 @@ export function mountWorldControls({ root, map, ctx }) {
         const status = viewSourceState(input);
         states.push({text:status,attention:viewSourceNeedsAttention(input)});
         const row = node('div','','world-source'); row.append(node('strong',def?.name || id),node('p',status));
+        if (!ctx.demo && state?.hb?.attribution) {
+          const attribution = node(SOURCE_LINKS[id] ? 'a' : 'p',state.hb.attribution);
+          if (SOURCE_LINKS[id]) { attribution.href=SOURCE_LINKS[id]; attribution.target='_blank'; attribution.rel='noopener noreferrer'; }
+          row.append(attribution);
+        }
         if (!ctx.demo && state?.hb?.fetchedAt) row.append(node('p',`Retrieved ${ageText(state.hb.fetchedAt)}`));
         if (!ctx.demo && state?.validAt) row.append(node('p',`Forecast valid ${new Date(state.validAt).toLocaleString()}`));
-        if (!ctx.demo && state?.hb?.note) row.append(node('p',state.hb.note));
+        if (!ctx.demo && state?.hb?.coverage?.area) row.append(node('p',`Coverage: ${state.hb.coverage.area}`));
         const series = state?.extra?.series;
         if (!ctx.demo && Array.isArray(series) && series[0]?.value != null) row.append(node('p',`${series[0].region || 'Regional demand'}: ${series[0].value} ${series[0].unit || ''} (${series[0].period || 'time unavailable'})`));
         sources.append(row);
@@ -101,6 +108,7 @@ export function mountWorldControls({ root, map, ctx }) {
     }
     legend.replaceChildren(fragment);
     if (restoreFocus) legend.querySelector('summary')?.focus({preventScroll:true});
+    else if (focusedLink) [...legend.querySelectorAll('a')].find(a => a.getAttribute('href') === focusedLink)?.focus({preventScroll:true});
   }
   // Toolbar is created before overlay handlers. Restore only once they exist.
   queueMicrotask(() => {
