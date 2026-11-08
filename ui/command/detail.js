@@ -1,3 +1,4 @@
+import {readingSummary} from './reading-summary.js';
 import {showDataTool} from './data-tools.js';
 // Full device workspace plus the small area card for regions.
 // Kit factories compose the shells. Conditions text comes from the timeline service when it answers,
@@ -232,15 +233,17 @@ export function mountDetail(ctx) {
     const wifiValue = read(['wifi_connected','wan_connected']);
     const signal = (label,value) => `<div class="dr-signal ${value === true || value === 1 ? 'ok' : value === false || value === 0 ? 'warn' : 'unknown'}"><span>${label}</span><strong>${value === true || value === 1 ? 'Connected' : value === false || value === 0 ? 'Disconnected' : 'Not reported'}</strong></div>`;
     const signals = signal('Power', powerValue) + signal('Wi-Fi', wifiValue) + `<div class="dr-signal ${shown.status === 'normal' ? 'ok' : shown.status === 'critical' ? 'critical' : shown.status === 'unknown' ? 'unknown' : 'warn'}"><span>Sensors</span><strong>${shown.status === 'normal' ? 'Normal readings' : shown.status === 'unknown' ? 'Not reported' : 'Needs review'}</strong></div>`;
+    const observations=readingSummary(latest,now,observationFreshMs(p)).map(r=>`<div><dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd><small>${esc(r.note)}</small></div>`).join('');
     const path = tl.nodes.map((n, i) => `<li><button type="button" class="dr-step wf-s-${esc(n.status)}${n.source === 'not_recorded' ? ' is-dashed' : ''}" data-wf="${esc(n.id)}" aria-label="${esc(`${i + 1}. ${n.label}, ${NODE_STATUS_TEXT[n.status]}. Open in the workflow.`)}"><span class="dr-step-g" aria-hidden="true">${esc(NODE_STATUS_GLYPH[n.status] || '?')}</span><span class="dr-step-l">${esc(n.label)}</span><small>${esc(NODE_STATUS_TEXT[n.status])}</small></button></li>`).join('');
     return `<div class="dr-hero dr-tone-${esc(shown.status)}"><div class="dr-hero-main"><p class="dr-eyebrow">Overall conditions</p><h3 class="dr-headline">${esc(shown.status === "normal" ? "Reporting normally" : shown.status === "unknown" ? "Waiting for a report" : shown.status === "critical" ? "Needs urgent review" : "Check this device")}</h3><p class="dr-fresh">Last report ${esc(ageText(p.lastSeen || p.observedAt, now))}</p></div><div class="dr-signals">${signals}</div></div>
+${observations ? `<dl class="dr-observation-summary" aria-label="Latest sensor observations">${observations}</dl>` : '<p class="soft-note">No sensor readings received yet.</p>'}
 <details class="dr-more"><summary>Why this status · more details</summary><div class="dr-cols"><section class="dr-card"><h4>What we see</h4>${list(c.what)}</section><section class="dr-card"><h4>Why it matters</h4>${list(c.why)}</section><section class="dr-card dr-card--unknown"><h4>What we do not know</h4>${list(c.unknown)}</section><section class="dr-card dr-card--next"><h4>What a person should do next</h4>${list(c.nextSteps)}</section></div></details>
 <details class="dr-more"><summary>Report checkpoints</summary><section class="dr-path" aria-label="Path of a report through the checkpoints"><div class="dr-path-head"><h4>Where this report has been</h4><button type="button" data-tabgo="workflow" class="dr-linkbtn">Open the workflow</button></div><ol>${path}</ol></section></details>
 <p class="dr-advisory">${esc(c.advisory || ADVISORY_LINE)}</p>`;
   }
 
   function actionsHtml(p, risk) {
-    return `<h4 class="dr-actions-h">Actions</h4><div class="actions"><button class="primary" id="d-send"${writeOff()}>Send message to this home</button><button id="follow"${writeOff()}>Record follow-up</button>${ctx.demo ? '' : '<button data-data-tool="location">Location image</button><button data-data-tool="stats">History and averages</button><button data-data-tool="response">Preview responder message</button><button data-data-tool="settings">Board message polling</button>'}</div>${ctx.demo ? '<p class="soft-note">Exercise mode is read only. Sending and notes are turned off.</p>' : ''}<p><small>${esc(ADVISORY_LINE)} It does not confirm damage, occupancy or entry conditions.</small></p>`;
+    return `<h4 class="dr-actions-h">Actions</h4><div class="actions"><button id="follow"${writeOff()}>Record follow-up</button>${ctx.demo ? '' : '<button data-data-tool="location">Location image</button><button data-data-tool="stats">History and averages</button><button data-data-tool="response">Preview responder message</button>'}</div>${ctx.demo ? '<p class="soft-note">Notes are unavailable in simulations.</p>' : ''}<p><small>${esc(ADVISORY_LINE)} It does not confirm damage, occupancy or entry conditions.</small></p>`;
   }
 
   // ---- other device tabs ----
@@ -268,7 +271,7 @@ ${power ? `<dl class="mini"><div><dt>Mains</dt><dd>${power.mains === true ? 'Con
 
   function messagesTab(p, D) {
     const msgs = D?.data?.messages || [];
-    return `<div class="actions"><button class="primary" id="d-send"${writeOff()}>New message</button></div>` + (msgs.length ? `<ul class="log-list">${msgs.map(m => { const st = messageState(m, p.id); return `<li><strong>${esc(m.title)}</strong> <span class="chip st-${esc(st)}">${esc(MSG_STATE_TEXT[st] || st)}</span><br>${esc(m.body || '')}<br><small>${esc(m.severity || 'info')} · ${m.customerVisible ? 'customer can see' : 'device only'} · ${esc(dateTimeText(m.createdAt))}</small>${st === 'queued' || st === 'delivered' ? `<br><button class="small" data-cancel="${esc(m.id)}"${writeOff()}>Cancel</button>` : ''}</li>`; }).join('')}</ul>` : '<p class="muted">No messages sent to this device.</p>');
+    return (msgs.length ? `<ul class="log-list">${msgs.map(m => { const st = messageState(m, p.id); return `<li><strong>${esc(m.title)}</strong> <span class="chip st-${esc(st)}">${esc(MSG_STATE_TEXT[st] || st)}</span><br>${esc(m.body || '')}<br><small>${esc(m.severity || 'info')} · ${m.customerVisible ? 'customer can see' : 'device only'} · ${esc(dateTimeText(m.createdAt))}</small>${st === 'queued' || st === 'delivered' ? `<br><button class="small" data-cancel="${esc(m.id)}"${writeOff()}>Cancel</button>` : ''}</li>`; }).join('')}</ul>` : '<p class="muted">No messages sent to this device.</p>');
   }
 
   function customerTab(p, link, help, D) {
@@ -291,7 +294,7 @@ ${history.length ? `<h3>History</h3><ul class="log-list">${history.slice(-6).rev
 ${r.outage && OUTAGE_TEXT[r.outage] ? `<p class="soft-note">${esc(OUTAGE_TEXT[r.outage])}</p>` : ''}
 ${r.hotspot?.is && r.hotspot.reasons?.length ? `<h3>Why this is a hot spot</h3><ul class="reasons">${r.hotspot.reasons.map(t => `<li>${esc(typeof t === 'string' ? t : t.text)}</li>`).join('')}</ul>` : ''}
 ${r.correlations?.length ? `<h3>Area context</h3><ul class="reasons">${r.correlations.map(x => `<li>${esc(x.text)}</li>`).join('')}</ul>` : ''}
-<div class="actions"><button class="primary" id="r-send"${writeOff()}>Send message to this area</button><button id="r-zoom">Zoom to area</button><button id="r-logs">View area logs</button><button id="r-clear">Back to homes</button></div>
+<div class="actions"><button id="r-zoom">Zoom to area</button><button id="r-logs">View area logs</button><button id="r-clear">Back to homes</button></div>
 ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slice(0, 40).map(p => `<li><button class="link-button" data-pick="${esc(p.id)}">${esc(p.name || p.id)}</button> ${tag(displayStatus(p).status)}</li>`).join('')}</ul>` : ''}
 <p><small>${esc(r.advisory || ADVISORY)}</small></p>`;
   }
@@ -318,8 +321,6 @@ ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slic
       toast(r.ok ? 'Message cancelled.' : failText(r.status, 'Cancelling', r.error), { error: !r.ok });
       return loadDetail(S.selectedId, { quiet: true });
     }
-    if (t.id === 'd-send') return ctx.openMessage({ type: 'device', deviceIds: [S.selectedId] });
-    if (t.id === 'r-send') return ctx.openMessage({ type: 'region', region: S.selectedRegion });
     if (t.id === 'follow') { $('#follow-status').textContent = ''; $('#follow-dialog').showModal(); return; }
     if (t.id === 'open-logs') return ctx.showLogs({ deviceId: S.selectedId });
     if (t.id === 'r-logs') return ctx.showLogs({ region: S.selectedRegion });
