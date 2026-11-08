@@ -1,6 +1,6 @@
 # Customer alert email groundwork
 
-Presentation-only groundwork for Ayan's HomeBeacon workstream, November 8, 2026. No email provider, recipient lookup, sending, automatic queue/outbox, subscriptions or deliveries are enabled. These previews are synthetic. Box and website history is a subsequent parent task, not implemented here.
+Presentation-only groundwork for Ayan's Safe Home workstream, November 8, 2026. No email provider, recipient lookup, sending, automatic queue/outbox, subscriptions or deliveries are enabled. These previews are synthetic. Box and website history is a subsequent parent task, not implemented here.
 
 ## Parent integration
 
@@ -38,6 +38,10 @@ Unknown fields, raw HTML, notes, dispatch claims, arbitrary condition text and c
 ## Preview
 
 `node scripts/preview-customer-email.mjs [output-directory]` (parent also added `npm run email:preview -- [output-directory]`). Default: `work/customer-email-preview`. Writes three HTML and three text examples for the supported events with synthetic home/source/time and no recipients. It does not contact any service. Output files are local and should not be treated as delivered messages.
+
+## Household implementation status, November 8
+
+The renderer above remains presentation-only. The separate household feature now contains verification, preferences, a disabled mail adapter/outbox and signed delivery callbacks. Ayan deferred sender setup; no sender is connected and no delivery is claimed. See [household context and alerts](HOUSEHOLD_CONTEXT_ALERTS.md) for actual implementation, limits and activation prerequisites.
 
 ## Before any future delivery
 

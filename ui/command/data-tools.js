@@ -19,6 +19,6 @@ export async function showDataTool(ctx,action,p){
  }
  if(action==='response'){
  const pre=element('pre',d.message);pre.className='response-print';pre.style.whiteSpace='pre-wrap';body.append(element('p','Demonstration only. Nothing has been sent and no team has been dispatched.'),pre);
- const print=element('button','Print exact message');print.className='kit-btn';print.onclick=()=>{const sheet=document.createElement('section');sheet.className='response-print-sheet';sheet.append(element('h1','HomeBeacon responder preview'),element('pre',d.message));document.body.append(sheet);document.body.classList.add('printing-response');const clean=()=>{sheet.remove();document.body.classList.remove('printing-response');};window.addEventListener('afterprint',clean,{once:true});window.print();};body.append(print);
+ const print=element('button','Print exact message');print.className='kit-btn';print.onclick=()=>{const sheet=document.createElement('section');sheet.className='response-print-sheet';sheet.append(element('h1','Safe Home responder preview'),element('pre',d.message));document.body.append(sheet);document.body.classList.add('printing-response');const clean=()=>{sheet.remove();document.body.classList.remove('printing-response');};window.addEventListener('afterprint',clean,{once:true});window.print();};body.append(print);
  }
 }

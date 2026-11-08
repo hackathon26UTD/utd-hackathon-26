@@ -1,7 +1,8 @@
+import { mountWindFlow } from './wind-flow.js';
 import { allowsMotion } from '../display-settings.js';
 // MapLibre wrapper: street-level base maps plus the command center layers. Rebuilds layers after every style switch.
 import { STATUS_COLOR as C, ZONE_TYPES } from './core.js';
-import { CONUS_BOUNDS, CONUS_FIT, CONUS_API_BOX, MIN_ZOOM, MAX_ZOOM, FIT_TO_MAX_ZOOM, clampBbox } from './geo.js';
+import { constrainConus, CONUS_BOUNDS, CONUS_FIT, CONUS_API_BOX, MIN_ZOOM, MAX_ZOOM, FIT_TO_MAX_ZOOM, clampBbox } from './geo.js';
 import { worldView, WORLD_PALETTES, basePaint, metricColor } from './world-views.js';
 
 // Base maps. The default is a near-white street map. There is no photo imagery base: topography and
@@ -33,6 +34,7 @@ const aqiColor = ['step', ['to-number', ['get', 'aqi'], 0], '#2f9e44', 51, '#e0b
 
 // Paint per external layer: fill+line for areas, pt for points. Layers not listed use the default point style.
 const EXT_STYLE = {
+  publicAlerts: {fill:['#e58532',0.13],line:['#b7561b',2]},
   atmosphere: { pt: ['#147d92', 9] },
   faults: { line: ['#86593c', 2] },
   exerciseWind: { fill: [['get', 'tone'], 0.17], line: [['get', 'tone'], 2] },
@@ -85,7 +87,7 @@ export class MapView {
     this.data = { devices: EMPTY, overview: EMPTY, regions: EMPTY, zones: EMPTY, draw: EMPTY };
     this.ext = {};
     this.radarTime = null;
-    this.visible = new Set(['regions', 'zones']);
+    this.visible = new Set(['regions']);
     this.rasterOn = { hillshade: this.styleKey === 'streetTerrain', hydro: false };
     this.selectedZone = '';
     this.highlights = { power: false, water: false };
@@ -94,21 +96,28 @@ export class MapView {
     this.pad = padding || { top: 64, right: 40, bottom: 56, left: 40 };
     this.pointerType = 'mouse';
     this.map = new maplibregl.Map({
-      container, interactive, style: STYLES[this.styleKey], attributionControl: { compact: true }, renderWorldCopies: false,
+      container, interactive, style: STYLES[this.styleKey], attributionControl: false, renderWorldCopies: false,
       maxBounds: CONUS_BOUNDS, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM,
-      // Constrain the center, not the viewport size: narrow screens must still fit all 48 states.
-      transformConstrain: (center, zoom) => ({center: new maplibregl.LngLat(Math.max(CONUS_BOUNDS[0][0],Math.min(CONUS_BOUNDS[1][0],center.lng)),Math.max(CONUS_BOUNDS[0][1],Math.min(CONUS_BOUNDS[1][1],center.lat))),zoom:Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom))}),
+      // Clamp panning and zoom while preserving a full mainland fit on narrow screens.
+      transformConstrain: (center, zoom) => {const c=constrainConus(center,zoom,this.map?.getContainer().clientWidth||0,this.map?.getContainer().clientHeight||0,this.homeMinZoom||MIN_ZOOM);return {center:new maplibregl.LngLat(c.lng,c.lat),zoom:c.zoom};},
       bounds: CONUS_FIT, fitBoundsOptions: { padding: this.pad, duration: 0 },
     });
+    const credits=document.createElement('div');credits.className='map-credits';credits.setAttribute('aria-label','Map attribution');this.map.getContainer().parentElement.append(credits);
+    const attribution=new maplibregl.AttributionControl({compact:false});this.map.addControl(attribution,'bottom-right');
+    credits.append(this.map.getContainer().querySelector('.maplibregl-ctrl-attrib'));
+    const limit=()=>{const camera=this.map.cameraForBounds(CONUS_FIT,{padding:24});if(camera){this.homeMinZoom=Math.max(MIN_ZOOM,camera.zoom);this.map.setMinZoom(this.homeMinZoom);}};
+    this.map.on('resize',limit);limit();
+    this.map.once('remove',()=>{credits.remove();for(const entry of this.radarCache?.values()||[])entry.cancel?.();});
+    this.windFlow = mountWindFlow(this);
     if (interactive) {
       this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-      this.map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'bottom-right');
+
     }
     this.map.on('style.load', () => this.install());
     this.map.on('error', e => this.handlers.error?.(e));
     this.map.on('click', e => this.onClick(e));
     this.map.on('moveend', () => this.handlers.moveend?.());
-    this.map.on('movestart', () => { this.clearHover(); this.cb.moveStart?.(); });
+    this.map.on('movestart', () => { this.popupRef?.remove(); this.clearHover(); this.cb.moveStart?.(); });
     this.map.on('mousemove', e => this.onMouseMove(e));
     const box = this.map.getCanvasContainer();
     for (const type of ['pointerdown', 'pointermove']) box.addEventListener(type, e => { if (e.pointerType) this.pointerType = e.pointerType; }, { capture: true, passive: true });
@@ -136,42 +145,44 @@ export class MapView {
   apiBbox() { return clampBbox(this.bbox()); }
   projectToScreen(lngLat) { const p = this.map.project(lngLat); return { x: p.x, y: p.y }; }
 
-  async setRadar(time) {
-    this.radarTime = time;
-    const m = this.map, token = this.radarToken = (this.radarToken || 0) + 1;
-    this.cancelRadarLoad?.();
-    if (!m.getSource('devices')) return false;
-    const remove = id => { if (m.getLayer(id)) m.removeLayer(id); if (m.getSource(id)) m.removeSource(id); };
-    if (!time) {
-      for (const id of ['weather-radar-a', 'weather-radar-b']) remove(id);
-      this.radarCurrent = null; return false;
+  removeRadarFrame(id) {
+    this.radarCache?.get(id)?.cancel?.();this.radarCache?.delete(id);
+    if(this.map.getLayer(id))this.map.removeLayer(id);
+    if(this.map.getSource(id))this.map.removeSource(id);
+  }
+  prepareRadar(time) {
+    const m=this.map,id='weather-radar-'+Date.parse(time);
+    if(!Number.isFinite(Date.parse(time))||!m.getSource('devices'))return Promise.resolve(false);
+    this.radarCache ||= new Map();
+    let entry=this.radarCache.get(id);
+    if(entry&&m.getSource(id)){if(m.isSourceLoaded(id))return Promise.resolve(true);if(entry.promise)return entry.promise;}
+    if(!m.getSource(id)){
+      this.radarCache.delete(id);
+      for(const key of [...this.radarCache.keys()]){if(this.radarCache.size<6)break;if(key!==this.radarCurrent)this.removeRadarFrame(key);}
+      const base='https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows';
+      const query=`service=WMS&version=1.1.1&request=GetMap&layers=conus_bref_qcd&styles=&format=image%2Fpng&transparent=true&srs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(time)}&bbox={bbox-epsg-3857}`;
+      m.addSource(id,{type:'raster',tiles:[`${base}?${query}`],tileSize:256,maxzoom:8,bounds:[-126,23,-65,51],attribution:'<a href="https://opengeo.ncep.noaa.gov/geoserver/www/index.html">NOAA MRMS radar</a>'});
+      m.addLayer({id,type:'raster',source:id,paint:{'raster-opacity':0,'raster-opacity-transition':{duration:450},'raster-resampling':'linear','raster-fade-duration':0}},m.getLayer('dev-groups')?'dev-groups':undefined);
+      entry={};this.radarCache.set(id,entry);
     }
-    const old = m.getLayer(this.radarCurrent || '') ? this.radarCurrent : null;
-    const id = old === 'weather-radar-a' ? 'weather-radar-b' : 'weather-radar-a';
-    remove(id);
-    const base = 'https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows';
-    const query = `service=WMS&version=1.1.1&request=GetMap&layers=conus_bref_qcd&styles=&format=image%2Fpng&transparent=true&srs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(time)}&bbox={bbox-epsg-3857}`;
-    m.addSource(id, { type: 'raster', tiles: [`${base}?${query}`], tileSize: 256, maxzoom: 8, bounds: [-126, 23, -65, 51], attribution: '<a href="https://opengeo.ncep.noaa.gov/geoserver/www/index.html">NOAA MRMS radar</a>' });
-    // Keep the previous image until every visible tile of the incoming frame is ready.
-    m.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 450 }, 'raster-resampling': 'linear', 'raster-fade-duration': 0 } }, m.getLayer('dev-groups') ? 'dev-groups' : undefined);
-    const ready = await new Promise(resolve => {
-      const finish = ok => { clearTimeout(timeout); m.off('sourcedata', loaded); m.off('error', failed); if (this.cancelRadarLoad === cancel) this.cancelRadarLoad = null; resolve(ok); };
-      const loaded = e => { if (e.sourceId === id && m.getSource(id) && m.isSourceLoaded(id)) finish(true); };
-      const failed = e => { if (e.sourceId === id) finish(false); };
-      const cancel = () => finish(false);
-      const timeout = setTimeout(() => finish(false), 15000);
-      this.cancelRadarLoad = cancel;
-      m.on('sourcedata', loaded); m.on('error', failed);
-      if (m.isSourceLoaded(id)) finish(true);
+    entry.promise=new Promise(resolve=>{
+      let done=false;const finish=ok=>{if(done)return;done=true;clearTimeout(timeout);m.off('sourcedata',loaded);m.off('error',failed);entry.promise=null;entry.cancel=null;resolve(ok);};
+      const loaded=e=>{if(e.sourceId===id&&m.getSource(id)&&m.isSourceLoaded(id))finish(true);};
+      const failed=e=>{if(e.sourceId===id)finish(false);};
+      const timeout=setTimeout(()=>finish(false),12000);entry.cancel=()=>finish(false);m.on('sourcedata',loaded);m.on('error',failed);
     });
-    if (token !== this.radarToken) return false;
-    if (!ready) { remove(id); return false; }
-    this.radarCurrent = id;
-    m.setPaintProperty(id, 'raster-opacity', 0.68);
-    if (old && m.getLayer(old)) m.setPaintProperty(old, 'raster-opacity', 0);
-    await new Promise(resolve => setTimeout(resolve, 470));
-    if (token === this.radarToken && old) remove(old);
-    return true;
+    return entry.promise;
+  }
+  async setRadar(time) {
+    this.radarTime=time;const token=this.radarToken=(this.radarToken||0)+1,m=this.map;
+    if(!time){for(const id of [...(this.radarCache?.keys()||[])])this.removeRadarFrame(id);this.radarCurrent=null;return false;}
+    const ready=await this.prepareRadar(time),id='weather-radar-'+Date.parse(time);
+    if(token!==this.radarToken||!ready||!m.getLayer(id))return false;
+    let duration=450;try{if(!allowsMotion())duration=0;}catch{/* Host tests have no media environment. */}
+    for(const key of this.radarCache.keys())if(m.getLayer(key)){m.setPaintProperty(key,'raster-opacity-transition',{duration});m.setPaintProperty(key,'raster-opacity',key === id ? 0.68 : 0);}
+    this.radarCurrent=id;
+    if(duration)await new Promise(resolve=>setTimeout(resolve,duration));
+    return token===this.radarToken;
   }
 
   setDrawing(on) { this.drawing = on; this.clearHover(); this.map.getCanvas().style.cursor = on ? 'crosshair' : ''; this.map.doubleClickZoom[on ? 'disable' : 'enable'](); }
@@ -221,6 +232,7 @@ export class MapView {
     }
     this.handlers.click?.(e, hit);
     if (this.drawing) return;
+    if(hit?.kind==='overlay:publicAlerts'){const info=describeOverlayFeature('publicAlerts',hit.properties);this.popup(e.lngLat,info.title,info.lines);return;}
     if (hit?.kind === 'device') this.cb.deviceClick?.(hit.properties.id);
     else this.cb.placeClick?.({ lngLat: e.lngLat, point: e.point, hit, touch: this.pointerType === 'touch' });
   }
@@ -260,6 +272,7 @@ export class MapView {
       }
       this.basePaintKeys.set(layer.id, new Set(Object.keys(paint)));
     }
+    this.windFlow?.update();
     if (!m.getLayer('ov-atmosphere-pt')) return;
     const field = view.field || 'wind_kph';
     const valid = ['all', ['==', ['geometry-type'], 'Point'], ['!=', ['get', field], null]];
@@ -267,7 +280,10 @@ export class MapView {
     m.setPaintProperty('ov-atmosphere-pt', 'circle-color', metricColor(view));
     m.setPaintProperty('ov-atmosphere-pt', 'circle-radius', ['interpolate',['linear'],['zoom'],3,view.id === 'wind' ? 10 : 7,8,12,12,14]);
     m.setFilter('ov-atmosphere-label', valid);
-    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', ['round', ['get', field]]], view.unit === '°C' ? '°' : '']);
+    m.setLayerZoomRange?.('ov-atmosphere-label',view.id==='wind'?2:5,24);
+    m.setPaintProperty('ov-atmosphere-label','text-color',view.id==='wind'?'#ffffff':'#253f50');
+    m.setPaintProperty('ov-atmosphere-label','text-halo-color',view.id==='wind'?'#123e6e':'#ffffff');
+    m.setLayoutProperty('ov-atmosphere-label', 'text-field', ['concat', ['to-string', ['round', ['get', field]]], view.unit === '°C' ? '°' : view.id === 'wind' ? ' km/h' : '']);
     m.setFilter('ov-atmosphere-arrow', ['all', ...valid.slice(1), ['!=',['get','wind_direction'],null], ['>', ['get','wind_kph'],0]]);
     this.applyVisibility('atmosphere');
   }
@@ -307,14 +323,16 @@ export class MapView {
   setExt(id, fc) {
     this.ext[id] = conusOnly(fc) || EMPTY;
     this.map.getSource('ov-' + id)?.setData(this.ext[id]);
+    if(id==='atmosphere')this.windFlow?.update();
   }
 
   setVisible(name, on) {
     on ? this.visible.add(name) : this.visible.delete(name);
     this.applyVisibility(name);
+    if(name==='atmosphere')this.windFlow?.update();
   }
 
-  extLayerIds(id) { return [`ov-${id}-fill`, `ov-${id}-line`, `ov-${id}-pt`, ...(id === 'atmosphere' ? ['ov-atmosphere-arrow','ov-atmosphere-label'] : [])]; }
+  extLayerIds(id) { return [`ov-${id}-fill`, `ov-${id}-line`, `ov-${id}-pt`, ...(id==='publicAlerts'?['ov-publicAlerts-label']:[]), ...(id === 'atmosphere' ? ['ov-atmosphere-arrow','ov-atmosphere-label'] : [])]; }
 
   applyVisibility(name) {
     const ids = GROUP_LAYERS[name] || this.extLayerIds(name);
@@ -333,6 +351,12 @@ export class MapView {
     m.addLayer({ id: `ov-${id}-fill`, type: 'fill', source: src, filter: AREA, paint: { 'fill-color': s.fill?.[0] || '#526974', 'fill-opacity': s.fill?.[1] ?? 0.1 } });
     m.addLayer({ id: `ov-${id}-line`, type: 'line', source: src, filter: id === 'faults' ? ['==', ['geometry-type'], 'LineString'] : AREA, paint: { 'line-color': s.line?.[0] || '#526974', 'line-width': s.line?.[1] ?? 1 } });
     m.addLayer({ id: `ov-${id}-pt`, type: 'circle', source: src, filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': s.pt?.[0] || '#526974', 'circle-radius': s.pt?.[1] || 5, 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.5, 'circle-opacity': 0.92 } });
+    if(id==='publicAlerts'){
+      const color=['case',['in','Tornado',['get','event']],'#bd333b',['in','Flood',['get','event']],'#2678b8','#bb7023'];
+      for(const kind of ['fill','line','pt'])m.setLayerZoomRange(`ov-${id}-${kind}`,7,24);
+      m.setPaintProperty('ov-publicAlerts-fill','fill-color',color);m.setPaintProperty('ov-publicAlerts-line','line-color',color);
+      m.addLayer({id:'ov-publicAlerts-label',type:'symbol',source:src,minzoom:8,layout:{'text-field':['get','event'],'text-font':['Noto Sans Regular'],'text-size':12,'text-max-width':18},paint:{'text-color':'#713018','text-halo-color':'#ffffff','text-halo-width':2}});
+    }
     if (id === 'atmosphere') {
       if (!m.hasImage('wind-vector')) {
         const canvas = document.createElement('canvas'); canvas.width = canvas.height = 40;
@@ -446,6 +470,7 @@ export function describeOverlayFeature(layer, p = {}) {
   if(p.river_discharge)lines.push('Forecast discharge: '+p.river_discharge.join(', ')+' '+p.unit);
   if(p.periods?.length){const rows=typeof p.periods==='string'?JSON.parse(p.periods):p.periods;lines.push(...rows.slice(0,3).map(r=>r.startTime+': '+r.temperature+' '+r.temperatureUnit+', '+r.shortForecast));}
   if (layer === 'nfhl') lines.push(p.SFHA_TF === 'T' || p.SFHA_TF === true ? 'Special flood hazard area' : 'Lower mapped flood risk', 'Flood zones describe mapped risk, not damage to a home.');
+  if(layer==='publicAlerts')lines.push('National Weather Service',p.geometryBasis||'Alert area',...(p.boundaryPartial?['Boundary coverage incomplete']:[]));
   if (pick('severity')) lines.push('Severity: ' + pick('severity'));
   if (pick('areaDesc', 'area')) lines.push(String(pick('areaDesc', 'area')).slice(0, 160));
   if (pick('stage', 'value')) lines.push('Reading: ' + pick('stage', 'value'));

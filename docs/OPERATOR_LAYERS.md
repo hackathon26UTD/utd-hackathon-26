@@ -1,5 +1,7 @@
 # Operator views and NVIDIA connection
 
+November 8 public-weather update: public hazards, a live NWS News tab, local official alert boundaries, mainland zoom limits and buffered NOAA radar playback. Private device access remains protected. See [Public weather and News](PUBLIC_WEATHER_NEWS.md) and WORKLOG for release evidence.
+
 The additive [system workflow](SYSTEM_INTELLIGENCE.md) adds `/api/ops/system` and `/api/ops/agent`: linked evidence, bounded tools, power budgets and persisted review checkpoints. It does not replace the existing layer UI. The user chose the explicit exercise-only simulator for now; real Nemotron requires credentials and successful integration testing.
 
 The command center supports read-only observation layers for water, power interruption, Internet interruption, missing recent reports, low battery and critical observations. Operators preview matches, inspect source timestamps, apply a layer to the property list and map, then clear it. Underlying readings and recorded priority are never changed by the model.

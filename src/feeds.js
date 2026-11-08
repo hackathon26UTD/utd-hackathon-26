@@ -254,7 +254,7 @@ export async function refreshContext(db, env, { bbox, layers = DEFAULT_CONTEXT_L
 }
 
 /** One row per source for GET /api/feeds. Reads cache metadata only. */
-export async function getFeedStatus(db, { env = {}, now = new Date(), exercise = false } = {}) {
+export async function getFeedStatus(db, { env = {}, now = new Date(), exercise = false, includeZones = true } = {}) {
   const rows = await db.collection('feed_cache').find({}, { projection: { data: 0 } }).toArray();
   const sources = LAYER_IDS.map((id) => {
     const layer = LAYERS[id];
@@ -277,6 +277,7 @@ export async function getFeedStatus(db, { env = {}, now = new Date(), exercise =
       ...errorMeta(meta, mine),
     };
   });
+  if (!includeZones) return sources;
   const zones = await db.collection('overlay_zones').countDocuments({ active: true, ...(exercise ? { exercise: true } : { exercise: { $ne: true } }) });
   sources.push({ id: 'zones', name: 'Operator zones', status: 'ok', fetchedAt: now.toISOString(), ageS: 0, ttlS: 0, featureCount: zones, attribution: 'Drawn by this team' });
   return sources;

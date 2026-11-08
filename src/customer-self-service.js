@@ -78,6 +78,15 @@ export function accountHandler(ctx) {
               { $set: { customerEmail: next } },
               { session },
             );
+          // Email is an access boundary for households. End old shares atomically;
+          // changing away and back must not revive a previously accepted invitation.
+          const owned = await db.collection('households').find({ownerEmail:email,ownerGeneration:current.sessionGeneration,active:true},{session,projection:{_id:1}}).toArray();
+          const ownedIds = owned.map(h=>h._id);
+          const affected = await db.collection('household_members').find({$or:[{email},{householdId:{$in:ownedIds}}],status:{$in:['active','pending']}},{session,projection:{_id:1}}).toArray();
+          await db.collection('households').updateMany({_id:{$in:ownedIds}},{$set:{active:false,linkIds:[],closedAt:new Date(),closedReason:'owner_email_changed'}},{session});
+          await db.collection('household_members').updateMany({_id:{$in:affected.map(m=>m._id)}},{$set:{status:'revoked',revokedAt:new Date(),inviteHash:null,preferences:{device:false,weather:false},emailVerifiedAt:null,verifiedEmail:null},$inc:{preferencesVersion:1}},{session});
+          await db.collection('household_email_tokens').deleteMany({memberId:{$in:affected.map(m=>m._id)}},{session});
+          await db.collection('household_mail_outbox').updateMany({memberId:{$in:affected.map(m=>m._id)},status:{$in:['pending','retry','sending']}},{$set:{status:'suppressed',finishedAt:new Date()}},{session});
           await db
             .collection("mcp_grants")
             .updateMany(
@@ -108,7 +117,7 @@ export function accountHandler(ctx) {
                   id: (await sha256Hex("customer:" + email)).slice(0, 12),
                 },
                 action: "customer.email.change",
-                details: { sessionsRevoked: true },
+                details: { sessionsRevoked: true, householdAccessRevoked: true },
                 exercise: false,
               },
               { session },
@@ -121,7 +130,7 @@ export function accountHandler(ctx) {
         await session.endSession();
       }
       return reply(
-        { email: next, emailVerified: false, reconnectAssistants: true },
+        { email: next, emailVerified: false, reconnectAssistants: true, householdAccessRevoked:true },
         200,
         {
           "Set-Cookie": customerCookie(

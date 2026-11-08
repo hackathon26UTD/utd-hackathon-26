@@ -127,3 +127,11 @@ creating a home, device or key. Script settings load from environment, then
 an existing admin credential only through a private channel. Do not rotate the
 shared production key to fix a missing setting on one laptop. Board headers
 contain device keys, never the admin credential.
+
+### Household customer endpoints
+
+Customer cookie only; operator/admin headers do not grant access. `GET/POST /api/customer/households` lists, selects and manages households; POST actions create/update/delete/invite/accept/revoke/leave. Owners select currently owned live link IDs; viewer access is read-only. `GET /api/customer/household-context?id=<householdId>` provides scoped official weather and regional headlines, never raw coordinates. `GET/POST /api/customer/household-email` manages only the signed-in member’s preferences and address verification; purpose-scoped unsubscribe tokens can only disable mail. Email delivery is disabled by default and sender setup was deferred. The signed provider callback is `/api/customer/household-email-events`; it does not accept customer/operator credentials as webhook authority. Contracts and bounds: [household sharing](HOUSEHOLDS.md), [context and optional alerts](HOUSEHOLD_CONTEXT_ALERTS.md).
+
+## Public weather context (November 8)
+
+Anonymous GET/HEAD `/api/public/feeds`, `/api/public/overlays` and `/api/public/news` expose only allowlisted public-source data. They do not grant operator or device authority. News supports a bounded `bbox` or exact `alert` ID, polls national active NWS bulletins and resolves official county/forecast boundaries. Mutations remain protected. See [request parameters, budgets and interpretation](PUBLIC_WEATHER_NEWS.md).
