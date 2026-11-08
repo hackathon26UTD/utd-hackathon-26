@@ -318,3 +318,25 @@ fieldset{border:1px solid var(--line);border-radius:4px;padding:10px 14px}.pair{
 .radar-controls:not([hidden]) { position: absolute; z-index: 5; left: 50%; bottom: 32px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: min(92vw, 580px); padding: 10px 12px; border-radius: 8px; background: #172632; color: #fff; box-shadow: 0 4px 18px #0006; }
 .radar-controls input { width: 160px; }
 .radar-controls small { flex-basis: 100%; color: #d5e0e6; }
+/* Compact actions; status text stays readable without looking clickable. */
+.hb-product .kit .cc :is(.tag,.chip,.pc-chip,.live-pill){border:0;border-radius:0;background:transparent;box-shadow:none;padding:0;font-size:11px;line-height:1.6;gap:6px}
+.hb-product .kit .cc :is(.tag,.chip,.pc-chip)+:is(.tag,.chip,.pc-chip){margin-left:8px}
+.hb-product .kit .cc .dr-chips{gap:12px}.cc .property-chips{gap:12px}.cc .property-title{gap:12px}.cc .property-status{gap:12px}.cc .dr-head{gap:16px}
+.hb-product .kit .cc button:not([role=tab]):not(.property):not(.wf-node){border-radius:9px}
+.hb-product .kit .cc .queue-tabs{gap:24px;padding-inline:18px;background:none;border-radius:0}
+.hb-product .kit .cc .queue-tabs button[role=tab]{border:0;border-radius:0;background:transparent;box-shadow:none;min-height:44px;padding:10px 0;flex:none}
+.hb-product .kit .cc .queue-tabs button[aria-selected=true]{border-bottom:2px solid var(--kit-accent)}
+.hb-product .kit .cc .cc-more>summary{gap:8px;list-style:none;border-radius:9px}.cc-more>summary::-webkit-details-marker{display:none}
+.cc .cc-more-menu{min-width:270px;padding:12px;border-radius:12px;max-height:calc(100dvh - 80px);overflow:auto}.cc #command-display-options{padding:4px 4px 18px;margin-bottom:8px;border-bottom:1px solid var(--kit-line)}
+.hb-product .kit .cc .cc-more-menu>button,.cc .cc-more-menu>a{border-radius:8px;font-size:12px;min-height:36px;padding:8px 10px}
+.cc.map-only.vertical-shell .workspace-sidebar{transition:width 280ms cubic-bezier(.2,.7,.2,1)}
+.cc.map-only.vertical-shell :is(.board,.full-view),.cc.map-only.vertical-shell .workspace.view-open>:is(#device-panel,#timeline),.cc .dr{transition:left 280ms cubic-bezier(.2,.7,.2,1)}
+.hb-product .kit .vertical-shell .kit-section-menu__label{opacity:1;max-width:130px;overflow:hidden;white-space:nowrap;transition:opacity 150ms ease,max-width 280ms ease}
+.hb-product .kit .vertical-shell .kit-section-menu--collapsed .kit-section-menu__label{position:static;width:auto;height:auto;margin:0;clip-path:none;max-width:0;opacity:0}
+.hb-product .kit .vertical-shell .kit-section-menu__item{transition:gap 280ms ease,padding 280ms ease,width 280ms ease}
+.cc.map-only.is-embedded .embed-label,.cc.map-only.is-embedded .maplibregl-ctrl-group,.cc.map-only.is-embedded .maplibregl-ctrl-scale{display:none!important}
+.cc.map-only.is-embedded .maplibregl-canvas{pointer-events:none}
+@media(prefers-reduced-motion:reduce){.cc.map-only.vertical-shell .workspace-sidebar,.cc.map-only.vertical-shell :is(.board,.full-view),.cc .dr{transition:none}}
+.hb-product .kit .cc.map-only .cc-more-menu{width:280px;min-width:0;max-width:calc(100vw - 24px);padding:12px;border-radius:12px}
+.hb-product .kit .cc.map-only .cc-more-menu .display-options{min-width:0}
+.hb-product .kit .cc.map-only .cc-more-menu .display-options .kit-select{min-width:0;max-width:100%}

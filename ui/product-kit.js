@@ -1,5 +1,6 @@
 // Uses the owner's real vendored kit; only layout/token glue lives here.
 import './kit/runtime.js';
+import { applyDisplaySettings } from './display-settings.js';
 const selects=new WeakMap();
 function labelFor(control){const explicit=control.getAttribute('aria-label');if(explicit)return explicit;const label=control.labels?.[0];if(!label)return control.name||control.id||'Choose an option';const copy=label.cloneNode(true);copy.querySelectorAll('input,select,textarea,button,.kit-select').forEach(n=>n.remove());return copy.textContent.trim()||control.name||'Choose an option';}
 function dress(root){
@@ -21,6 +22,12 @@ function dress(root){
 }
 export function startProductKit(){
  document.body.classList.add('kit-body','hb-product');
+ applyDisplaySettings();
+ matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',()=>{applyDisplaySettings();document.dispatchEvent(new CustomEvent('homebeacon:motion'));});
+ window.addEventListener('storage',e=>{
+  if(e.key==='homebeacon-motion'){applyDisplaySettings();document.dispatchEvent(new CustomEvent('homebeacon:motion'));}
+  if(e.key==='hbkit-theme'&&(e.newValue==='light'||e.newValue==='dark'))window.HomeBeaconKit.setTheme(e.newValue,{persist:false});
+ });
  for(const id of ['app','customer'])document.getElementById(id)?.classList.add('kit');
  const options={childList:true,subtree:true};
  const pending=new Set();let scheduled=false;

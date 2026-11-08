@@ -1,5 +1,8 @@
 # Start here: Ayan's HomeBeacon handoff
 
+Latest homepage refinement (November 8): uncluttered hero, non-interactive simulated map playback, exactly three example readings (Power/Wi-Fi/Conditions), upper-right theme/motion Settings, project/team/services context and GitHub link. Compact rounded controls and plain status text replace badge clutter. Sidebar collapse is animated and respects reduced motion. See [MARKETING.md](docs/MARKETING.md) and the latest work log for verification.
+
+
 Latest November 8 direction: near-white lower-48 street map, state click-to-zoom, nationwide status dots, full device workspace with Argus tabs, and account-first customer signup followed by address-based Add device. The satellite/card directions below are historical. See docs/MAP_V2_SPEC.md, docs/CUSTOMER.md and the newest WORKLOG entry.
 
 Read [the full November 7 handoff](docs/handovers/AYAN-2026-11-07.md) before continuing Ayan's workstream. Read [current context](docs/PROJECT_CONTEXT.md), [request history](docs/history/AYAN_REQUESTS_2026-11-07.md), and the recent [work log](docs/WORKLOG.md).
