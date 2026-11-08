@@ -34,10 +34,11 @@ const lastState = {}, lastBeat = {};
 const queue = [];
 let working = false;
 
-// Retries network errors and 5xx (e.g. Cloudflare 1102 / 503) twice; events and telemetry carry event_ids, so a repeat is deduped by the API.
+// Events and telemetry are retried twice on network errors and 5xx (e.g. Cloudflare 1102 CPU limit); they carry event_ids, so the API dedupes repeats.
 async function post(dev, path, body) {
   let status = 0;
-  for (const wait of [0, 1000, 3000]) {
+  // Legacy /api/ingest is never retried (an unconfirmed write may already be stored; see docs/LIVE_DEVICE_CONNECTION.md).
+  for (const wait of path === "/api/ingest" ? [0] : [0, 1000, 3000]) {
     if (wait) await new Promise((r) => setTimeout(r, wait));
     try {
       const r = await fetch(dev.site + path, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json', 'X-Device-Key': dev.deviceKey }, body: JSON.stringify(body) });
