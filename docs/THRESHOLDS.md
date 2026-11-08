@@ -32,29 +32,36 @@ A rule fires at its listed value in the listed direction. Rules are listed from 
 
 | Sensor | Unit | Valid range | Stale after | Rules (level: condition) |
 | --- | --- | --- | --- | --- |
-| `mains_power` | boolean | true / false | 10 min | watch: = false (mains_off) |
+| `mains_power` | boolean | true / false | 10 min | critical: = false (mains_off_4h); elevated: = false (mains_off_1h); watch: = false (mains_off) |
+| `battery_mv` | mV | 3000 to 12000 | 15 min | elevated: <= 6600 (battery_mv_very_low); watch: <= 7200 (battery_mv_low) |
 | `battery_pct` | % | 0 to 100 | 15 min | elevated: <= 20 (battery_very_low); watch: <= 40 (battery_low) |
 | `power_mode` | enum | normal / saver / critical | 15 min | elevated: = critical (power_critical); watch: = saver (power_saver) |
-| `temp_c` | C | -40 to 85 | 15 min | critical: >= 55 (temp_critical); elevated: >= 48 (temp_high); watch: >= 40 (temp_watch_hot); watch: <= 0 (temp_watch_cold) |
+| `temp_c` | C | -40 to 85 | 15 min | critical: >= 55 (temp_critical); elevated: >= 48 (temp_high); elevated: <= 0 (temp_cold_2h); watch: >= 40 (temp_watch_hot); watch: <= 0 (temp_watch_cold) |
 | `humidity_pct` | % | 0 to 100 | 30 min | elevated: >= 90 (humidity_high); watch: >= 75 (humidity_watch) |
-| `moisture_pct` | % | 0 to 100 | 30 min | elevated: >= 80 (moisture_high); watch: >= 60 (moisture_watch) |
+| `moisture_pct` | % | 0 to 100 | 30 min | elevated: >= 80 (moisture_high); elevated: >= 60 (moisture_30m); watch: >= 60 (moisture_watch) |
 | `water_detected` | boolean | true / false | 5 min | critical: = true (water_detected) |
+| `water_raw` | raw | 0 to 4095 | 5 min | critical: >= 1500 (water_raw_wet_2m); elevated: >= 1500 (water_raw_wet); watch: >= 800 (water_raw_damp) |
 | `water_level_mm` | mm | 0 to 500 | 5 min | critical: >= 20 (water_level_critical); elevated: >= 10 (water_level_high); watch: >= 5 (water_level_watch) |
 | `smoke_alarm` | boolean | true / false | 5 min | critical: = true (smoke_alarm) |
 | `fire_flame` | boolean | true / false | 5 min | critical: = true (fire_flame) |
+| `flame` | boolean | true / false | 5 min | critical: = true (flame) |
+| `sound_hits` | hits | 0 to 1000 | 5 min | critical: >= 6 (alarm_sound_2m); elevated: >= 6 (alarm_sound) |
 | `co_ppm` | ppm | 0 to 1000 | 5 min | critical: >= 150 (co_critical); elevated: >= 70 (co_high); watch: >= 35 (co_watch) |
 | `pm25_ugm3` | ug/m3 | 0 to 1000 | 30 min | critical: >= 250 (pm25_critical); elevated: >= 150 (pm25_high); watch: >= 55 (pm25_watch) |
 | `voc_index` | index | 0 to 500 | 30 min | elevated: >= 350 (voc_high); watch: >= 200 (voc_watch) |
 | `wan_connected` | boolean | true / false | 10 min | watch: = false (wan_down) |
 | `rssi_dbm` | dBm | -120 to 0 | 15 min | watch: <= -85 (rssi_weak) |
 | `tilt_deg` | deg | 0 to 90 | 15 min | elevated: >= 25 (tilt_high); watch: >= 10 (tilt_watch) |
+| `tilt` | boolean | true / false | 15 min | elevated: = true (tilt_10m); watch: = true (tilt_switch) |
 | `shock_g` | g | 0 to 16 | 15 min | elevated: >= 4 (shock_high) |
+| `accel_dev_mg` | mg | 0 to 16000 | 15 min | elevated: >= 1500 (shake_high); watch: >= 500 (shake_watch) |
 
 ### Rules that need two readings
 
 | Rule | Level | Condition |
 | --- | --- | --- |
-| `mains_off_battery_low` | elevated | mains_power false and battery_pct <= 30; replaces the two separate watch reasons |
+| `mains_off_battery_low` | elevated | Mains power off and backup battery at or below 30 percent; replaces the two separate watch reasons |
+| `mains_off_cold` | elevated | Mains power off and temperature at or below 5 C; replaces the two separate watch reasons |
 | `water_rising` | elevated | water_level_mm rises 5 mm or more within 10 minutes (fresh reading required) |
 
 ## Priority
@@ -119,6 +126,8 @@ A cached feed record is context, never a live lookup, and never changes a box st
 | Open-Meteo river discharge forecast (`river_forecast`) | 1 hours |
 | NWS hourly point forecast (`nws_forecast`) | 30 minutes |
 | NOAA coastal water levels (`tides`) | 10 minutes |
+| Sampled atmosphere forecast (`atmosphere`) | 30 minutes |
+| USGS geological fault traces (`faults`) | 24 hours |
 | FEMA flood hazard zones (`nfhl`) | 24 hours |
 | FEMA disaster declarations (`declarations`) | 24 hours |
 | National Weather Service alerts (`nws`) | 2 minutes |

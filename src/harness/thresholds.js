@@ -40,15 +40,13 @@ function ruleTrigger(cfg, rule) {
 function sensorTable() {
   return Object.entries(SENSORS).map(([sensor, cfg]) => ({
     sensor, kind: cfg.kind, unit: cfg.unit ?? null, min: cfg.min ?? null, max: cfg.max ?? null, values: cfg.values ?? null, staleMin: cfg.staleMin,
-    rules: cfg.rules.map(r => ({ id: r.id, level: r.level, hazard: r.hazard, ...ruleTrigger(cfg, r) })),
+    rules: cfg.rules.map(r => ({ id: r.id, level: r.level, hazard: r.hazard, forMin: r.forMin || 0, ...ruleTrigger(cfg, r) })),
   }));
 }
 
 function compoundTable() {
-  return COMPOUND.map(c => {
-    const battery = boundary(v => c.test({ mains_power: false, battery_pct: v }), 0, 100, 1);
-    return { id: c.id, level: c.level, hazard: c.hazard, needs: c.needs, text: `mains_power false and battery_pct ${battery.op} ${battery.value}` };
-  });
+  // Each compound rule now carries its own plain-language label next to the test: use it directly.
+  return COMPOUND.map(c => ({ id: c.id, level: c.level, hazard: c.hazard, needs: c.needs, text: c.label }));
 }
 
 /** Age in seconds at which the command-center card calls a reading stale. */
