@@ -97,3 +97,4 @@
 .cc .map-wrap>.map{height:calc(100% - 42px);bottom:42px}.map-credits{min-height:42px}.hb-product .kit button.local-alerts{bottom:54px}.hb-product .kit .radar-controls:not([hidden]){bottom:56px}
 @media(max-width:700px){.cc .map-wrap>.map{height:calc(100% - 72px);bottom:72px}.map-credits{min-height:72px}.hb-product .kit button.local-alerts{bottom:84px}.hb-product .kit .radar-controls:not([hidden]){bottom:84px}}
 .cc.is-embedded .map-wrap>.map{height:calc(100% - 24px);bottom:24px}.cc.is-embedded .map-credits{min-height:24px}.cc.map-only.vertical-shell.is-embedded .map-credits #notice{display:none}
+.forecast-open .local-alerts{bottom:264px!important}

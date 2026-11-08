@@ -99,7 +99,7 @@ export function mountOverlays(ctx) {
       mv.setExt(id, r.data);
       S.ov[id] = { request, hb: r.data.hb || null, count: (r.data.features || []).length, extra:r.data.extra||null, error: '' };
       if (id === 'atmosphere') {
-        S.ov[id].metrics = Object.fromEntries(['wind_kph','solar_wm2','uv_index','temperature_c'].map(key => [key,(r.data.features || []).filter(f => Number.isFinite(f.properties?.[key])).length]));
+        S.ov[id].metrics = Object.fromEntries(['rain_mm','wind_kph','solar_wm2','uv_index','temperature_c'].map(key => [key,(r.data.features || []).filter(f => Number.isFinite(f.properties?.[key])).length]));
         S.ov[id].validAt = (r.data.features || []).map(f => f.properties?.validAt).filter(t => Number.isFinite(Date.parse(t))).sort()[0] || null;
       }
     } else if (r.status === 401) {
@@ -108,6 +108,7 @@ export function mountOverlays(ctx) {
       S.ov[id] = { ...S.ov[id], error: failText(r.status, 'This layer', r.error) + (S.ov[id].count ? ' Showing the last saved view.' : '') };
     }
     S.ov[id].loading = false;
+    if(id==='atmosphere')ctx.weatherPlayback?.setData(r.ok?r.data:null);
     render();
   }
 

@@ -1,5 +1,7 @@
 November 8 operations readiness (branch `feat/ops-readiness`, not deployed): DB speed-ups, `npm run hb` CLI, Uno Q agent, Resend email, NVIDIA grounding harness. Read [docs/TOMORROW.md](docs/TOMORROW.md) first for the demo day checklist, verified vs unverified items and fallbacks.
 
+November 8 follow-up: homepage Power/Wi-Fi/Conditions describe monitoring capabilities. Fictional playback moved into Simulations; map Wind/Rain forecast use 24 API hours and leave device clocks unchanged. See docs/PUBLIC_WEATHER_NEWS.md and the latest WORKLOG for release evidence.
+
 # Start here: Ayan's HomeBeacon handoff
 # Start here: Ayan's Safe Home handoff
 
