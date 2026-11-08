@@ -26,6 +26,7 @@
 #endif
 #include "mesh.h"
 #include "uplink.h"
+#include "local_history.h"
 #if USE_CAMERA
 #include "esp_camera.h"
 #endif
@@ -74,9 +75,9 @@ void detectI2C() {
   if (i2cPresent(0x3C) && oled.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { oledOk = true; oled.clearDisplay(); oled.display(); }
 }
 int readAccelDeviationMg() {
-  if (!mpuOk) return 0;
-  Wire.beginTransmission(mpuAddr); Wire.write(0x3B); if (Wire.endTransmission(false) != 0) return 0;
-  if (Wire.requestFrom(mpuAddr, (uint8_t)6) != 6) return 0;
+  if (!mpuOk) return -1;
+  Wire.beginTransmission(mpuAddr); Wire.write(0x3B); if (Wire.endTransmission(false) != 0) return -1;
+  if (Wire.requestFrom(mpuAddr, (uint8_t)6) != 6) return -1;
   int16_t ax = (Wire.read() << 8) | Wire.read(), ay = (Wire.read() << 8) | Wire.read(), az = (Wire.read() << 8) | Wire.read();
   float g = sqrtf((float)ax * ax + (float)ay * ay + (float)az * az) / 16384.0f;
   return (int)fabsf((g - 1.0f) * 1000.0f);
@@ -136,6 +137,7 @@ int nodeIndex(const char *id) { for (int i = 0; i < mesh::nodeCount; i++) if (!s
 
 // Every new reading/event this box sees (own or relayed): black-box log + hub line.
 void observe(const MeshMsg &m, bool own) {
+  local_history::observe(m, own);
   int i = nodeIndex(m.origin); if (i >= 0) { lastHeard[i] = millis(); silentFlagged[i] = false; }
   logLine(String(m.epoch) + "," + millis() + "," + m.origin + "," + (m.type == MSG_EVENT ? "event" : "reading") + "," + m.boot + "," + m.seq + "," + m.hops + "," +
           m.flags + "," + m.waterRaw + "," + m.flameRaw + "," + m.accelMilliG + "," + m.batteryMv + "," + m.event);
@@ -160,7 +162,7 @@ void sendReading() {
   MeshMsg m = {}; m.type = MSG_READING;
   m.flags |= F_WATER_VALID; if (cur.water) m.flags |= F_WATER; m.waterRaw = cur.waterRaw;
   if (cur.mainsValid) { m.flags |= F_MAINS_VALID; if (cur.mains) m.flags |= F_MAINS; }
-  if (mpuOk) { m.flags |= F_ACCEL_VALID; m.accelMilliG = cur.accelMg; }
+  if (mpuOk && cur.accelMg >= 0) { m.flags |= F_ACCEL_VALID; m.accelMilliG = cur.accelMg; }
 #if USE_SOUND
   m.flags |= F_SOUND_VALID; m.soundHits = cur.soundHits;
 #endif
@@ -190,7 +192,7 @@ void drawOled() {
 }
 
 // ───────── serial tests ─────────
-void printHelp() { Serial.println(F("Commands: help | mac | i2c | sensors | water | mains | sound | button | beep | sd | cam | wifi | time | api | mesh | ping | queue | selftest")); }
+void printHelp() { Serial.println(F("Commands: help | mac | i2c | sensors | water | mains | sound | button | beep | sd | cam | wifi | time | api | mesh | ping | history | queue | selftest")); }
 void cmdI2C() { Serial.print("[i2c] found:"); for (uint8_t a = 1; a < 127; a++) if (i2cPresent(a)) Serial.printf(" 0x%02X", a); Serial.printf("  rtc=%d mpu=%s oled=%d\n", rtcOk, mpuOk ? (mpuAddr == 0x69 ? "0x69" : "0x68") : "no", oledOk); }
 bool cmdSd() {
   if (!sdOk) { Serial.println("[sd] FAIL: no card (FAT32, <=32 GB, seated in the Sense board)"); return false; }
@@ -240,6 +242,7 @@ void handleSerial() {
     else if (cmd == "api") { if (selfCfg()) uplink::selftest(selfCfg()->deviceId, selfCfg()->deviceKey); }
     else if (cmd == "mesh") mesh::printStatus();
     else if (cmd == "ping") cmdPing();
+    else if (cmd == "history") local_history::print();
     else if (cmd == "queue") Serial.printf("[queue] %u uploads waiting (%s); %d own messages waiting for a gateway ACK\n", (unsigned)uplink::queued(), sdOk ? "SD" : "RAM", mesh::pendingCount());
     else if (cmd == "selftest") selftest();
     else Serial.println("unknown command; type help");
@@ -263,6 +266,13 @@ void setup() {
   camOk = initCamera();
 #endif
 
+  uint32_t historyFlags = F_WATER_VALID | F_MAINS_VALID;
+#if USE_SOUND
+  historyFlags |= F_SOUND_VALID;
+#endif
+  if (mpuOk) historyFlags |= F_ACCEL_VALID;
+  local_history::begin({historyFlags, false, SHAKE_MILLI_G, SOUND_HITS_ALARM});
+
   WiFi.mode(WIFI_STA);
   mesh::onDeliver = deliver; mesh::onObserve = observe; mesh::onTime = setClock;
   mesh::begin(MY_NODE_ID, NODES, NODE_COUNT, ESPNOW_PMK, ESPNOW_LMK);
@@ -276,6 +286,7 @@ void setup() {
 
 void loop() {
   handleSerial();
+  local_history::loop();
   mesh::loop();
   uplink::loop();
   pollSound();
