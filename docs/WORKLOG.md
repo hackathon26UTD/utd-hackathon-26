@@ -725,3 +725,9 @@ Changes: `config.h` uses the C3 pin map (D0–D10, analog only on D0–D2) with 
 Verification: arduino-cli compile with the real git-ignored secrets passed (1,203,017 bytes, 38% of Huge APP; 14% RAM). Not yet flashed or tested on hardware; `common/*` and box A untouched.
 
 Next: user uploads `firmware/.build/box_b_c3` (or `box_b.ino.merged.bin` at 0x0, which contains secrets: keep private) and checks `ping` → `PASS: acknowledged by gateway A`.
+
+## November 8 — Review navigation production verification (Ayan integration workstream)
+
+PR62 merged as 23e35221d0c5e1ec1aadb711b59cb17375a4efdc, preserving concurrent onboarding and customer-portal changes. Combined preview run42496751526 passed at https://750c09aa.utd-hackathon-26.pages.dev. Production run42497040807 passed at https://5a6244cb.utd-hackathon-26.pages.dev:693tests,687passes,6environment skips,0failures, with database checks and build passing.
+
+Primary production app.js, app.css, design.css and command-2K3AJUMF.js match the merged local build exactly. Readiness reports MongoDB connected. Anonymous Review is401; authenticated live and exercise queue reads return200 (3 live home groups and12of13 exercise groups), with Nemotron configured. No inference was requested. Actual production browser testing of the public shared simulation account confirms the explicit account message,44px End demo action and direct operator sign-in with next=review. Operator-login return and direct switch were already verified with disposable local accounts. Production proof screenshot was saved outside the repository. The local QA process/database and temporary bindings were removed. User can refresh, choose Switch to operator account and use their existing operator credentials; Review is preserved after login. No remaining blocker.
