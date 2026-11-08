@@ -346,7 +346,7 @@ export function customerSettings({ h, api, state, refresh, enter }) {
           h(
             "p",
             { class: "fine" },
-            "Changes your sign-in email. No verification email is sent. Your boxes stay linked. Other sessions and assistant connections will be signed out.",
+            "Changes your sign-in email. No verification email is sent. Your boxes stay linked. Household sharing ends and must be set up again. Other sessions and assistant connections will be signed out.",
           ),
         ],
         "Change email",

@@ -1,5 +1,7 @@
 # Start here: Ayan's HomeBeacon handoff
 
+November 8 household work (implementation under final review; deployment evidence follows in WORKLOG): customer household sharing, selected live devices, private addressed invitation links, read-only members, official point weather and regional headlines. Email delivery stays disabled because Ayan deferred sender setup. Email changes end household shares to prevent old access returning. Read [HOUSEHOLDS.md](docs/HOUSEHOLDS.md) and [HOUSEHOLD_CONTEXT_ALERTS.md](docs/HOUSEHOLD_CONTEXT_ALERTS.md).
+
 November 8 map world views (PR #43 merged as `de44466`, production verified): an Argus view menu now focuses wind, sunshine, UV, temperature, terrain, flood, rivers/coast, air, fire, faults/earthquakes, power, alerts, declarations or shelters. Read [MAP_WORLD_VIEWS.md](docs/MAP_WORLD_VIEWS.md) and [WORLD_FEEDS.md](docs/WORLD_FEEDS.md). Weather is a sparse 60-location forecast sample, not a continuous street-level field; faults require local zoom. No household risk thresholds changed. Final release evidence is in the worklog.
 
 November 8 simulation/history release (PR #41 merged as `99f0681`, production verified): five-page Simulations, shared HTTP/CLI/MCP engine, private profile photos, unsent customer email templates, and bounded box-to-website retained history. Read [SIMULATIONS.md](docs/SIMULATIONS.md), [DEVICE_HISTORY.md](docs/DEVICE_HISTORY.md), [PROFILE_PHOTOS.md](docs/PROFILE_PHOTOS.md) and the newest work log. Firmware must be flashed and bench-tested before claiming physical outage/reconnect behavior.
