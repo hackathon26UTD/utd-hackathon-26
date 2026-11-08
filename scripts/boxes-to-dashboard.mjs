@@ -34,12 +34,20 @@ const lastState = {}, lastBeat = {};
 const queue = [];
 let working = false;
 
+// Retries network errors and 5xx (e.g. Cloudflare 1102 / 503) twice; events and telemetry carry event_ids, so a repeat is deduped by the API.
 async function post(dev, path, body) {
-  try {
-    const r = await fetch(dev.site + path, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers: { 'Content-Type': 'application/json', 'X-Device-Key': dev.deviceKey }, body: JSON.stringify(body) });
-    if (r.ok) sent++; else { failed++; console.error(`HTTP ${r.status} on ${path}`); }
-    return r.status;
-  } catch (e) { failed++; console.error(`network error on ${path}: ${e.name}`); return 0; }
+  let status = 0;
+  for (const wait of [0, 1000, 3000]) {
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    try {
+      const r = await fetch(dev.site + path, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json', 'X-Device-Key': dev.deviceKey }, body: JSON.stringify(body) });
+      status = r.status;
+      if (r.ok) { sent++; return status; }
+      if (status < 500) break;
+    } catch (e) { status = 0; }
+  }
+  failed++; console.error(`${status ? `HTTP ${status}` : 'network error'} on ${path} (after retries)`);
+  return status;
 }
 
 async function handle(m) {
