@@ -142,15 +142,23 @@ bool enqueueMsg(const MeshMsg &m) {
 // ── Wi-Fi ──
 void connect() {
   Serial.println("[wifi] connecting...");
+  // Join on a quiet radio: no ESP-NOW transmissions, no promiscuous channel pinning, and no
+  // background auto-reconnect racing our own retry/channel logic (seen as reason 2/201 loops).
+  mesh::txPaused = true;
+  esp_wifi_set_promiscuous(false);
+  WiFi.persistent(false);
+  WiFi.setAutoReconnect(false);
+  WiFi.disconnect(false, true);
+  delay(100);
   WiFi.begin(ssid, pass);
   uint32_t t0 = millis();
-  while (!wifiUp() && millis() - t0 < 10000) { delay(100); mesh::processRx(); }
+  while (!wifiUp() && millis() - t0 < 25000) { delay(100); mesh::processRx(); }  // phone hotspots can be slow to hand out an address
   if (wifiUp()) {
     Serial.printf("[wifi] connected, channel %d\n", WiFi.channel());
     configTime(0, 0, "pool.ntp.org", "time.google.com");
     lastHealth = 0;
   } else {
-    WiFi.disconnect(false, false);
+    WiFi.disconnect(false, true);  // stop the driver's own retries until our next attempt
     // Stay on the hotspot's channel if it is visible (so we can still reach boxes that are online),
     // otherwise on the shared fallback channel.
     uint8_t ch = fallbackChannel;
@@ -160,6 +168,7 @@ void connect() {
     esp_wifi_set_promiscuous(true); esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE); esp_wifi_set_promiscuous(false);
     Serial.printf("[wifi] offline; mesh on channel %u\n", ch);
   }
+  mesh::txPaused = false;
 }
 
 void loop() {
@@ -176,6 +185,8 @@ void loop() {
 
 void begin(const char *s, const char *p, const char *base, bool sd, uint8_t fallbackCh) {
   ssid = s; pass = p; apiBase = base; useSd = sd; fallbackChannel = fallbackCh;
+  // Say exactly why Wi-Fi drops or refuses us (2=auth expired, 15=4-way handshake timeout: usually wrong password, 201=AP not found, 202=auth fail).
+  WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) { Serial.printf("[wifi] disconnected, reason %u\n", info.wifi_sta_disconnected.reason); }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
   lastWifiTry = millis(); connect();
 }
 
