@@ -7,6 +7,7 @@ import { powerBudget } from '../domain/system-policy.js';
 import { nvidiaConfig, nemotronCompletion } from './nemotron.js';
 import { investigateSystem } from './system-agent.js';
 import { simulatedCompletion } from './system-simulator.js';
+import { loadDeviceModelContext } from './model-context.js';
 
 const wrap = fn => async ctx => {
   try { return await fn(ctx, new URL(ctx.request.url)); }
@@ -73,9 +74,10 @@ export const opsAgent = wrap(async (ctx, url) => {
     const bucket = await buckets.findOneAndUpdate({ _id: `${auth.actor}:${Math.floor(now.getTime() / 60000)}` },
       { $inc: { count: 1 }, $setOnInsert: { expiresAt: new Date(now.getTime() + 120_000) } }, { upsert: true, returnDocument: 'after' });
     if (bucket.count > 4) throw new HttpError(429, 'Wait a minute before another investigation.');
+    const externalContext = await loadDeviceModelContext(db, evidence, { env: ctx.env || {}, now });
     const run = { _id: id, actor: auth.actor, fingerprint, deviceId: body.deviceId, mode, state: 'running',
       engine, model: engine === 'nemotron' ? nvidiaConfig(ctx.env || {}).model : null, createdAt: now,
-      expiresAt: new Date(now.getTime() + 30 * 86400_000), trace: [], evidence };
+      expiresAt: new Date(now.getTime() + 30 * 86400_000), trace: [], evidence, externalContext };
     await runs.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
     try { await runs.insertOne(run); }
     catch (e) {
@@ -85,7 +87,7 @@ export const opsAgent = wrap(async (ctx, url) => {
       return json(runOut(current), current.state === 'running' ? 202 : 200);
     }
     try {
-      const result = await investigateSystem({ evidence, budget, goalHours,
+      const result = await investigateSystem({ evidence, budget, goalHours, externalContext,
         complete: engine === 'simulator' ? simulatedCompletion(evidence) : input => nemotronCompletion(ctx.env, input, ctx.fetcher),
         recordStep: step => runs.updateOne({ _id: id }, { $push: { trace: step } }),
       });

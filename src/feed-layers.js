@@ -11,11 +11,20 @@ const num = (v) => (v === null || v === undefined || v === '' ? null : Number.is
 const text = (v, max = 200) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, max) : null);
 const point = (lng, lat, properties, id) => ({ type: 'Feature', ...(id !== undefined ? { id } : {}), geometry: { type: 'Point', coordinates: [lng, lat] }, properties });
 const state = (env) => (/^[A-Za-z]{2}$/.test(env.FEEDS_STATE || '') ? env.FEEDS_STATE.toUpperCase() : 'TX');
+const nwsScope = (env) => env.NWS_SCOPE === 'national' ? 'US' : state(env);
 const envelope = (b) => b.join(',');
+
+export function feedMetadata(layer, env = {}) {
+  const area = layer.scopeKey?.(env);
+  const type = ['nws', 'declarations'].includes(layer.id) ? (area === 'US' ? 'national' : 'state')
+    : layer.id === 'eia' ? 'balancing-authority' : layer.scope === 'all' ? 'global' : 'requested-area';
+  return { coverage: { type, area: area || (type === 'global' ? 'world' : 'bounded map tiles') }, note: layer.note || 'Geographic context does not establish conditions at an individual home.' };
+}
 
 // ---------- parsers ----------
 export function parseNws(json) {
-  const features = (json?.features || []).map((f) => ({
+  if (!Array.isArray(json?.features)) throw new FeedError(502, 'Weather alerts feed sent unreadable data.');
+  const features = json.features.filter(f => f && typeof f === 'object').map((f) => ({
     type: 'Feature',
     id: f.id,
     geometry: f.geometry || null,
@@ -30,7 +39,7 @@ export function parseNws(json) {
       description: text(f.properties?.description, 400),
     },
   }));
-  return { features };
+  return { features, truncated: Boolean(json.pagination?.next) };
 }
 
 export function parseGauges(json) {
@@ -80,7 +89,9 @@ export function parseAirnow(json) {
 export function parseEia(json) {
   const rows = json?.response?.data;
   if (!Array.isArray(rows)) throw new FeedError(502, 'Grid feed sent unreadable data.');
-  return { features: [], extra: { series: rows.slice(0, 48).map((r) => ({ period: r.period, region: r.respondent, value: num(r.value), unit: r['value-units'] || 'megawatthours' })) } };
+  return { features: [], extra: { metric: 'electricity_demand', outageData: false,
+    note: 'Hourly balancing-authority demand is not a count or map of household power outages.',
+    series: rows.slice(0, 48).map((r) => ({ period: text(r.period, 30), region: text(r.respondent, 12), value: num(r.value), unit: text(r['value-units'], 40) || 'megawatthours' })) } };
 }
 
 export function parseArcgis(json, pick) {
@@ -162,7 +173,7 @@ async function fetchDeclarations(tiles, { env, get, now }) {
     } catch { /* keep the list even when county outlines are unavailable */ }
   }
   const features = [...counties.values()].map((c) => ({ type: 'Feature', id: c.geoid, geometry: shapes.get(c.geoid) || null, properties: { geoid: c.geoid, area: c.area, state: c.state, statewide: c.statewide, declarationTitle: c.declarations[0].title, incidentType: c.declarations[0].incidentType, declarationDate: c.declarations[0].declarationDate, latest: c.declarations[0], declarations: c.declarations } }));
-  return new Map([[tiles[0].key, { features, extra: { outlines: shapes.size > 0 || named.length === 0 } }]]);
+  return new Map([[tiles[0].key, { features, truncated: rows.length >= 400, extra: { outlines: shapes.size === named.length } }]]);
 }
 
 async function fetchWeather(tiles, { get }) {
@@ -179,25 +190,31 @@ const keyOf = (env, name) => env[name] || '';
 export const LAYERS = {
   nfhl: { id: 'nfhl', name: 'FEMA flood hazard zones', scope: 'tile', ttlS: 86400, maxSpan: 0.75, maxTiles: 16, minZoom: 11, attribution: 'FEMA National Flood Hazard Layer',
     fetchMany: arcgis('https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28', 'FLD_ZONE,SFHA_TF,ZONE_SUBTY,OBJECTID', pickNfhl, { extra: { maxAllowableOffset: '0.0002' }, pages: 4 }) },
-  declarations: { id: 'declarations', name: 'FEMA disaster declarations', scope: 'all', scopeKey: (env) => state(env), ttlS: 86400, attribution: 'OpenFEMA and US Census TIGERweb', fetchMany: fetchDeclarations },
-  nws: { id: 'nws', name: 'National Weather Service alerts', scope: 'all', scopeKey: (env) => state(env), ttlS: 120, attribution: 'National Weather Service',
-    fetchMany: single(async (t, { get, env }) => parseNws(await get(`https://api.weather.gov/alerts/active?area=${state(env)}`))),
+  declarations: { id: 'declarations', name: 'FEMA disaster declarations', scope: 'all', scopeKey: (env) => state(env), ttlS: 86400, attribution: 'OpenFEMA and US Census TIGERweb',
+    note: 'State declarations from the last two years, capped at 400 records. Declaration areas are not current storm or damage boundaries.', fetchMany: fetchDeclarations },
+  nws: { id: 'nws', name: 'National Weather Service alerts', scope: 'all', scopeKey: nwsScope, ttlS: 120, attribution: 'National Weather Service',
+    note: 'Active alerts for the configured scope. Alerts without supplied polygons remain in the list; absence of a polygon is not an all-clear.',
+    fetchMany: single(async (t, { get, env }) => parseNws(await get(`https://api.weather.gov/alerts/active${nwsScope(env) === 'US' ? '' : `?area=${state(env)}`}`))),
     postFilter: (features, now) => features.filter((f) => !f.properties?.expires || new Date(f.properties.expires) > now) },
   gauges: { id: 'gauges', name: 'USGS river gauges', scope: 'tile', ttlS: 600, maxTiles: 25, attribution: 'USGS National Water Information System',
+    note: 'River stage measurements have station-specific datums; they do not establish water depth or flooding at a home.',
     fetchMany: perTile(async (t, { get }) => parseGauges(await get(`https://waterservices.usgs.gov/nwis/iv/?format=json&bBox=${envelope(t.bbox.map((v) => v.toFixed(4)))}&parameterCd=00065&siteStatus=active`))) },
   quakes: { id: 'quakes', name: 'USGS earthquakes, last day', scope: 'all', ttlS: 300, attribution: 'USGS Earthquake Hazards Program',
     fetchMany: single(async (t, { get }) => parseQuakes(await get('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'))) },
-  weather: { id: 'weather', name: 'Forecast rain, next 24 hours', scope: 'cell', ttlS: 1800, maxTiles: 25, attribution: 'Open-Meteo.com', fetchMany: fetchWeather },
+  weather: { id: 'weather', name: 'Forecast rain, next 24 hours', scope: 'cell', ttlS: 1800, maxTiles: 25, attribution: 'Open-Meteo.com', note: 'Forecast precipitation at sampled cell centers, not observed water at a home.', fetchMany: fetchWeather },
   shelters: { id: 'shelters', name: 'FEMA open shelters', scope: 'tile', ttlS: 600, maxTiles: 25, attribution: 'FEMA ESF6-SS (National Shelter System)',
     fetchMany: arcgis('https://gis.fema.gov/arcgis/rest/services/NSS/OpenShelters/FeatureServer/0', 'shelter_name,address,city,state,zip,shelter_status,evacuation_capacity,total_population,pet_accommodations_code,wheelchair_accessible,org_name', pickShelter) },
   firms: { id: 'firms', name: 'NASA satellite fire detections, last day', scope: 'tile', ttlS: 900, maxTiles: 25, keyEnv: 'FIRMS_MAP_KEY', attribution: 'NASA FIRMS',
+    note: 'Satellite thermal detections are context; they are not fire perimeters or confirmation that a home is burning.',
     fetchMany: perTile(async (t, { get, env }) => parseFirms(await get(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(keyOf(env, 'FIRMS_MAP_KEY'))}/VIIRS_NOAA20_NRT/${envelope(t.bbox)}/1`, { as: 'text' }))) },
   airnow: { id: 'airnow', name: 'AirNow air quality', scope: 'tile', ttlS: 1800, maxTiles: 25, keyEnv: 'AIRNOW_API_KEY', attribution: 'US EPA AirNow',
+    note: 'Reporting-area air quality near each tile center, not an indoor sensor reading at a home.',
     fetchMany: perTile(async (t, { get, env }) => {
       const lng = (t.bbox[0] + t.bbox[2]) / 2, lat = (t.bbox[1] + t.bbox[3]) / 2;
       return parseAirnow(await get(`https://www.airnowapi.org/aq/observation/current/ziplatLong?format=application/json&latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&distance=25&api_key=${encodeURIComponent(keyOf(env, 'AIRNOW_API_KEY'))}`));
     }) },
   eia: { id: 'eia', name: 'EIA grid demand (ERCOT)', scope: 'all', scopeKey: () => 'ERCO', ttlS: 3600, keyEnv: 'EIA_API_KEY', attribution: 'US Energy Information Administration',
+    note: 'ERCOT hourly electricity demand only. This source does not report household power outages.',
     fetchMany: single(async (t, { get, env }) => parseEia(await get(`https://api.eia.gov/v2/electricity/rto/region-data/data/?frequency=hourly&data[0]=value&facets[respondent][]=ERCO&facets[type][]=D&sort[0][column]=period&sort[0][direction]=desc&length=24&api_key=${encodeURIComponent(keyOf(env, 'EIA_API_KEY'))}`))) },
 };
 
