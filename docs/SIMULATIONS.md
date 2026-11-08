@@ -42,3 +42,11 @@ HTTP: `GET /api/simulations` returns defaults/options. `POST /api/simulations` t
 Automated checks cover determinism, distribution, bounds, hazard/recovery/stale semantics, unchanged default limits, HTTP parity, actual CLI and an official MCP SDK client over stdio. Browser checks cover all five steps, actual map playback, pause/seek, desktop/mobile reflow and automated accessibility. Final production evidence is recorded in WORKLOG. Physical hardware and the illustrative event model are not validated by these checks.
 
 November 8 clock separation: Configure/Play/Restart/speed and the fictional-device minute slider are now inside the Simulations workspace, not floating over the map. Leaving setup pauses simulation playback at the selected frame. Map timelines are reserved for API weather: Wind/Rain forecast use Open-Meteo hours; Rain radar uses NOAA observation history. Neither weather timeline advances fictional or connected-device readings. See PUBLIC_WEATHER_NEWS.md.
+
+## Return to production
+
+The authenticated `/command-center` opens live data by default. `/simulations`, `/demo`, or an explicitly requested exercise view show a compact top banner: **Demo simulation · Generated data**, with **End demo**. Generated scenarios remain isolated browser state; this flow does not seed real device collections.
+
+End demo pauses playback and reloads `/command-center` without exercise parameters. A real operator keeps their login. A shared demo login is signed out first; anonymous/demo visitors then use normal operator sign-in. A failed sign-out leaves the demo visible with an error instead of claiming a production transition. Private device access is never made public.
+
+Device conditions now summarize actual reported values with freshness labels. Missing values stay unreported; stale critical incidents are not cleared by these descriptions. Controller-only reports do not imply safe household conditions.
