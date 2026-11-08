@@ -1,3 +1,5 @@
+November 8 operations readiness (branch `feat/ops-readiness`, not deployed): DB speed-ups, `npm run hb` CLI, Uno Q agent, Resend email, NVIDIA grounding harness. Read [docs/TOMORROW.md](docs/TOMORROW.md) first for the demo day checklist, verified vs unverified items and fallbacks.
+
 # Start here: Ayan's HomeBeacon handoff
 
 November 8 simulation/history release (PR #41 merged as `99f0681`, production verified): five-page Simulations, shared HTTP/CLI/MCP engine, private profile photos, unsent customer email templates, and bounded box-to-website retained history. Read [SIMULATIONS.md](docs/SIMULATIONS.md), [DEVICE_HISTORY.md](docs/DEVICE_HISTORY.md), [PROFILE_PHOTOS.md](docs/PROFILE_PHOTOS.md) and the newest work log. Firmware must be flashed and bench-tested before claiming physical outage/reconnect behavior.

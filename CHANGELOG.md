@@ -15,3 +15,7 @@ Added operator access/profile/recovery, exercise-only demo, live Mongo summaries
 ## 2026-11-07: Team API and hosting integration
 
 Integrated Dhruv's core API/client work with Ayan's Cloudflare/Mongo application access, readiness-tested deployment and CI/CD. Later preserved Dhruv's shared credential loader/access checker. See [API](docs/API.md), [architecture](docs/ARCHITECTURE.md) and [work log](docs/WORKLOG.md).
+
+## 2026-11-08: Operations readiness
+
+Faster database path, developer CLI (`npm run hb`), Uno Q agent and installer, Resend email templates, NVIDIA grounding harness with generated thresholds and runbook, and a demo day runbook. Branch only, not deployed. See [TOMORROW.md](docs/TOMORROW.md).

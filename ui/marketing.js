@@ -30,7 +30,7 @@ export function mountMarketing({brand, footer}) {
       <section class="home-hero home-width" aria-labelledby="home-title">
         <div class="home-intro"><h1 id="home-title" class="home-headline">See trouble sooner.<br>Know where to look.</h1><p class="home-description">HomeBeacon brings home sensor reports and nearby disaster alerts into one map, so response teams can find critical conditions and follow up.</p><div class="home-actions"><a class="button primary home-demo-link" href="/simulations">Open command center</a><a class="home-register-link" href="/signup">Create an account</a></div></div>
         <figure class="home-preview-shell" aria-label="Animated example of the command map">
-          <div class="home-preview-frame"><iframe id="home-preview" src="/demo?embed=hero&amp;scenario=normal" title="Non-interactive map illustration with simulated readings" tabindex="-1" inert loading="eager" referrerpolicy="same-origin"></iframe></div>
+          <div class="home-preview-frame"><iframe id="home-preview" src="/demo?embed=hero&amp;scenario=normal" title="Non-interactive map illustration with simulated readings" tabindex="-1" inert loading="lazy" referrerpolicy="same-origin"></iframe></div>
           <figcaption class="home-preview-controls"><span>Simulated overview <span id="home-preview-label">Normal day</span></span><button id="home-preview-pause" type="button" aria-label="Pause overview animation">Pause</button></figcaption>
         </figure>
         <div class="home-example"><p class="home-example-label">Example device</p><dl class="home-signals" aria-label="Simulated device readings">

@@ -27,11 +27,14 @@ $('#preferences')?.addEventListener('click',consent);
 async function dashboard(){
 document.body.classList.add('command-page');
 // Command center v2 lives in ui/command/*. This stays thin so the marketing mounting above is untouched.
-maplibregl=await import('maplibre-gl');maplibregl.setWorkerUrl('/assets/map-worker.mjs');
-let role=null;if(path==='/command-center'){try{const r=await fetch('/api/session');role=(await r.json()).role;}catch{}}
-const demo=['/demo','/simulations'].includes(path)||role==='demo';
+// Start every download together: the map library, the command code, its stylesheet and the session check.
 const css=document.createElement('link');css.rel='stylesheet';css.href='/assets/app.css';document.head.append(css);
-const {mountCommand}=await import('./command/index.js');
+const mapLoad=import('maplibre-gl'),commandLoad=import('./command/index.js');
+const roleLoad=path==='/command-center'?fetch('/api/session').then(r=>r.json()).then(j=>j.role).catch(()=>null):Promise.resolve(null);
+maplibregl=await mapLoad;maplibregl.setWorkerUrl('/assets/map-worker.mjs');
+const role=await roleLoad;
+const demo=['/demo','/simulations'].includes(path)||role==='demo';
+const {mountCommand}=await commandLoad;
 await mountCommand({maplibregl,demo,role,exerciseProperties,footer,brand,escape});
 }
 
