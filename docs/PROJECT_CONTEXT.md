@@ -1,6 +1,6 @@
 # HomeBeacon current project context
 
-November 8 customer extension: self-built box registration, personal OAuth MCP, optional encrypted NVIDIA keys and password-confirmed email changes. Start with [ASSISTANT_CONNECTIONS.md](ASSISTANT_CONNECTIONS.md), then the latest work log. Physical delivery, live customer-key inference and actual ChatGPT/Claude account connections are separate verification steps.
+November 8 customer extension (deployed in PR #37, production verified): self-built box registration, personal OAuth MCP, optional encrypted NVIDIA keys and password-confirmed email changes. Start with [ASSISTANT_CONNECTIONS.md](ASSISTANT_CONNECTIONS.md), then the latest work log. Physical delivery, live customer-key inference and actual ChatGPT/Claude account connections are separate verification steps.
 
 
 Latest homepage refinement (November 8): uncluttered hero, non-interactive simulated map playback, exactly three example readings (Power/Wi-Fi/Conditions), upper-right theme/motion Settings, project/team/services context and GitHub link. Compact rounded controls and plain status text replace badge clutter. Sidebar collapse is animated and respects reduced motion. See [MARKETING.md](MARKETING.md) and the latest work log for verification.
