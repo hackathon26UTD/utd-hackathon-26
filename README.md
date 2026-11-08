@@ -63,4 +63,4 @@ and [ESP32 contract and curl examples](clients/esp32/HOMEBEACON.md).
 
 ## Hardware firmware
 
-`firmware/box_a` (XIAO ESP32S3 Sense gateway), `firmware/box_b` (ESP32 sensor box) and `firmware/hub` (Uno Q offline dashboard). Boxes form an AES-128 encrypted ESP-NOW mesh: messages hop box to box until any box with Internet (the gateway) uploads them, so data survives Wi-Fi and cellular outages. Uploads use verified HTTPS. Build, provision, flash and test: [firmware/TESTING.md](firmware/TESTING.md). Datasheets: [docs/DATASHEETS.md](docs/DATASHEETS.md).
+`firmware/box_a` (XIAO ESP32S3 Sense gateway), `firmware/box_b` (ESP32 sensor box) and `firmware/hub` (Uno Q offline dashboard). Boxes form an AES-128 encrypted ESP-NOW mesh: messages hop box to box until any box with Internet (the gateway) uploads them, so data survives Wi-Fi and cellular outages. Uploads use verified HTTPS. Build, provision, flash and test: [firmware/TESTING.md](firmware/TESTING.md). Datasheets: [docs/DATASHEETS.md](docs/DATASHEETS.md). Encryption: [docs/ENCRYPTION.md](docs/ENCRYPTION.md).
