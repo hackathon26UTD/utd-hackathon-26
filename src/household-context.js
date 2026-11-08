@@ -35,7 +35,7 @@ export function parseHomeAlerts(data, now) {
 }
 export async function loadHomeWeather(coordinates, {fetcher=fetch,now=new Date()}={}) {
   const [x,y]=coordinates, point=y.toFixed(4)+','+x.toFixed(4);
-  const url='https://forecast.weather.gov/MapClick.php?lat='+y.toFixed(4)+'&lon='+x.toFixed(4);
+  const url='https://www.weather.gov/';
   const result={status:'unavailable',alertsStatus:'unavailable',forecastStatus:'unavailable',checkedAt:now.toISOString(),alerts:[],forecast:[],url};
   const attempts=await Promise.allSettled([
     json('https://api.weather.gov/alerts/active?point='+encodeURIComponent(point),fetcher),
@@ -57,12 +57,27 @@ export async function loadHomeWeather(coordinates, {fetcher=fetch,now=new Date()
     // A forecast can be generated while this request is in flight. Bound clock skew to two minutes.
     result.forecastStatus=issued && new Date(issued)<=new Date(+now+2*MINUTE) && now-new Date(issued)<=6*60*MINUTE?'ok':'stale';
     result.forecast=(Array.isArray(p.periods)?p.periods:[]).filter(v=>iso(v.startTime)&&iso(v.endTime)&&new Date(v.endTime)>now&&new Date(v.startTime)<new Date(+now+12*60*MINUTE)).slice(0,12).map(v=>({
-      startTime:iso(v.startTime),summary:text(v.shortForecast),temperature:Number.isFinite(v.temperature)?v.temperature:null,temperatureUnit:['F','C'].includes(v.temperatureUnit)?v.temperatureUnit:null,windSpeed:text(v.windSpeed,35),rainChance:Number.isFinite(v.probabilityOfPrecipitation?.value)?v.probabilityOfPrecipitation.value:null,
+      startTime:iso(v.startTime),endTime:iso(v.endTime),summary:text(v.shortForecast),temperature:Number.isFinite(v.temperature)?v.temperature:null,temperatureUnit:['F','C'].includes(v.temperatureUnit)?v.temperatureUnit:null,windSpeed:text(v.windSpeed,35),rainChance:Number.isFinite(v.probabilityOfPrecipitation?.value)?v.probabilityOfPrecipitation.value:null,
     }));
     if(!result.forecast.length) result.forecastStatus='unavailable';
   }
   result.status=result.alertsStatus==='ok'&&result.forecastStatus==='ok'?'ok':result.alertsStatus==='ok'||result.forecast.length?'partial':'unavailable';
   return result;
+}
+export function currentWeather(value,now) {
+  const weather={...value};
+  weather.alerts=(value.alerts||[]).filter(a=>iso(a.expires)&&new Date(a.expires)>now&&iso(a.sent)&&new Date(a.sent)<=new Date(+now+2*MINUTE));
+  weather.forecast=(value.forecast||[]).filter(p=>iso(p.startTime)&&iso(p.endTime)&&new Date(p.endTime)>now&&new Date(p.startTime)<new Date(+now+12*60*MINUTE));
+  const issued=iso(value.forecastIssuedAt);
+  weather.forecastStatus=!weather.forecast.length?'unavailable':issued&&new Date(issued)<=new Date(+now+2*MINUTE)&&now-new Date(issued)<=6*60*MINUTE?'ok':'stale';
+  // Preserve original source times; cache reads must not make evidence younger.
+  if(value.status==='stale'||!iso(value.checkedAt)||now-new Date(value.checkedAt)>10*MINUTE){weather.status='stale';if(weather.alertsStatus==='ok')weather.alertsStatus='stale';}
+  else weather.status=weather.alertsStatus==='ok'&&weather.forecastStatus==='ok'?'ok':weather.alertsStatus==='ok'||weather.forecast.length?'partial':'unavailable';
+  return weather;
+}
+export function currentNews(value,now) {
+  const items=(value.items||[]).filter(v=>iso(v.publishedAt)&&new Date(v.publishedAt)<=now&&now-new Date(v.publishedAt)<=7*86400000);
+  return {...value,items,...(value.status==='ok'&&(!iso(value.checkedAt)||now-new Date(value.checkedAt)>30*MINUTE)?{status:'stale'}:{})};
 }
 const unxml = s => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&(?:amp|lt|gt|quot|apos);/g,v=>({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'"}[v])).replace(/&#(x[\da-f]+|\d+);/gi,(_,v)=>{const n=v[0].toLowerCase()==='x'?parseInt(v.slice(1),16):Number(v);return n>0&&n<=0x10ffff?String.fromCodePoint(n):'';});
 export function parseNews(xml, source, now) {
@@ -102,10 +117,10 @@ export async function householdContext(db,access,{fetcher=fetch,now=new Date(),i
     places.push({link,c,key});
   }
   const locations=await Promise.all(places.map(async({link,c,key})=>{
-    const weather=await cached(db,'weather:'+await sha256Hex(key),5*MINUTE,()=>loadHomeWeather(c,{fetcher,now}),now);
+    const weather=currentWeather(await cached(db,'weather:'+await sha256Hex(key),5*MINUTE,()=>loadHomeWeather(c,{fetcher,now}),now),now);
     const source=includeNews&&NEWS_SOURCES.find(s=>c[0]>=s.bounds[0]&&c[0]<=s.bounds[2]&&c[1]>=s.bounds[1]&&c[1]<=s.bounds[3]);
     const news=source?{source:source.name,scope:source.scope,...await cached(db,'news:'+source.id,15*MINUTE,async()=>({status:'ok',checkedAt:now.toISOString(),items:parseNews(await fetchText(source.url,fetcher),source,now)}),now)}:{status:'not_configured',source:null,scope:'No local publisher connected for this area.',items:[]};
-    return {label:text(link.nickname,60)||'Home',weather,news,...(includeLinkIds?{linkId:link._id}:{})};
+    return {label:text(link.nickname,60)||'Home',weather,news:currentNews(news,now),...(includeLinkIds?{linkId:link._id}:{})};
   }));
   return {locations,checkedAt:now.toISOString(),truncated:total>5};
 }
