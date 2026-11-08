@@ -1,7 +1,7 @@
 // A view changes cartography and context, never device assessments.
 export const WORLD_VIEWS = [
   { id: 'street', label: 'Overview', palette: null, layers: [], note: 'Devices and reported conditions.' },
-  { id: 'wind', label: 'Wind', palette: 'wind', layers: ['atmosphere'], field: 'wind_kph', unit: 'km/h', stops: [[0,'#a9d6e1'],[15,'#5caabf'],[35,'#247c9b'],[65,'#245487'],[100,'#473c7c']], note: 'Forecast samples. Arrows point downwind; gaps are not calm air.' },
+  { id: 'wind', label: 'Wind', palette: 'wind', layers: ['atmosphere'], field: 'wind_kph', unit: 'km/h', stops: [[0,'#a9d6e1'],[15,'#5caabf'],[35,'#247c9b'],[65,'#245487'],[100,'#473c7c']], note: 'Forecast wind speeds. Trails show direction at each sample; gaps are unknown.' },
   { id: 'sunshine', label: 'Sunshine', palette: 'sun', layers: ['atmosphere'], field: 'solar_wm2', unit: 'W/m²', stops: [[0,'#c5ccd5'],[200,'#e8d9a0'],[400,'#e9b84e'],[700,'#d48314'],[1000,'#a5520a']], note: 'Forecast sunlight, averaged over the preceding hour at sample points.' },
   { id: 'uv', label: 'UV index', palette: 'uv', layers: ['atmosphere'], field: 'uv_index', unit: 'UV index', stops: [[0,'#6aa96c'],[3,'#d4b73b'],[6,'#dc8739'],[8,'#d34e60'],[11,'#8651a0']], discrete: true, note: 'Forecast UV at sample points. Shade and indoor exposure differ.' },
   { id: 'temperature', label: 'Temperature', palette: 'heat', layers: ['atmosphere'], field: 'temperature_c', unit: '°C', stops: [[-20,'#596eb4'],[0,'#79b4c8'],[15,'#c6d5b4'],[30,'#e69b50'],[45,'#bd4b45']], note: 'Forecast outdoor temperature. Indoor box readings stay separate.' },
@@ -12,13 +12,14 @@ export const WORLD_VIEWS = [
   { id: 'fire', label: 'Fire', palette: 'fire', layers: ['firms'], swatches: [['#e8590c','Satellite detection']], note: 'NASA heat detections. Points are not fire boundaries or confirmed damage.' },
   { id: 'earth', label: 'Faults & earthquakes', palette: 'earth', layers: ['faults','quakes'], hillshade: true, swatches: [['#86593c','Mapped fault'],['#8a5a2b','Recent quake']], note: 'USGS fault traces and last-day earthquakes. Larger circles mean higher magnitude.' },
   { id: 'power', label: 'Power', palette: 'power', layers: ['eia','ercot'], power: true, swatches: [['#e9ae47','Box reported power loss']], note: 'Device reports show power loss. Regional grid demand is not an outage map.' },
-  { id: 'alerts', label: 'Weather alerts', palette: 'wind', layers: ['nws','nws_forecast','weather'], swatches: [['#c4601f','Weather alert'],['#4c6ef5','Forecast point']], note: 'Official NWS alerts with point forecasts and predicted rain.' },
+  { id: 'alerts', label: 'Weather alerts', palette: 'sky', layers: ['nws','nws_forecast','weather'], swatches: [['#c4601f','Weather alert'],['#4c6ef5','Forecast point']], note: 'Official NWS alerts with point forecasts and predicted rain.' },
   { id: 'disasters', label: 'Declared disasters', palette: 'uv', layers: ['declarations'], swatches: [['#7a4fb5','Declared county']], note: 'FEMA declarations cover counties, not confirmed damage at each address.' },
   { id: 'shelters', label: 'Shelters', palette: 'air', layers: ['shelters'], swatches: [['#1c5fa8','Listed shelter']], note: 'FEMA shelter listings. Confirm availability before travel.' },
 ];
 
 export const WORLD_PALETTES = {
-  wind: { ground:'#edf7fa', water:'#b9dce6', park:'#d7e8e4', road:'#ffffff', ink:'#32566a' },
+  wind: { ground:'#2068a8', water:'#124c86', park:'#286da1', road:'#78a5ce', ink:'#ffffff' },
+  sky: { ground:'#edf7fa', water:'#b9dce6', park:'#d7e8e4', road:'#ffffff', ink:'#32566a' },
   sun: { ground:'#fff8df', water:'#d5e4e7', park:'#e6e8bc', road:'#ffffff', ink:'#775726' },
   uv: { ground:'#f6effb', water:'#d6d6ee', park:'#e0e5d9', road:'#ffffff', ink:'#665078' },
   heat: { ground:'#fcf1e8', water:'#d0e3ec', park:'#e4e6d1', road:'#ffffff', ink:'#775b4d' },
@@ -74,7 +75,7 @@ export function basePaint(layer, palette) {
 }
 
 export function viewSourceState({ demo, view, id, state, feed, zoom, minZoom = 0, enabled = true }) {
-  if (demo) return id === 'atmosphere' && view.id === 'wind' ? 'Simulation exposure only; no forecast samples.' : 'Live layer not loaded in simulations.';
+  if (demo) return id === 'atmosphere' && view.id === 'wind' ? 'Illustrated wind, not a forecast. No live weather is loaded.' : 'Live layer not loaded in simulations.';
   if (!enabled) return 'Layer hidden';
   if (zoom < minZoom) return 'Zoom in to load this layer';
   if (feed?.status === 'needs_key') return 'Source key not configured';
