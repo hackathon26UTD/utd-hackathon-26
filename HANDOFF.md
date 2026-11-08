@@ -9,3 +9,5 @@ For a contributor handoff brief, use [START_HERE.md](docs/START_HERE.md). Cloudf
 Latest work: [Integration continuation](docs/INTEGRATION_CONTINUATION.md), including the real owner kit, customer role and live platform. Earlier capability/design notes are superseded there.
 
 Current design work: Ayan rejected the command layout. Read [map-only design contract](docs/design/COMMAND_CENTER_MAP_ONLY.md) and [Astra brief](docs/design/ASTRA_COMMAND_CENTER_BRIEF.md) before UI edits. Default is map only, tools on demand; house selection opens an anchored expandable card.
+
+Approved next direction: Ayan accepted the [satellite map-only composition](docs/design/COMMAND_CENTER_MAP_ONLY.md) for Astra to develop and refine. Start that work with the [Astra implementation brief](docs/design/ASTRA_COMMAND_CENTER_BRIEF.md) and [local prototype](docs/design/prototype/README.md). This supersedes the previous command layout, not the teammate backend/firmware contracts.
