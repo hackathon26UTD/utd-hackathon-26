@@ -102,9 +102,9 @@ export async function limit(
 }
 export async function customer(ctx, db) {
   if (!["GET", "HEAD"].includes(ctx.request.method) && !sameOrigin(ctx.request))
-    fail(403, "Use this setting on HomeBeacon.");
+    fail(403, "Use this setting on Safe Home.");
   const session = await readCustomerSession(ctx.request, ctx.env, db);
-  if (!session) fail(401, "Sign in to your HomeBeacon account.");
+  if (!session) fail(401, "Sign in to your Safe Home account.");
   await limit(db, ctx.env, "customer-settings", session.email, 120);
   return session.email;
 }

@@ -192,7 +192,7 @@ export async function householdsHandler(ctx) {
   try {
     const { request, env = {} } = ctx;
     if (!['GET', 'POST'].includes(request.method)) return json({ error: 'Method not allowed.' }, 405);
-    if (request.method === 'POST' && !sameOrigin(request)) throw new HttpError(403, 'This request must come from HomeBeacon.');
+    if (request.method === 'POST' && !sameOrigin(request)) throw new HttpError(403, 'This request must come from Safe Home.');
     const run = ctx.db ? fn => fn(ctx.db) : fn => withDatabase(env, fn);
     return await run(async db => {
       const signed = await readCustomerSession(request, env, db);

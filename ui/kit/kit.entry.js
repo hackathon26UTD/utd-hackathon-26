@@ -1,4 +1,4 @@
-// HomeBeacon kit bundle entry. Built by scripts/build-ui.mjs to
+// Safe Home kit bundle entry. Built by scripts/build-ui.mjs to
 // public/assets/kit.js and public/assets/kit.css (classic script, IIFE).
 // CSS order is the order the source portal loads them in, then ours:
 //   fonts, kit.css, kit-standards.css, kit-table.css, glue.css, theme.

@@ -68,7 +68,7 @@ for (const [i, b] of parsed.entries()) {
     s.homeId = home.id || home._id; console.log(`home ${b.id}: ${s.homeId}`);
   }
   if (!s.deviceId || !keys.devices[b.id]) {
-    const { device, deviceKey } = await api('POST', '/api/devices', { name: `HomeBeacon box ${b.id}`, type: b.id === 'A' ? 'xiao-esp32s3-sense' : 'esp32', meta: { mac: b.mac } });
+    const { device, deviceKey } = await api('POST', '/api/devices', { name: `Safe Home box ${b.id}`, type: b.id === 'A' ? 'xiao-esp32s3-sense' : 'esp32', meta: { mac: b.mac } });
     s.deviceId = device.id; keys.devices[b.id] = deviceKey;
     await api('PATCH', `/api/beacon/devices/${s.deviceId}/home`, { home_id: s.homeId });
     console.log(`device ${b.id}: ${s.deviceId} (assigned to its home)`);
