@@ -154,7 +154,7 @@ test('integrated command center opens Fleet, scopes demo requests and returns to
  assert.deepEqual(fleetRequests,[mode==='demo'?'?mode=exercise':'']);
  if(mode==='demo')await expect(page.locator('#fleet-panel').getByRole('button',{name:/Manage/})).toHaveCount(0);
  else await expect(page.locator('#fleet-panel').getByRole('button',{name:/Manage/})).toHaveCount(4);
- 
+
  await page.locator('#fleet-panel').getByRole('button',{name:'Back to map',exact:true}).click();
  await expect(page.locator('#fleet-panel')).toBeHidden();await expect(page.locator('.board')).not.toHaveAttribute('aria-hidden','true');
  assert.deepEqual(errors,[]);await context.close();
