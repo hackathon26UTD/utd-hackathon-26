@@ -12,7 +12,7 @@ The owner's actual Argus kit is vendored unchanged under `ui/kit/vendor`. Safe H
 
 ## Tokens
 
-Ink #182f3b; paper #f4f6f7; white #ffffff; teal #21665f; critical #b9413b; amber #925d1a; muted #526974. Geist headings and body, self-hosted; current light/dark values come from kit theme tokens. Component corners 6-10 px, 44 px controls, 4 px spacing grid. Response colors always have written labels and symbols. Motion is 150-220 ms for state changes, with reduced-motion support.
+Current November 8 identity: red #d62311, hover #a11b13, ink #212121, ground #f7f7f7, white #ffffff; muted #626060. Hanken Grotesk headings/body, self-hosted; Spline Sans Mono readouts. This follows Ayan's State Farm/Drive Safe & Save reference with a distinct Safe Home house and stacked wordmark. See BRAND.md for reference and font provenance. Generated light/dark kit tokens control actions, while response colors retain their separate green/amber/red/unknown meanings and written labels. Component corners 6-10 px, 44 px controls, 4 px spacing grid. Motion is 150-220 ms for state changes, with reduced-motion support.
 
 ## Layout
 

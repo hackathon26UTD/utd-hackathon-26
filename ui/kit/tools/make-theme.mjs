@@ -2,7 +2,7 @@
 //   node ui/kit/tools/make-theme.mjs
 // 1. Reads the four token blocks (kit.css light/dark, kit-standards.css light/dark).
 // 2. Re-colours every colour literal with a hue-bucket transform (neutral ->
-//    dusk/paper ramp, wine/red -> signal amber, ARGUS green -> beacon teal-green).
+//    neutral ramp, brand red -> warm red, status green -> teal-green).
 // 3. Applies the hand-chosen CORE palette on top (the tokens listed in CORE).
 // 4. Re-declares the few font-family literals the kit hard-codes.
 // 5. Checks WCAG contrast for the documented text pairs and writes
@@ -17,22 +17,22 @@ const root = path.join(kitDir, '..', '..');
 const read = (f) => fs.readFileSync(path.join(kitDir, 'vendor/css', f), 'utf8');
 
 /* ------------------------------------------------------------------ palette */
-// Quiet neutral surfaces, dark green actions, and explicit status colors.
+// State Farm-inspired red actions, neutral surfaces, and separate sensor status colors.
 const CORE = {
     light: {
-        '--kit-bg': '#f6f7f7',
+        '--kit-bg': '#f7f7f7',
         '--kit-surface': '#ffffff',
-        '--kit-surface-2': '#f0f3f1',
-        '--kit-line': '#dce2df',
-        '--kit-line-2': '#b8c5bf',
-        '--kit-ink': '#1d2926',
-        '--kit-ink-2': '#3d4b45',
-        '--kit-ink-3': '#52605b',
-        '--kit-accent': '#17634f',
-        '--kit-accent-ink': '#155641',
-        '--kit-accent-tint': '#eaf3ee',
-        '--kit-accent-line': '#b9d4c7',
-        '--kit-accent-tint-hover': '#dcece3',
+        '--kit-surface-2': '#f3f3f3',
+        '--kit-line': '#e4e3e3',
+        '--kit-line-2': '#b8b6b6',
+        '--kit-ink': '#212121',
+        '--kit-ink-2': '#403c3c',
+        '--kit-ink-3': '#626060',
+        '--kit-accent': '#d62311',
+        '--kit-accent-ink': '#b51e10',
+        '--kit-accent-tint': '#fff0ed',
+        '--kit-accent-line': '#e8b6ae',
+        '--kit-accent-tint-hover': '#ffe2dc',
         '--kit-ok': '#12775a',
         '--kit-ok-tint': '#e1f2ea',
         '--kit-ok-line': '#bddccd',
@@ -43,35 +43,35 @@ const CORE = {
         '--kit-bad-line': '#e6b3b1',
         '--kit-amber': '#d98a0e',
         '--kit-need-warn': '#d99a1c',
-        '--kit-hero': '#17634f',
-        '--kit-hero-hover': '#124d3d',
+        '--kit-hero': '#d62311',
+        '--kit-hero-hover': '#a11b13',
         '--kit-hero-fg': '#ffffff',
         '--kit-status-dot-info': '#1f5fbf',
         '--kit-notification-info': '#2f6fd0',
-        '--kit-chart-tip-ground': '#1d2926',
-        '--kit-chart-tip-ink': '#edf3ef',
-        '--kit-chart-tip-line': '#1d2926',
+        '--kit-chart-tip-ground': '#212121',
+        '--kit-chart-tip-ink': '#f5f4f4',
+        '--kit-chart-tip-line': '#212121',
         '--kit-danger-fill': '#c0262d',
         '--kit-danger-fill-hover': '#a11d24',
         '--kit-danger-fill-ink': '#ffffff',
-        '--kit-skip-link-bg': '#124d3d',
-        '--kit-slider-ring': '#17634f',
+        '--kit-skip-link-bg': '#a11b13',
+        '--kit-slider-ring': '#d62311',
         '--kit-file-drop-refused': '#b4232c'
     },
     dark: {
-        '--kit-bg': '#151c19',
-        '--kit-surface': '#1c2520',
-        '--kit-surface-2': '#18211c',
-        '--kit-line': '#35433b',
-        '--kit-line-2': '#4d5e54',
-        '--kit-ink': '#edf3ef',
-        '--kit-ink-2': '#ccd8cf',
-        '--kit-ink-3': '#abbcb0',
-        '--kit-accent': '#81d5b1',
-        '--kit-accent-ink': '#99e0c1',
-        '--kit-accent-tint': '#1d352a',
-        '--kit-accent-line': '#416351',
-        '--kit-accent-tint-hover': '#294536',
+        '--kit-bg': '#171717',
+        '--kit-surface': '#202020',
+        '--kit-surface-2': '#252525',
+        '--kit-line': '#414040',
+        '--kit-line-2': '#646060',
+        '--kit-ink': '#f5f4f4',
+        '--kit-ink-2': '#dedbdb',
+        '--kit-ink-3': '#bbb7b7',
+        '--kit-accent': '#ff9187',
+        '--kit-accent-ink': '#ffb0a6',
+        '--kit-accent-tint': '#3b2421',
+        '--kit-accent-line': '#7e4c45',
+        '--kit-accent-tint-hover': '#512c27',
         '--kit-ok': '#5fd3a6',
         '--kit-ok-tint': '#102620',
         '--kit-ok-line': '#1f4a3c',
@@ -80,27 +80,27 @@ const CORE = {
         '--kit-bad': '#ff8088',
         '--kit-bad-tint': '#2d171c',
         '--kit-bad-line': '#70303b',
-        '--kit-amber': '#81d5b1',
+        '--kit-amber': '#f0b03a',
         '--kit-need-warn': '#f0b03a',
-        '--kit-hero': '#81d5b1',
-        '--kit-hero-hover': '#a3e3c7',
-        '--kit-hero-fg': '#11261b',
+        '--kit-hero': '#d62311',
+        '--kit-hero-hover': '#a11b13',
+        '--kit-hero-fg': '#ffffff',
         '--kit-status-dot-info': '#7db7ff',
         '--kit-notification-info': '#7db7ff',
-        '--kit-chart-tip-ground': '#26382d',
-        '--kit-chart-tip-ink': '#edf3ef',
-        '--kit-chart-tip-line': '#4d5e54',
+        '--kit-chart-tip-ground': '#302b2a',
+        '--kit-chart-tip-ink': '#f5f4f4',
+        '--kit-chart-tip-line': '#646060',
         '--kit-danger-fill': '#d93a44',
         '--kit-danger-fill-hover': '#c02e38',
         '--kit-danger-fill-ink': '#ffffff',
-        '--kit-skip-link-bg': '#81d5b1',
-        '--kit-slider-ring': '#81d5b1',
+        '--kit-skip-link-bg': '#ff9187',
+        '--kit-slider-ring': '#ff9187',
         '--kit-file-drop-refused': '#ff8088'
     }
 };
 const FONTS = {
-    display: "'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif",
-    sans: "'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    display: "'Hanken Grotesk Variable', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    sans: "'Hanken Grotesk Variable', system-ui, -apple-system, 'Segoe UI', sans-serif",
     mono: "'Spline Sans Mono Variable', 'Spline Sans Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
 };
 
@@ -165,17 +165,17 @@ function recolor(token, value, theme) {
         if (!dark && c.a === 1 && l > 0.995) return '#ffffff';
         const neutral = s < 0.2 || (h >= 190 && h <= 260 && s < 0.4);
         if (neutral) {
-            const nh = 145;
-            const ns = dark ? Math.min(0.12, 0.02 + s * 0.3) : Math.min(0.08, 0.02 + s * 0.3) * (1 - Math.max(0, l - 0.96) * 8);
+            const nh = 0;
+            const ns = dark ? Math.min(0.025, s * 0.1) : Math.min(0.025, s * 0.1) * (1 - Math.max(0, l - 0.96) * 8);
             return out({ ...fromHsl({ h: nh, s: ns, l }), a: c.a });
         }
         const red = h >= 330 || h <= 14;
         if (red) {
             if (BAD_NAME.test(token) && !ACCENT_NAME.test(token)) return out({ ...fromHsl({ h: 356, s, l }), a: c.a });
-            return out({ ...fromHsl({ h: 155, s: Math.min(0.55, s), l: dark ? Math.max(l, 0.3) : l }), a: c.a });
+            return out({ ...fromHsl({ h: 5, s: Math.min(0.86, s), l: dark ? Math.max(l, 0.3) : l }), a: c.a });
         }
         if (h > 14 && h <= 64) return out({ ...fromHsl({ h: 47, s, l }), a: c.a }); // amber -> caution yellow
-        if (h >= 90 && h <= 175) return out({ ...fromHsl({ h: 158, s, l }), a: c.a }); // green -> beacon teal-green
+        if (h >= 90 && h <= 175) return out({ ...fromHsl({ h: ACCENT_NAME.test(token) ? 5 : 158, s, l }), a: c.a }); // green -> beacon teal-green
         return lit; // blues, hue wheels
     });
 }
@@ -244,8 +244,8 @@ let css = `/* ==================================================================
  *   node ui/kit/tools/make-theme.mjs
  * Do not hand-edit tokens here; edit CORE in the generator and re-run.
  *
- * Identity: neutral surfaces, green actions, and clear status colors.
- * Geist provides one consistent type family across the product. Anatomy, states, radii, motion and sizes are the
+ * Identity: warm red actions, white/charcoal surfaces, and clear status colors.
+ * Hanken Grotesk provides one consistent type family across the product. Anatomy, states, radii, motion and sizes are the
  * kit's own and are not touched.
  *
  * Selectors are the kit's own two token selectors, repeated, so this sheet

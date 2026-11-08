@@ -1,3 +1,5 @@
+November 8 brand update: Ayan requested State Farm colors and Drive Safe & Save styling. Shared warm red actions, white/charcoal themes, Hanken Grotesk and outlined stacked Safe Home branding are implemented; see BRAND.md and the latest WORKLOG for actual release status. Sensor severity colors and account routing are unchanged.
+
 November 8 Dashboard entry: `/dashboard` is the primary CTA. Signed-out visitors see shared signup/sign-in; verified account credentials select customer or operator access. Fleet now refreshes while visible. See [DASHBOARD_ONBOARDING.md](DASHBOARD_ONBOARDING.md) and WORKLOG for rollout and release evidence.
 
 November 8 onboarding release: PR #63 is merged and production verified through main `23e3522` (run `42497040807`). It implements CLI batch inventory, private pairing cards, customer linking/management, operator fleet and receipt-based availability. See [ONBOARDING.md](ONBOARDING.md) and latest WORKLOG for current verification/deployment state. The canonical Uno Q hub receives real host-assisted controller readings at its pre-registered UT Dallas home; an earlier duplicate controller is disabled with history retained.

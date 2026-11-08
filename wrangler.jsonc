@@ -7,6 +7,8 @@
     "nodejs_compat"
   ],
   "vars": {
-    "MONGODB_DB": "utd_hackathon_26"
+    "MONGODB_DB": "utd_hackathon_26",
+    // Connected-card preview for the registered Uno Q and HomeBeacon boxes; telemetry is unchanged.
+    "WIFI_PREVIEW_DEVICE_IDS": "6af08de410eb36e804a787ed,6af078ec0c50e80b3a8af30c,6af078ee0c50e80b3a8af30e"
   }
 }

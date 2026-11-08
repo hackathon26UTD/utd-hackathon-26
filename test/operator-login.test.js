@@ -69,6 +69,33 @@ test('database operators work without a configured legacy operator', async () =>
   assert.equal((await readSession(sessionRequest(response), settings)).role, 'operator');
 });
 
+test('session startup exposes display preferences only to operators without changing readings', async () => {
+  const id = 'beac10000000000000000001';
+  const settings = { ...env, WIFI_PREVIEW_DEVICE_IDS: `invalid, ${id.toUpperCase()}, ${id},*` };
+  const observation = { deviceId: id, sensor: 'wifi_connected', value: false, ts: new Date('2026-11-08T16:00:00Z') };
+  await db.collection('readings').insertOne(observation);
+  const before = await db.collection('readings').find({}).toArray();
+  const signedIn = await signIn(operatorEmail, password, {}, settings);
+  const response = await login({ env: settings, request: sessionRequest(signedIn) });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.deepEqual(await response.json(), {
+    authenticated: true, email: operatorEmail, role: 'operator',
+    displayPreferences: { wifiConnectedDeviceIds: [id] },
+  });
+  const noPreview = await login({ env, request: sessionRequest(signedIn) });
+  assert.deepEqual((await noPreview.json()).displayPreferences, { wifiConnectedDeviceIds: [] });
+  const anonymous = await login({ env: settings, request: new Request(`${origin}/api/session`) });
+  assert.equal(anonymous.status, 401);
+  assert.deepEqual(await anonymous.json(), { authenticated: false });
+  await db.collection('operator_accounts').updateOne({ _id: operatorEmail }, { $set: { role: 'demo' } });
+  const demo = await signIn(operatorEmail, password, {}, settings);
+  const demoResponse = await login({ env: settings, request: sessionRequest(demo) });
+  assert.equal(demoResponse.status, 200);
+  assert.deepEqual(await demoResponse.json(), { authenticated: true, email: operatorEmail, role: 'demo' });
+  assert.deepEqual(await db.collection('readings').find({}).toArray(), before);
+});
+
 test('wrong passwords, unknown users and non-operator rows cannot create operator sessions', async () => {
   assert.equal((await signIn(operatorEmail, 'incorrect-password')).status, 401);
   assert.equal((await signIn('unknown@example.test', password, { role: 'operator' })).status, 401);
