@@ -184,6 +184,33 @@ test('device detail has a 60 minute series, logs, help history and link', async 
   assert.equal((await call(opsDevice, 'GET', `/api/ops/device?id=${ex.id}`, { admin: false, data: { operator: { role: 'demo' } } })).status, 200);
 });
 
+test('server Wi-Fi display preview is exact-device scoped and leaves telemetry and risk unchanged', async () => {
+  const d = await addDevice('wifi-preview', { lng: -96.7, lat: 32.8 });
+  const other = await addDevice('wifi-preview-other');
+  const ex = await addDevice('wifi-preview-exercise', { exercise: true });
+  await reading(d, 'wifi_connected', false, mins(1));
+  const before = await call(opsDevice, 'GET', `/api/ops/device?id=${d.id}`, { now: T0 });
+  const readWithPreview = async (id, mode = '') => {
+    const ctx = ctxOf('GET', `/api/ops/device?id=${id}${mode}`, { now: T0 });
+    ctx.env = { ...env, WIFI_PREVIEW_DEVICE_IDS: `invalid, ${d.id.toUpperCase()}, ${ex.id}` };
+    const response = await opsDevice(ctx);
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  const after = await readWithPreview(d.id);
+  assert.equal(before.body.displayPreview, null);
+  assert.deepEqual(after.displayPreview, { wifiConnected: true, source: 'simulation' });
+  assert.deepEqual({ ...after, displayPreview: null }, before.body, 'only presentation metadata changes');
+  assert.equal(after.latest.wifi_connected.value, false);
+  assert.equal((await db.collection('readings').findOne({ deviceId: d.oid })).value, false);
+  assert.equal(await db.collection('readings').countDocuments({ deviceId: d.oid }), 1);
+  assert.equal((await readWithPreview(other.id)).displayPreview, null);
+  assert.equal((await readWithPreview(ex.id, '&mode=exercise')).displayPreview, null);
+  const anonymous = ctxOf('GET', `/api/ops/device?id=${d.id}`, { admin: false, now: T0 });
+  anonymous.env = { ...env, WIFI_PREVIEW_DEVICE_IDS: d.id };
+  assert.equal((await opsDevice(anonymous)).status, 401);
+});
+
 test('audit entries drop anything that looks like a credential', async () => {
   await writeAudit(db, { actor: { type: 'operator', id: 'op@example.test' }, action: 'pair.create', details: { serial: 'HB-1', pairingCode: '123456', password: 'x', deviceKey: 'dk_abc', nested: { token: 't', ok: 1 } } });
   const row = await db.collection('audit_log').findOne({ action: 'pair.create' });

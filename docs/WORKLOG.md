@@ -798,3 +798,11 @@ Changes: `scripts/boxes-to-dashboard.mjs` reads box A's `HB {json}` serial lines
 Verification: the user dipped the water sensor → box A `water.detected` 201, readings/telemetry 202; the live command center showed box A "Immediate review / critical / Water detected indoors" with an open flood incident; box B "Reporting / normal" via mesh (0 hops into box A). Box B went silent once (box A raised `box_B.silent`); a reset brought it back.
 
 Open: box A Wi-Fi is not working (laptop is the gateway; say so to judges); the flame sensor reads true in ambient light (turn the pot down); the Uno Q buzzer fix is not flashed.
+
+## November 8 — Automatic Uno Q Wi-Fi card preview (Ayan integration workstream)
+
+User asked to remove the Wi-Fi simulation switch and enable the display in the backend, then clarified that the Conditions card should simply say Connected. Replaced the per-tab preference with an exact-device server setting for the canonical Uno Q in `wrangler.jsonc`. Device detail returns separate presentation metadata only in live mode. The Conditions card reads Connected automatically; Sensors retains the simulation explanation and actual measurements. Removed the switch, help row and browser storage preference. Other boxes, exercise records, recorded telemetry, risk and model evidence are unchanged.
+
+Verified the production target is the registered, active Uno Q hub and its actual Wi-Fi observation is false. Fifteen focused API tests pass, including exact-device scoping, exercise/anonymous exclusion and full-response equality apart from the preview metadata. The initial sandboxed test could not bind a local MongoDB port; the authorized local rerun passed. UI and deployment verification follow. No physical networking or sensor records were changed.
+
+Local verification: four presentation tests pass and UI/Functions build passes with the existing unenv warning. Disposable browser QA confirms automatic Connected after refresh, no switch/help row, and unchanged false Wi-Fi observation plus simulation provenance in Sensors. The Conditions summary leaves the recorded Wi-Fi row to Sensors while previewing it. Console has no errors; proof image is outside the repository. No production telemetry or model calls were used in UI QA.
