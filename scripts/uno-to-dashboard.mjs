@@ -98,7 +98,7 @@ async function upload(m) {
     if (m.flame !== last.flame) events.push(m.flame ? 'flame.detected' : 'flame.cleared');
     if (m.tilt !== last.tilt) events.push(m.tilt ? 'tilt.detected' : 'tilt.cleared');
   }
-  for (const type of events) { const status=await post('/api/events', { type, data: { box: live ? 'unoq-live' : 'bench-unoq', event_id: `bench-${run}-${seq}-${type}`, observed_at: now } }); if(status!==202)throw Error('Event write not confirmed; stopped for review'); }
+  for (const type of events) { const status=await post('/api/events', { type, data: { box: live ? 'unoq-live' : 'bench-unoq', event_id: `bench-${run}-${seq}-${type}`, observed_at: now } }); if(status!==201)throw Error('Event write not confirmed; stopped for review'); }
   console.log(`${changed ? 'CHANGE   ' : 'heartbeat'} water=${m.water ? 'WET' : 'dry'}(${m.water_raw}) flame=${m.flame ? 'YES' : 'no'}(${m.flame_raw}) tilt=${m.tilt ? 'YES' : 'no'}  -> telemetry ${t}, readings ${r}${events.length ? `, events ${events.join(' ')}` : ''}`);
   last = m;
 }
