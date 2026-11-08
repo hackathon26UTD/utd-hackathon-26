@@ -104,3 +104,44 @@ The parent-added package script already calls the correct preview CLI and was le
 - Upload racing email migration can leave an unreachable old-generation row; it cannot select/expose another account's image. Photo account-deletion/orphan retention cleanup remains future work.
 - Current customer emails are not verified. Before delivery: explicit alert opt-in, verified recipient/re-verification, server-only recipient resolution, idempotency/retry controls, unsubscribe/preferences enforcement, provider/sender setup and privacy/retention review. No automatic outbox or recipients are enabled.
 - Full combined product checks/deployment are parent responsibilities; existing unenv warning remains.
+
+## Round 1 correction: account isolation and rename/upload concurrency
+
+November 8, 2026. Addresses P1 and P2 in `task-2-review.md`. This section supersedes the original report's timestamp-based identity, image-move migration and tolerated-orphan claims. The review reproduced a real authorization failure and a user-visible lost upload; those outcomes were not acceptable cleanup limitations.
+
+### Final changes
+
+- `src/operator-session.js`: session issuance persists a random immutable `sessionGeneration` on account records and signs that value as `accountGeneration`. Actual account generation, rather than timestamp equality, distinguishes deleted/recreated accounts. Legacy configured operators receive an account generation too; deleting their profile invalidates their cookie. Added shared exact-account authorization checks for generation, creation/password-change times, expiry, disablement and operator role. Retained the explicit PR37 customer `createdAt` check. Photo access and persisted database-account session checks require a bound generation and a new sign-in for pre-fix cookies; signature-only fixture helpers retain their prior behavior outside the photo API.
+- `src/profile-photo.js`: v2 keys hash namespace/role/generation and are independent of email. Each operation checks the signed generation against the exact account snapshot used to derive its key. Upload bytes are fully bounded/validated before opening a transaction. PUT/DELETE increment the account's `photoRevision` and mutate the image in one snapshot transaction; rename's account deletion, revocation, disablement and replacement conflict with that write. Automatic transaction retry rechecks authorization. A stale mutation returns 401, never saved:true. If the mutation commits first, rename preserves the same photo key.
+- `migrateProfilePhoto` keeps the parent's existing signature and call order. It now checks that the copied destination account retained the original generation. No binary move occurs. An account without a generation cannot own a v2 photo and needs no migration. No parent-owned source was edited.
+- `test/profile-photo.test.js`: added deterministic database/body scheduling reproductions using the actual parent's `accountHandler`, plus operation/role variants. No timing sleeps or production access are used.
+- `test/operator-login.test.js`: actual operator sign-in tests demonstrate revocation after same-email/identical-timestamp recreation for both provisioned and configured legacy operators.
+- `docs/PROFILE_PHOTOS.md`: updated identity, transaction, migration and upgrade contracts. Email renderer, preview, existing UI and image parser were not changed in this round.
+
+### Reproduction evidence
+
+1. **P1 customer lookup:** pause the second, transaction-scoped customer lookup after initial cookie authorization. Run actual password-confirmed email rename, recreate the freed email with identical creation timestamp/credentials and a fresh random generation, and save its own different photo. Resume original GET, PUT and DELETE independently. All return 401; replacement GET returns the exact replacement bytes, unchanged. Subsequent old-cookie GET also returns 401.
+2. **P1 operator recreation:** both account-backed and configured legacy operator cookies are issued before deleting/recreating the same email, role, timestamp and credentials. Old GET/PUT/DELETE all return 401; a newly signed-in replacement retains its own photo. Separate operator-login tests exercise the real sign-in endpoint rather than only the token helper.
+3. **P2 blocked body:** pause first upload and replacement upload while their bounded bodies are unread. Complete the actual parent rename, then release valid raster bytes. Both old-cookie uploads return 401. The new cookie sees no photo for the first-upload case, or the exact prior image for replacement. No extra image row is written. Retrying with the new cookie succeeds and becomes visible under the same immutable owner key.
+4. **P2 account-write conflict:** pause PUT/DELETE after reading the transaction account snapshot but immediately before the guarded account increment. Commit the actual rename, resume the write, and let MongoDB retry its conflict. Reauthorization returns 401 and the renamed account's previous image remains unchanged. This covers the gap that merely moving body reads would leave open.
+5. **Other lifecycle checks:** disablement/password revocation between initial auth and the exact lookup is rejected for customer/operator reads. Pre-fix unbound customer/operator cookies cannot GET/PUT/DELETE bound account photos. Existing photo roundtrip, parser, browser, origin and role checks still run.
+
+### Targeted tests and build
+
+Final regression command:
+
+```sh
+node --test test/profile-photo.test.js test/operator-login.test.js test/account.test.js test/customer-connect.test.js test/customer.test.js test/homebeacon.test.js test/portal.test.js
+```
+
+61 tests passed, zero failed/skipped. This includes the complete photo suite, customer-connect suite requested for the authentication change, actual operator login/recovery, customer registration/authentication, and portal/session tests. All databases were disposable local test databases. Installed Chrome's widget test ran successfully. No application credentials or production accounts were used.
+
+Cloudflare Pages Functions compiled successfully to `/private/tmp/homebeacon-task2-round1-functions` with the existing `unenv/whatwg-url` warning. Source whitespace checks passed. Full combined product testing/deployment remains parent-owned.
+
+### Parent integration and upgrade concerns
+
+No change is needed to the currently observed parent `accountHandler` call: it already inserts `{...current, _id:next, ...}`, invokes `migrateProfilePhoto(db,{oldEmail:email,newEmail:next,account:current,session})`, then deletes the old account in the same transaction. Preserve `sessionGeneration` in that spread and preserve the transactional deletion; both are part of the concurrency contract. All independent new registrations must receive a new generation, never a copied one. The helper lazily initializes missing generations at trusted session issuance. Existing UI mounts stay unchanged.
+
+Security upgrade behavior is explicit: pre-fix email/timestamp-keyed photo rows are not read or automatically adopted because their owner cannot be proven across email/timestamp reuse. Previously uploaded pre-fix images require re-upload after sign-in; those old rows remain inaccessible until a separately scoped cleanup. Bound v2 photos retain their key across subsequent renames. Existing unbound cookies require signing in again before photo access. No claim is made that old-format images migrate transparently.
+
+The earlier report described an unreachable successful upload as future cleanup. That is now corrected: stale writes are rejected, and successful v2 writes remain attached to the immutable account identity. Physical hardware/history work, simulation fixes, parent UI/account files, email delivery and deployment remain outside this worker change. No subagents were used. The report was already tracked and is staged normally, without force-adding ignored files.

@@ -2,11 +2,12 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
-import { MongoClient, Binary } from 'mongodb';
-import { issueCustomerSession, customerCookie, issueSession, sessionCookie } from '../src/operator-session.js';
+import { MongoClient, Binary, Collection } from 'mongodb';
+import { issueCustomerSession, customerCookie, issueSession, sessionCookie, passwordHash, readSession } from '../src/operator-session.js';
 import { validateProfilePhoto, MAX_PHOTO_BYTES, migrateProfilePhoto, profilePhotoKey, PHOTO_COLLECTION } from '../src/profile-photo.js';
 import { onRequest as customerPhoto } from '../functions/api/customer/photo.js';
 import { onRequest as operatorPhoto } from '../functions/api/profile-photo.js';
+import { accountHandler } from '../src/customer-self-service.js';
 import { onRequest as middleware } from '../functions/api/_middleware.js';
 function crc(b){let c=0xffffffff;for(const byte of b){c^=byte;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}return(c^0xffffffff)>>>0;}
 function chunk(name,data){const type=Buffer.from(name),length=Buffer.alloc(4),checksum=Buffer.alloc(4);length.writeUInt32BE(data.length);checksum.writeUInt32BE(crc(Buffer.concat([type,data])));return Buffer.concat([length,type,data,checksum]);}
@@ -85,31 +86,35 @@ test('size limits include streamed body with no Content-Length; unsupported MIME
 });
 test('bootstrap operator gets stable generation, role-isolated photo survives salt change',async()=>{
   assert.equal((await call('operator','PUT',operator,photo)).status,200);
-  const account=await db.collection('operator_accounts').findOne({_id:env.OPERATOR_EMAIL});assert.ok(account.profilePhotoId);
+  const account=await db.collection('operator_accounts').findOne({_id:env.OPERATOR_EMAIL});assert.ok(account.sessionGeneration);
   await db.collection('operator_accounts').updateOne({_id:env.OPERATOR_EMAIL},{$set:{salt:'changed'}});
   assert.equal((await call('operator','GET',operator)).status,200);
   assert.equal((await call('customer','GET',a)).status,404);
   assert.equal((await call('operator','DELETE',operator)).status,204);
 });
-test('migration hook moves photo; re-registering old email never inherits image',async()=>{
+test('migration preserves immutable photo key and rolls back with parent transaction',async()=>{
   await migrateProfilePhoto(db,{oldEmail:'legacy@example.test',newEmail:'other@example.test',account:{}});
   await call('customer','PUT',a,photo);
   const account=await db.collection('customer_accounts').findOne({_id:'a@example.test'});
+  const oldKey=await profilePhotoKey('customer',account._id,account);
+  assert.equal(oldKey,await profilePhotoKey('customer','new@example.test',account));
+  assert.notEqual(oldKey,await profilePhotoKey('customer',account._id,{...account,sessionGeneration:crypto.randomUUID()}));
   const session=client.startSession();
+  const move=async()=>{
+    await db.collection('customer_accounts').insertOne({...account,_id:'new@example.test'}, {session});
+    await migrateProfilePhoto(db,{oldEmail:account._id,newEmail:'new@example.test',account,session});
+    await db.collection('customer_accounts').deleteOne({_id:account._id},{session});
+  };
   try {
-    await assert.rejects(session.withTransaction(async()=>{
-      await migrateProfilePhoto(db,{oldEmail:account._id,newEmail:'new@example.test',account,session});
-      throw Error('rollback-check');
-    }),/rollback-check/);
+    await assert.rejects(session.withTransaction(async()=>{await move();throw Error('rollback-check');}),/rollback-check/);
     assert.equal((await call('customer','GET',a)).status,200);
-    await session.withTransaction(()=>migrateProfilePhoto(db,{oldEmail:account._id,newEmail:'new@example.test',account,session}));
+    await session.withTransaction(move);
   } finally {await session.endSession();}
-  assert.equal((await call('customer','GET',a)).status,404);
-  await db.collection('customer_accounts').insertOne({...account,_id:'new@example.test'});
+  assert.equal((await call('customer','GET',a)).status,401);
   const next=customerCookie(await issueCustomerSession(env,'new@example.test'));
   assert.equal((await call('customer','GET',next)).status,200);
-  assert.notEqual(await profilePhotoKey('customer',account._id,account),await profilePhotoKey('customer',account._id,{createdAt:new Date(100)}));
-  await migrateProfilePhoto(db,{oldEmail:account._id,newEmail:'new@example.test',account}); // idempotent after removal
+  assert.ok(await db.collection(PHOTO_COLLECTION).findOne({_id:oldKey}));
+  await migrateProfilePhoto(db,{oldEmail:account._id,newEmail:'new@example.test',account});
 });
 test('revoked and deleted customer sessions cannot read a photo',async()=>{
   await db.collection('customer_accounts').updateOne({_id:'b@example.test'},{$set:{passwordChangedAt:new Date(Date.now()+1000)}});
@@ -165,4 +170,136 @@ test('browser widget uploads resized JPEG, announces errors/removal, cleans up, 
     assert.equal(await page.getByRole('button',{name:'Remove photo'}).isDisabled(),true);
     await page.evaluate(()=>window.cleanup());assert.equal(await page.locator('#mount').textContent(),'');
   } finally {await browser.close();}
+});
+
+const renamePassword='synthetic-rename-password';
+async function newCustomer(email, createdAt=new Date(1)) {
+  const salt='synthetic-generation-salt';
+  await db.collection('customer_accounts').insertOne({_id:email,createdAt,salt,hash:await passwordHash(renamePassword,salt)});
+  const cookie=customerCookie(await issueCustomerSession(env,email));
+  return {cookie,account:await db.collection('customer_accounts').findOne({_id:email})};
+}
+async function renameCustomer(cookie,newEmail) {
+  const response=await accountHandler({env,db,request:new Request('https://home.test/api/customer/account',{
+    method:'PATCH',headers:{Cookie:cookie,Origin:'https://home.test','Content-Type':'application/json'},
+    body:JSON.stringify({email:newEmail,confirmEmail:newEmail,password:renamePassword}),
+  })});
+  assert.equal(response.status,200,await response.clone().text());
+  return response.headers.get('Set-Cookie');
+}
+test('P1: paused customer lookup cannot read, overwrite or delete a renamed-and-reused email generation',async t=>{
+  for(const method of ['GET','PUT','DELETE']) {
+    const email=`p1-${method.toLowerCase()}@example.test`, renamed=`renamed-${email}`;
+    const original=await newCustomer(email), replacementPhoto=png(1,1,Buffer.from([0,0,0,255,255]));
+    await call('customer','PUT',original.cookie,photo);
+    const find=Collection.prototype.findOne;let intercepted=false,replacement;
+    const mock=t.mock.method(Collection.prototype,'findOne',async function(filter,options){
+      if(this.collectionName==='customer_accounts'&&filter._id===email&&options?.session&&!intercepted) {
+        intercepted=true;
+        await renameCustomer(original.cookie,renamed);
+        // Same timestamp/credentials intentionally: only the random generation distinguishes owners.
+        replacement=await newCustomer(email,original.account.createdAt);
+        assert.notEqual(original.account.sessionGeneration,replacement.account.sessionGeneration);
+        assert.equal((await call('customer','PUT',replacement.cookie,replacementPhoto)).status,200);
+      }
+      return find.call(this,filter,options);
+    });
+    let response;
+    try {response=await call('customer',method,original.cookie,method==='PUT'?photo:undefined);}
+    finally {mock.mock.restore();}
+    assert.ok(intercepted);assert.equal(response.status,401);
+    const untouched=await call('customer','GET',replacement.cookie);
+    assert.equal(untouched.status,200);assert.deepEqual(Buffer.from(await untouched.arrayBuffer()),replacementPhoto);
+    assert.equal((await call('customer','GET',original.cookie)).status,401);
+  }
+});
+test('P1: account-backed and legacy operator email reuse rejects old cookies for GET/PUT/DELETE',async()=>{
+  for(const legacy of [false,true]) {
+    const email=legacy?env.OPERATOR_EMAIL:'generation-operator@example.test';
+    await db.collection('operator_accounts').deleteOne({_id:email});
+    const fixture={_id:email,createdAt:new Date(1),...(legacy?{}:{role:'operator'}),salt:'identical-salt'};
+    await db.collection('operator_accounts').insertOne(fixture);
+    const oldCookie=sessionCookie(await issueSession(env,email,'operator',{accountBacked:!legacy}));
+    await db.collection('operator_accounts').deleteOne({_id:email});
+    await db.collection('operator_accounts').insertOne(fixture);
+    const replacementCookie=sessionCookie(await issueSession(env,email,'operator',{accountBacked:!legacy}));
+    assert.equal((await call('operator','PUT',replacementCookie,photo)).status,200);
+    assert.equal(await readSession(new Request('https://home.test',{headers:{Cookie:oldCookie}}),env),null);
+    for(const method of ['GET','PUT','DELETE']) assert.equal((await call('operator',method,oldCookie,method==='PUT'?photo:undefined)).status,401);
+    assert.equal((await call('operator','GET',replacementCookie)).status,200);
+  }
+});
+test('P2: first and replacement uploads paused on body reject after actual email rename without orphan writes',async()=>{
+  for(const existing of [false,true]) {
+    const email=`paused-body-${existing}@example.test`, next=`next-${email}`, original=await newCustomer(email);
+    if(existing)assert.equal((await call('customer','PUT',original.cookie,photo)).status,200);
+    let reading,release;
+    const started=new Promise(resolve=>{reading=resolve;}), resume=new Promise(resolve=>{release=resolve;});
+    const replacement=png(1,1,Buffer.from([0,255,255,0,255]));
+    const body=new ReadableStream({async pull(controller){reading();await resume;controller.enqueue(replacement);controller.close();}},{highWaterMark:0});
+    const request=new Request('https://home.test/api/customer/photo',{method:'PUT',duplex:'half',headers:{Cookie:original.cookie,Origin:'https://home.test','Content-Type':'image/png'},body});
+    const pending=customerPhoto({env,request});
+    await started;
+    let nextCookie;
+    try {nextCookie=await renameCustomer(original.cookie,next);}finally{release();}
+    assert.equal((await pending).status,401);
+    const current=await call('customer','GET',nextCookie);
+    assert.equal(current.status,existing?200:404);
+    if(existing)assert.deepEqual(Buffer.from(await current.arrayBuffer()),photo);
+    const key=await profilePhotoKey('customer',email,original.account);
+    assert.equal(await db.collection(PHOTO_COLLECTION).countDocuments({_id:key}),existing?1:0);
+    // Retrying after sign-in saves to the same immutable key and is visible at the new email.
+    assert.equal((await call('customer','PUT',nextCookie,replacement)).status,200);
+    assert.deepEqual(Buffer.from(await (await call('customer','GET',nextCookie)).arrayBuffer()),replacement);
+  }
+});
+test('P2: rename after mutation snapshot conflicts with PUT and DELETE and reauthorizes on retry',async t=>{
+  for(const method of ['PUT','DELETE']) {
+    const email=`guard-${method.toLowerCase()}@example.test`, original=await newCustomer(email);
+    await call('customer','PUT',original.cookie,photo);
+    const update=Collection.prototype.updateOne;let intercepted=false,nextCookie;
+    const mock=t.mock.method(Collection.prototype,'updateOne',async function(filter,change,options){
+      if(this.collectionName==='customer_accounts'&&filter._id===email&&change.$inc?.photoRevision&&options?.session&&!intercepted) {
+        intercepted=true;nextCookie=await renameCustomer(original.cookie,`renamed-${email}`);
+      }
+      return update.call(this,filter,change,options);
+    });
+    let response;
+    try{response=await call('customer',method,original.cookie,method==='PUT'?png(1,1,Buffer.from([0,0,255,0,255])):undefined);}
+    finally{mock.mock.restore();}
+    assert.ok(intercepted);assert.equal(response.status,401);
+    const current=await call('customer','GET',nextCookie);assert.equal(current.status,200);
+    assert.deepEqual(Buffer.from(await current.arrayBuffer()),photo);
+  }
+});
+test('P1: revocation or disablement between initial auth and exact snapshot denies photo reads',async t=>{
+  for(const kind of ['customer','operator'])for(const change of ['disabled','passwordChangedAt']) {
+    const email=`snapshot-${kind}-${change.toLowerCase()}@example.test`;
+    const accounts=db.collection(kind==='customer'?'customer_accounts':'operator_accounts');
+    let cookie;
+    if(kind==='customer')cookie=(await newCustomer(email)).cookie;
+    else {await accounts.insertOne({_id:email,role:'operator'});cookie=sessionCookie(await issueSession(env,email,'operator',{accountBacked:true}));}
+    await call(kind,'PUT',cookie,photo);
+    const find=Collection.prototype.findOne;let intercepted=false;
+    const mock=t.mock.method(Collection.prototype,'findOne',async function(filter,options){
+      if(this.collectionName===accounts.collectionName&&filter._id===email&&options?.session&&!intercepted) {
+        intercepted=true;await accounts.updateOne({_id:email},{$set:{[change]:change==='disabled'?true:new Date(Date.now()+1000)}});
+      }
+      return find.call(this,filter,options);
+    });
+    try{assert.equal((await call(kind,'GET',cookie)).status,401);}finally{mock.mock.restore();}
+    assert.ok(intercepted);
+  }
+});
+
+test('unbound pre-fix cookies cannot adopt a database account or its photos',async()=>{
+  const customer=await newCustomer('unbound-photo@example.test');
+  await call('customer','PUT',customer.cookie,photo);
+  const signatureOnly={SESSION_SECRET:env.SESSION_SECRET};
+  const oldCustomer=customerCookie(await issueCustomerSession(signatureOnly,customer.account._id));
+  const oldOperator=sessionCookie(await issueSession(signatureOnly,env.OPERATOR_EMAIL));
+  for(const [kind,cookie] of [['customer',oldCustomer],['operator',oldOperator]]) {
+    for(const method of ['GET','PUT','DELETE'])assert.equal((await call(kind,method,cookie,method==='PUT'?photo:undefined)).status,401);
+  }
+  assert.equal((await call('customer','GET',customer.cookie)).status,200);
 });
