@@ -119,7 +119,7 @@ export async function mountCommand(env) {
   ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
   ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
   mv.on('error', () => { $('#map-status').textContent = 'Map unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
-  mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else fitNational(); } });
+  mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else { S.nationalFitted = true; mv.fitConus(); } } });
   mv.handlers.base = () => { updateMapSource(); ctx.toolbar.sync(); };
   mv.map.on('style.load', updateMapSource);
   function updateMapSource() { $('#map-status').textContent = mv.styleKey === 'topo' ? 'Topographic map · USGS The National Map. Geographic context only.' : 'Street map · OpenFreeMap / OpenStreetMap. Geographic context only.'; } // MAP-V2
