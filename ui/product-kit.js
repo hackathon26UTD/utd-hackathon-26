@@ -37,6 +37,6 @@ export function startProductKit(){
    if([...record.addedNodes].some(n=>n.nodeType===1)||target.matches('select'))refresh(target);
   }
  });observer.observe(document.body,options);refresh();
- const top=document.createElement('button');top.className='kit-btn hb-theme-toggle';top.type='button';top.setAttribute('aria-label','Switch color theme');top.textContent='◐';top.onclick=()=>window.HomeBeaconKit.toggleTheme();document.body.append(top);
+ document.addEventListener('click',e=>{if(e.target.closest('[data-theme-toggle]'))window.HomeBeaconKit.toggleTheme();});
  return {refresh,stop:()=>observer.disconnect()};
 }

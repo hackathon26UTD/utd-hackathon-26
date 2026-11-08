@@ -4,7 +4,7 @@ startProductKit();
 const root = document.getElementById('customer');
 const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };
 const POLL_MS = 20000;
-const state = { user: null, devices: null, tab: 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
+const state = { user: null, devices: null, tab: new URLSearchParams(location.search).get('mode') === 'signin' ? 'signin' : 'link', msg: {}, prefill: readClaimFragment(), seen: new Set(), confirm: null, failures: 0, timer: null };
 
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -61,21 +61,22 @@ function deviceFields(prefix) {
 function guestView() {
   const link = state.tab === 'link';
   const regForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'reg', async f => {
-    const r = await api('/api/customer/register', 'POST', { email: f.email, password: f.password, serial: f.serial, code: f.code, contactName: f.contactName, consent: !!f.consent, ...(f.nickname ? { nickname: f.nickname } : {}) });
+    const r = await api('/api/customer/register', 'POST', { email: f.email, password: f.password, serial: f.serial, code: f.code, contactName: f.contactName, consent: !!f.consent, acceptTerms: !!f.acceptTerms, ...(f.nickname ? { nickname: f.nickname } : {}) });
     if (!r.ok) return say('reg', r.data.error || 'Something went wrong. Try again.');
     state.prefill = null; say('reg', ''); await enter();
   }); } },
   ...deviceFields(), field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Choose a password', 'password', { type: 'password', auto: 'new-password', hint: 'At least 10 characters', max: 512 }),
-  h('button', { class: 'primary', type: 'submit' }, 'Link my device'), msgEl('reg'));
+  h('label', { class: 'check', for: 'f-terms' }, h('input', { type: 'checkbox', id: 'f-terms', name: 'acceptTerms', required: true }), h('span', null, 'I agree to the ', h('a', { href: '/terms', target: '_blank', rel: 'noopener' }, 'prototype terms'), ' and have read the ', h('a', { href: '/privacy', target: '_blank', rel: 'noopener' }, 'privacy policy'), '.')),
+  h('button', { class: 'primary', type: 'submit' }, 'Create account and link device'), msgEl('reg'));
   const inForm = h('form', { onsubmit: e => { e.preventDefault(); submit(e.target, 'login', async f => {
     const r = await api('/api/customer/login', 'POST', { email: f.email, password: f.password });
     if (!r.ok) return say('login', r.data.error || 'Something went wrong. Try again.');
     say('login', ''); await enter();
   }); } }, field('Email', 'email', { type: 'email', auto: 'email', max: 254 }), field('Password', 'password', { type: 'password', auto: 'current-password', max: 512 }), h('button', { class: 'primary', type: 'submit' }, 'Sign in'), msgEl('login'));
-  const tab = (id, text) => h('button', { type: 'button', 'aria-pressed': String(state.tab === id), onclick: () => { state.tab = id; render(); } }, text);
+  const tab = (id, text) => h('button', { type: 'button', id: 'customer-tab-' + id, 'aria-pressed': String(state.tab === id), onclick: () => { state.tab = id; render(); document.getElementById('customer-tab-' + id)?.focus(); } }, text);
   return [
     h('h1', null, link ? 'Link your HomeBeacon' : 'Sign in'),
-    h('p', { class: 'muted' }, 'See what your device last reported and any updates from the response team. This does not replace emergency services.'),
+    h('p', { class: 'muted' }, 'See your device reports and updates from the response team.'),
     h('div', { class: 'tabs', role: 'group', 'aria-label': 'Choose' }, tab('link', 'Link a device'), tab('signin', 'I have an account')),
     h('section', { class: 'card' }, link ? regForm : inForm),
   ];
@@ -146,10 +147,10 @@ async function enter() {
 async function signOut() { stop(); await api('/api/customer/logout', 'POST'); state.user = null; state.devices = null; state.tab = 'signin'; render(); }
 
 function render() {
-  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'HomeBeacon'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
+  const top = h('div', { class: 'top' }, h('a', { class: 'brand', href: '/' }, 'HomeBeacon'), !state.user && h('a', { href: '/login' }, 'Account type'), state.user && h('button', { type: 'button', onclick: signOut }, 'Sign out'));
   const foot = h('footer', null,
     h('p', { class: 'fine' }, 'HomeBeacon shows what your device last reported. It cannot tell you whether your home is safe, and it does not know if anyone is inside. In an emergency call 911.'),
-    h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'));
+    h('p', { class: 'fine' }, 'Your name is shared with the response team. Your email is shared only if you allowed contact.'), h('nav', { class: 'footer-links', 'aria-label': 'Policies' }, h('a', { href: '/privacy' }, 'Privacy'), h('a', { href: '/terms' }, 'Terms'), h('a', { href: '/accessibility' }, 'Accessibility'), h('button', { type: 'button', 'data-theme-toggle': '' }, 'Switch theme')));
   root.replaceChildren(h('div', { class: 'shell' }, top, h('main', { id: 'main' }, ...(state.user ? appView() : guestView())), foot));
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.user) refresh(); });

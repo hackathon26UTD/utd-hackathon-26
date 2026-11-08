@@ -1,11 +1,13 @@
 # HomeBeacon current project context
 
+> November 7 interface update: the user requested a simple, direct website and integration of the newly pushed map. The redesign branch uses a full-viewport satellite canvas with floating tools and on-demand evidence, separate full Overview/Devices/Activity/Demo workspaces, an interactive homepage hurricane preview, homeowner/operator entry paths, explicit registration terms, and unified neutral/green Geist styling. This supersedes older dusk/paper and decorative-homepage notes below. Public demo scenarios use a separate read-only API. Live hazard coverage remains source-dependent; NWS national scope is optional and nationwide imagery is context only.
+
 > System integration: [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md) defines the additive evidence/Nemotron backend and power-policy reference. The user chose a labeled simulator for now; actual NVIDIA inference and automatic firmware load shedding remain unverified. A November 7 6:53 PM screenshot confirms pickup, including **one** AA holder (not the earlier draft's two).
 
-> Design correction: Ayan rejected the current command layout. The evolving [map-only contract](design/COMMAND_CENTER_MAP_ONLY.md) locks a U.S. disaster-region-first map with tools on demand, devices revealed on zoom, and expandable cards anchored to selected houses. Compact cards show status, attention reason and last report time. Ayan approved the rendered satellite-map direction for Astra to develop and refine. That direction is accepted; the production replacement remains implementation work.
+> Design correction: Ayan rejected the current command layout. The evolving [map-only contract](design/COMMAND_CENTER_MAP_ONLY.md) locks a U.S. disaster-region-first map with tools on demand, devices revealed on zoom, and expandable cards anchored to selected houses. Compact cards show status, attention reason and last report time. Ayan approved the rendered satellite-map direction for Astra to develop and refine. That direction is integrated in the redesign preview; later full-view navigation follows the user’s expanded request.
 
 
-> Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
+> Latest continuation: [CLAUDE_CONTINUATION.md](CLAUDE_CONTINUATION.md). The actual Argus kit, customer role and live/risk/downlink modules remain. The neutral interface update above supersedes the older dusk/paper theme.
 
 
 Updated November 7, 2026, America/Chicago. Owner of this handoff stream: Ayan Basheer. Read [Ayan's full handoff](handovers/AYAN-2026-11-07.md) and [request history](history/AYAN_REQUESTS_2026-11-07.md), then verify current branches and providers.
@@ -26,7 +28,7 @@ The exact State Farm event challenge and complete current track inventory remain
 
 ## Actual stack and resources
 
-Vanilla JS/CSS/static HTML with esbuild, Cloudflare Pages Functions, MongoDB Atlas, MapLibre/OpenFreeMap and self-hosted Geist/Bricolage. See [architecture](ARCHITECTURE.md).
+Vanilla JS/CSS/static HTML with esbuild, Cloudflare Pages Functions, MongoDB Atlas, MapLibre with USGS imagery/OpenFreeMap street context and self-hosted Geist/Spline Sans Mono. See [architecture](ARCHITECTURE.md).
 
 - Private repo: https://github.com/hackathon26UTD/utd-hackathon-26
 - Live: https://utd-hackathon-26.pages.dev/

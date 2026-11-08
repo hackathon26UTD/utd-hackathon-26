@@ -1,6 +1,6 @@
 # Feeds and overlays (module B)
 
-The server fetches public hazard feeds, keeps them in MongoDB and serves them as GeoJSON. The browser never calls an upstream. Operators also draw their own zones. Everything here is map context. It does not say who is inside a zone, whether entry is safe, or what is damaged.
+The server fetches public hazard feeds, keeps them in MongoDB and serves them as GeoJSON. Hazard-feed requests stay server-side; the browser requests basemap imagery/tiles directly from the attributed map provider. Operators also draw their own zones. Everything here is map context. It does not say who is inside a zone, whether entry is safe, or what is damaged.
 
 ## Endpoints
 
@@ -27,7 +27,7 @@ Errors are `{error}`: 400 bad input or "Zoom in" (with `layer`, `minZoom`), 403 
 | --- | --- | --- | --- | --- |
 | `nfhl` | FEMA NFHL MapServer layer 28 | 24 h | polygons `FLD_ZONE,SFHA_TF,ZONE_SUBTY` | Box wider than 0.75 degrees is refused (zoom 11+). Up to 4 pages of 500 per tile; dense tiles come back `truncated`. |
 | `declarations` | OpenFEMA plus Census TIGERweb counties (layer 1) | 24 h | county polygons, last 2 years | Statewide declarations have no outline. Outline failure keeps the list. State from `FEEDS_STATE` (default `TX`). |
-| `nws` | api.weather.gov alerts for the state | 2 min | polygons or null geometry | Expired alerts are dropped. Alerts without a shape are listed, not drawn. |
+| `nws` | api.weather.gov active alerts | 2 min | polygons or null geometry | Defaults to `FEEDS_STATE` (`TX`). Set `NWS_SCOPE=national` for the U.S. active-alert feed. Expired alerts are dropped. Alerts without a shape are listed, not drawn. |
 | `gauges` | USGS NWIS instantaneous stage (00065) | 10 min | points | |
 | `quakes` | USGS all_day | 5 min | points | |
 | `weather` | Open-Meteo, 24 h precipitation | 30 min | one point per geohash5 cell | Level `none`, `moderate` or `heavy` (peak 7.6 mm/h or 50 mm/24 h is heavy). Cells with no data stay absent (unknown). |
@@ -59,10 +59,20 @@ const ctx = await readCachedOverlays(db, { bbox, layers, now, exercise, env, cel
 // { zones[], nfhl[], nws[], declarations[], weather:{ '9vgm0': {precip24h_mm,peak_mmph,level} }, status:{layer:{status,fetchedAt,ageS,stale,truncated}} }
 ```
 
-Lists hold GeoJSON features (`geometry`, `properties`). Weather is keyed by the bare five character geohash. `readCachedOverlays` reads the cache only, never throws, and a layer with nothing cached reports `unverified`, which the risk engine must treat as unknown, never as clear. `cells` lets the caller name the geohash5 cells it needs rain for.
+Lists hold GeoJSON features (`geometry`, `properties`). Weather is keyed by the bare five character geohash. `readCachedOverlays` reads the cache only, never throws, and a layer never fetched reports `unverified`; a failed initial fetch reports `error`, which the risk engine must treat as unknown, never as clear. `cells` lets the caller name the geohash5 cells it needs rain for.
 
 Nothing fills the cache by itself. A layer is fetched when the map asks for it, when `POST /api/feeds` runs, or when a caller uses `refreshContext(db, env, {bbox, cells})`, which fetches only expired layers then reads. A scheduled warm-up call every few minutes is the missing piece for headless risk runs.
 
 ## Files
 
 `src/feeds.js` (cache, status, context), `src/feed-layers.js` (sources and parsers), `src/feed-geo.js` (bbox, tiles, geohash), `src/feed-error.js`, `src/zones.js`, `src/feeds-api.js` (handlers), `functions/api/overlays.js`, `functions/api/feeds.js`, `test/feeds.test.js`. Tests inject a fake fetcher, so they never touch the network.
+
+## Interface and model context update — November 7
+
+Source metadata includes `coverage`, `note`, `dataState`, and refresh-error information. A valid cached response and a successful new refresh are distinct; a failed refresh does not erase usable older context. Statewide NWS/FEMA cache metadata is scoped to its state, and national NWS uses a separate `US` cache key. EIA is **ERCOT hourly demand**, not household outages. FEMA declaration responses indicate the 400-record cap; omitted geometry is never an all-clear.
+
+The model adapter uses `src/model-context.js` to read cached context only. It sends at most five allowlisted records per source with timestamps, attribution, coverage, and status. Exact home coordinates, household names/addresses, geometry, raw provider errors, credentials and device free text are excluded. The model receives explicit missing/stale/error information and cannot claim those sources were consulted. Context supports explanation; deterministic sensor policies remain authoritative.
+
+The public `GET /api/demo?scenario=normal|power-outage|water-hurricane|recovery` endpoint is separate: 95 fictional homes, no database/environment dependency, no real provider calls, no mutation methods. The command center labels its snapshots and keeps unresolved water incidents visible during recovery.
+
+Optional source keys still need server configuration and provider validation. This update does not certify live coverage, add a scheduled cache warmer, or claim current hazards where upstream geometry is absent.

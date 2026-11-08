@@ -1,10 +1,17 @@
-:root { color-scheme: light; font-family: system-ui, sans-serif; color: #182a25; background: #f5f4ee; }
-body { margin: 0; }
-main { max-width: 48rem; margin: 12vh auto; padding: 2rem; }
-.eyebrow { font-size: .75rem; letter-spacing: .15em; font-weight: 700; color: #416f5b; }
-h1 { font-size: clamp(2.8rem, 9vw, 5rem); line-height: 1.05; letter-spacing: -.06em; font-weight: 600; }
-p { max-width: 35rem; font-size: 1.15rem; line-height: 1.7; }
-nav { margin-top: 2rem; }
-a { color: #215a40; text-underline-offset: .3em; font-weight: 600; }
-a:focus-visible { outline: 3px solid #215a40; outline-offset: 6px; }
-footer { margin-top: 6rem; color: #53625b; font-size: .85rem; }
+:root { color-scheme: light; --surface: #fff; --ink: #1d2926; --muted: #52605b; --line: #dce2df; --accent: #17634f; font-family: 'Geist Variable', system-ui, sans-serif; color: var(--ink); background: #f6f7f7; }
+html[data-hbkit-theme=dark] { color-scheme: dark; --surface: #1c2520; --ink: #edf3ef; --muted: #aebdb5; --line: #36433c; --accent: #b0dbc9; background: #151c19; }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; color: var(--ink); background: inherit; }
+header { width: min(1160px, calc(100% - 64px)); margin: auto; min-height: 88px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.wordmark { font-size: 20px; letter-spacing: -.7px; text-decoration: none; color: var(--ink); font-weight: 650; }
+main { max-width: 620px; margin: 11vh auto; padding: 0 32px; }
+.eyebrow { margin: 0 0 18px; font-size: 12px; font-weight: 550; color: var(--muted); }
+h1 { font-size: clamp(32px, 6vw, 42px); line-height: 1.15; letter-spacing: -.04em; font-weight: 600; margin: 0 0 24px; }
+p { font-size: 15px; color: var(--muted); line-height: 1.7; }
+.status-record { padding: 19px 22px; margin-top: 30px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+.status-record p { margin: 0; font-size: 14px; }
+.status-record p + p:not(:empty) { margin-top: 8px; }
+nav { margin-top: 30px; }
+nav a { display: inline-flex; align-items: center; gap: 20px; color: var(--accent); text-underline-offset: .3em; font-size: 14px; font-weight: 550; }
+a:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+@media (max-width: 600px) { header { min-height: 76px; width: calc(100% - 40px); } main { margin-top: 64px; padding-inline: 20px; } }
