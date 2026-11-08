@@ -73,7 +73,7 @@ export function featureInConus(f) {
 const conusOnly = fc => fc?.features ? { ...fc, features: fc.features.filter(featureInConus) } : fc;
 
 export class MapView {
-  constructor(maplibregl, container, { styleKey = 'street', deviceMinZoom = 11, showGroups = true, padding } = {}) {
+  constructor(maplibregl, container, { styleKey = 'street', deviceMinZoom = MIN_ZOOM, showGroups = false, padding } = {}) {
     this.gl = maplibregl;
     this.styleKey = STYLES[styleKey] ? styleKey : 'street';
     this.deviceMinZoom = deviceMinZoom; this.showGroups = showGroups;
@@ -91,6 +91,8 @@ export class MapView {
     this.map = new maplibregl.Map({
       container, style: STYLES[this.styleKey], attributionControl: { compact: true }, renderWorldCopies: false,
       maxBounds: CONUS_BOUNDS, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM,
+      // Constrain the center, not the viewport size: narrow screens must still fit all 48 states.
+      transformConstrain: (center, zoom) => ({center: new maplibregl.LngLat(Math.max(CONUS_BOUNDS[0][0],Math.min(CONUS_BOUNDS[1][0],center.lng)),Math.max(CONUS_BOUNDS[0][1],Math.min(CONUS_BOUNDS[1][1],center.lat))),zoom:Math.max(MIN_ZOOM,Math.min(MAX_ZOOM,zoom))}),
       bounds: CONUS_FIT, fitBoundsOptions: { padding: this.pad, duration: 0 },
     });
     this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
@@ -201,6 +203,7 @@ export class MapView {
   onClick(e) {
     const hit = this.hit(e.point);
     this.clearHover();
+    if (!this.drawing && hit?.kind === 'state') { const bounds=JSON.parse(hit.properties.bounds || 'null'); if(Array.isArray(bounds) && bounds.length===4 && bounds.every(Number.isFinite)) this.fitTo(bounds,{maxZoom:7}); return; }
     this.handlers.click?.(e, hit);
     if (this.drawing) return;
     if (hit?.kind === 'device') this.cb.deviceClick?.(hit.properties.id);
@@ -293,6 +296,9 @@ export class MapView {
     const add = (name, data) => { if (!m.getSource(name)) m.addSource(name, { type: 'geojson', data }); };
     try {
       this.installRaster();
+      add('us-states', '/data/us-states.geojson');
+      m.addLayer({id:'state-fill',type:'fill',source:'us-states',paint:{'fill-color':'#ffffff','fill-opacity':0.01}});
+      m.addLayer({id:'state-lines',type:'line',source:'us-states',paint:{'line-color':'#7d8b88','line-width':['interpolate',['linear'],['zoom'],3,1,8,1.8]}});
       for (const id of Object.keys(EXT_STYLE)) this.addExtLayers(id);
       add('zones', this.data.zones); add('regions', this.data.regions); add('devices', this.data.devices); add('overview', this.data.overview); add('draw', this.data.draw);
       m.addLayer({ id: 'zones-fill', type: 'fill', source: 'zones', filter: AREA, paint: { 'fill-color': zoneColor, 'fill-opacity': ['case', ['==', ['get', 'active'], false], 0.05, 0.2] } });
@@ -309,7 +315,7 @@ export class MapView {
       m.addLayer({ id: 'dev-water', type: 'circle', source: 'devices', minzoom: 10, filter: ['==', ['get', 'water'], true], layout: { visibility: this.highlights.water ? 'visible' : 'none' }, paint: { 'circle-radius': 23, 'circle-color': '#65bded', 'circle-opacity': 0.25, 'circle-stroke-color': '#65bded', 'circle-stroke-width': 2 } });
       m.addLayer({ id: 'dev-halo-linked', type: 'circle', source: 'devices', minzoom: this.deviceMinZoom, filter: ['==', ['get', 'linked'], true], paint: { 'circle-radius': 13, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#64aef6', 'circle-stroke-width': 2 } });
       m.addLayer({ id: 'dev-sel', type: 'circle', source: 'devices', minzoom: this.deviceMinZoom, filter: ['==', ['get', 'selected'], true], paint: { 'circle-radius': 17, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#fff', 'circle-stroke-width': 3 } });
-      m.addLayer({ id: 'dev-circle', type: 'circle', source: 'devices', minzoom: this.deviceMinZoom, paint: { 'circle-radius': ['match', ['get', 'status'], 'critical', 9, 'elevated', 8, 7], 'circle-color': statusColor, 'circle-stroke-color': ['case', ['==', ['get', 'lastKnown'], true], '#8a9aa2', '#ffffff'], 'circle-stroke-width': ['case', ['==', ['get', 'lastKnown'], true], 3, 2], 'circle-opacity': ['case', ['==', ['get', 'lastKnown'], true], 0.75, 1] } });
+      m.addLayer({ id: 'dev-circle', type: 'circle', source: 'devices', minzoom: this.deviceMinZoom, layout: { 'circle-sort-key': ['match',['get','status'],'critical',4,'elevated',3,'watch',2,'normal',1,0] }, paint: { 'circle-radius': ['interpolate',['linear'],['zoom'],3,2.5,7,4,12,8], 'circle-color': statusColor, 'circle-stroke-color': ['case', ['==', ['get', 'lastKnown'], true], '#8a9aa2', '#ffffff'], 'circle-stroke-width': ['case', ['==', ['get', 'lastKnown'], true], 3, 2], 'circle-opacity': ['case', ['==', ['get', 'lastKnown'], true], 0.75, 1] } });
       m.addLayer({ id: 'draw-fill', type: 'fill', source: 'draw', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#1676c4', 'fill-opacity': 0.15 } });
       m.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#1676c4', 'line-width': 2.5, 'line-dasharray': [2, 1] } });
       m.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#1676c4', 'circle-stroke-width': 2.5 } });
@@ -323,9 +329,12 @@ export class MapView {
   // Topmost feature under the pointer, in priority order.
   hit(point) {
     const order = [['device', 'dev-circle'], ['group', 'dev-groups'], ['zone', 'zones-pt'], ['zone', 'zones-fill'], ['region', 'risk-fill'], ...Object.keys(EXT_STYLE).flatMap(id => [['overlay:' + id, `ov-${id}-pt`], ['overlay:' + id, `ov-${id}-fill`]])];
+    if (this.map.getZoom() < 5.5) order.splice(1,0,['state','state-fill']);
     for (const [kind, layer] of order) {
       if (!this.map.getLayer(layer)) continue;
-      const [f] = this.map.queryRenderedFeatures([[point.x - 4, point.y - 4], [point.x + 4, point.y + 4]], { layers: [layer] });
+      const hits = this.map.queryRenderedFeatures(point, { layers: [layer] });
+      if (kind === 'device') hits.sort((a,b) => { const pa=this.map.project(a.geometry.coordinates), pb=this.map.project(b.geometry.coordinates); return Math.hypot(pa.x-point.x,pa.y-point.y)-Math.hypot(pb.x-point.x,pb.y-point.y); });
+      const [f] = hits;
       if (f) return { kind, layer, properties: f.properties || {}, geometry: f.geometry };
     }
     return null;

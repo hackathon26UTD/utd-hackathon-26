@@ -204,17 +204,17 @@ export function mountWorkflow({ root, ctx }) {
 
   function panelHtml() {
     const id = M.selected;
-    if (!id) return `<h3>Checkpoints</h3><p class="wf-hint">Select a checkpoint to see what it records, when it last updated and the evidence behind it. Selecting one also filters the event history.</p><ul class="wf-plain">${NODE_DEFS.map((d, i) => `<li><b>${i + 1}. ${esc(d.label)}</b> ${esc(d.what)}</li>`).join('')}</ul>`;
+    if (!id) return `<h3>Checkpoints</h3><p>Select a checkpoint to see what happened and why.</p>`;
     const n = M.nodes.find(x => x.id === id), def = DEF[id], st = stateNow().find(x => x.id === id);
     if (!n) return '';
     const live = st.live;
     const ev = (n.evidence || []);
     return `<div class="wf-np-head"><h3>${esc(n.label)}</h3><span class="wf-pill wf-s-${esc(n.status)}"><span aria-hidden="true">${esc(NODE_STATUS_GLYPH[n.status])}</span> ${esc(NODE_STATUS_TEXT[n.status])}</span></div>
 <p>${esc(def.what)}</p>
-<dl class="wf-facts"><div><dt>Now</dt><dd>${esc(NODE_STATUS_TEXT[n.status])}${n.note ? '. ' + esc(n.note) : ''}</dd></div>${live ? '' : `<div><dt>At this point</dt><dd>${esc(NODE_STATUS_TEXT[st.status])}, ${st.events} event${st.events === 1 ? '' : 's'} so far</dd></div>`}<div><dt>Last update</dt><dd>${n.lastAt ? esc(dateTimeText(n.lastAt)) + ' (' + esc(ageText(n.lastAt)) + ')' : 'None recorded'}</dd></div><div><dt>Source</dt><dd>${esc(SOURCE_TEXT[n.source] || 'Derived')}</dd></div><div><dt>Counts</dt><dd>${esc(evCount(id))} events${n.counts?.delayed ? ', ' + esc(n.counts.delayed) + ' delayed' : ''}</dd></div></dl>
+<details><summary>Evidence and details</summary><dl class="wf-facts"><div><dt>Now</dt><dd>${esc(NODE_STATUS_TEXT[n.status])}${n.note ? '. ' + esc(n.note) : ''}</dd></div>${live ? '' : `<div><dt>At this point</dt><dd>${esc(NODE_STATUS_TEXT[st.status])}, ${st.events} event${st.events === 1 ? '' : 's'} so far</dd></div>`}<div><dt>Last update</dt><dd>${n.lastAt ? esc(dateTimeText(n.lastAt)) + ' (' + esc(ageText(n.lastAt)) + ')' : 'None recorded'}</dd></div><div><dt>Source</dt><dd>${esc(SOURCE_TEXT[n.source] || 'Derived')}</dd></div><div><dt>Counts</dt><dd>${esc(evCount(id))} events${n.counts?.delayed ? ', ' + esc(n.counts.delayed) + ' delayed' : ''}</dd></div></dl>
 <h4>Evidence</h4>${ev.length ? `<ul class="wf-evidence">${ev.map(e => `<li><code>${esc(e.id)}</code> <small>${esc(e.kind || '')}${e.at ? ' · ' + esc(timeText(e.at)) : ''}</small></li>`).join('')}</ul>` : '<p class="wf-hint">No evidence records for this checkpoint.</p>'}
 <h4>What this cannot tell you</h4><p class="wf-hint">${esc(def.limit)}</p>
-<button type="button" data-clear>Show every checkpoint</button>`;
+</details><button type="button" data-clear>Show every checkpoint</button>`;
   }
 
   function logHtml() {

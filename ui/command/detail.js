@@ -1,5 +1,5 @@
 import {showDataTool} from './data-tools.js';
-// Device drawer (about two thirds of the screen) plus the small area card for regions.
+// Full device workspace plus the small area card for regions.
 // Kit factories compose the shells. Conditions text comes from the timeline service when it answers,
 // and from the same deterministic rules in the browser when it does not.
 import { STATUS_LABEL, HELP_LABEL, HELP_STATUSES, MSG_STATE_TEXT, ageText, displayStatus, linkText, readingRows, latestFromValues, sparkline, messageState, failText, devicesInBbox } from './core.js';
@@ -29,7 +29,7 @@ export function mountDetail(ctx) {
   // ---- drawer shell ----
   const drawer = document.createElement('aside');
   drawer.id = 'device-drawer'; drawer.className = 'dr'; drawer.hidden = true;
-  drawer.setAttribute('role', 'dialog'); drawer.setAttribute('aria-modal', 'false'); drawer.setAttribute('aria-labelledby', 'dr-title');
+  drawer.setAttribute('role', 'region'); drawer.setAttribute('aria-labelledby', 'dr-title');
   ($('.workspace') || document.body).append(drawer);
   const DR = { id: null, tab: 'conditions', explain: null, wf: null, wfSig: '', padded: false };
 
@@ -68,12 +68,13 @@ export function mountDetail(ctx) {
     DR.explain?.destroy(); DR.wf?.destroy(); DR.explain = DR.wf = null; DR.wfSig = '';
     const K = window.Kit;
     const close = document.createElement('button'); close.id = 'detail-close'; close.type = 'button'; close.className = 'dr-close'; close.setAttribute('aria-label', 'Close device details');
-    close.innerHTML = '<span class="dr-close-wide">Close</span><span class="dr-close-narrow">Back to map</span>';
+    close.innerHTML = '<span class="dr-close-wide">Back to map</span><span class="dr-close-narrow">Back to map</span>';
     const head = document.createElement('header'); head.className = 'dr-head';
-    head.innerHTML = `<div class="dr-title-block"><p class="dr-eyebrow">${exercise ? 'Exercise home' : 'Connected home'}</p><h2 id="dr-title" tabindex="-1"></h2><p class="dr-sub"></p></div><div class="dr-chips"></div>`;
+    head.innerHTML = `<div class="dr-title-block"><p class="dr-eyebrow">${exercise ? 'Fictional device · mapped address' : 'Connected home'}</p><h2 id="dr-title" tabindex="-1"></h2><p class="dr-sub"></p></div><div class="dr-chips"></div>`;
     head.append(close);
-    const tabs = document.createElement('div'); tabs.className = 'tabs dr-tabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', 'Home details');
-    tabs.innerHTML = TABS.map(([k, l]) => `<button type="button" role="tab" id="tab-${k}" aria-controls="dr-p-${k}" data-tab="${k}" data-key="tab-${k}">${l}</button>`).join('');
+    const tabKit = K.mainTabs({ label: 'Device pages', active: tabKey(), tabs: TABS.map(([id,label]) => ({id,label})), onChange: id => setTab(id) });
+    const tabs = tabKit.el; tabs.classList.add('dr-tabs');
+    for (const b of tabs.querySelectorAll('[role=tab]')) { b.id = 'tab-' + b.dataset.tab; b.setAttribute('aria-controls', 'dr-p-' + b.dataset.tab); }
     const panels = document.createElement('div'); panels.className = 'dr-panels';
     for (const [k] of TABS) {
       const el = document.createElement('div'); el.id = 'dr-p-' + k; el.className = 'dr-panel'; el.setAttribute('role', 'tabpanel'); el.setAttribute('aria-labelledby', 'tab-' + k); el.hidden = true;
@@ -81,7 +82,7 @@ export function mountDetail(ctx) {
         const top = document.createElement('div'); top.className = 'dr-cond-top';
         const ex = document.createElement('section'); ex.className = 'dr-explain'; ex.setAttribute('aria-label', 'Model help');
         const act = document.createElement('div'); act.className = 'dr-cond-actions';
-        el.append(top, ex, act);
+        const assist = document.createElement('details'); assist.className='dr-more'; assist.hidden=exercise; const summary=document.createElement('summary'); summary.textContent='Ask about this device'; assist.append(summary,ex); el.append(top,assist,act);
       } else if (k === 'workflow') {
         const wf = document.createElement('div'); wf.className = 'dr-wf'; el.append(wf);
       } else { const b = document.createElement('div'); b.className = 'dr-body'; el.append(b); }
@@ -90,25 +91,24 @@ export function mountDetail(ctx) {
     drawer.replaceChildren(head, tabs, panels);
     DR.explain = mountExplain({ root: drawer.querySelector('.dr-explain'), ctx, deviceId: p.id, exercise });
     DR.id = p.id;
+    const loc = document.createElement('section'); loc.className = 'dr-location'; panels.querySelector('#dr-p-conditions').append(loc);
+    if (!exercise) api('/api/ops/location?id=' + encodeURIComponent(p.id)).then(r => { if (DR.id !== p.id || !r.ok) return; loc.innerHTML = '<h3>Location</h3><a target="_blank" rel="noopener" href="' + esc(r.data.mapsUrl) + '">Open Google Maps</a>'; if(r.data.googleImageConfigured){const img=document.createElement('img'); img.src='/api/ops/location-image?view=street&id='+encodeURIComponent(p.id); img.alt='Nearby Google Street View. Historical imagery, not current conditions.'; img.onerror=()=>img.replaceWith(document.createTextNode('Google image unavailable.'));loc.append(img); const caption=document.createElement('p');caption.className='muted';caption.textContent='Nearby street photo. It may be old and may not show this exact building.';loc.append(caption);} else loc.append(document.createTextNode(' · Google image is not connected yet.')); });
   }
 
   function setMapPadding(open, { center = false } = {}) {
-    const map = ctx.mv?.map; if (!map?.easeTo) return;
-    const w = open && innerWidth >= 760 ? Math.round(drawer.getBoundingClientRect().width) : 0;
-    const cur = map.getPadding?.().right || 0;
-    const p = S.props.find(x => x.id === S.selectedId);
-    if (Math.abs(cur - w) < 2 && !center) return;
-    const opts = { padding: { top: 0, bottom: 0, left: 0, right: w }, duration: reduced() ? 0 : 280 };
-    if (center && p?.coordinates) { opts.center = p.coordinates; opts.zoom = Math.max(15, map.getZoom()); }
-    map.easeTo(opts);
+    // Device details now occupy the workspace; leave the map camera unchanged.
+    const map = ctx.mv?.map; if (map?.getPadding?.().right) map.easeTo({padding:{top:0,bottom:0,left:0,right:0},duration:0});
   }
 
   function render() {
     const p = S.selectedRegion ? null : S.props.find(x => x.id === S.selectedId);
     const asDrawer = S.detailOpen && !!p;
     drawer.hidden = !asDrawer;
+    $('.board')?.toggleAttribute('inert', asDrawer);
+    if (asDrawer) $('#workspace-name').textContent = p.name || p.id;
     document.body.classList.toggle('has-drawer', asDrawer);
     if (!asDrawer) {
+      if (!S.workspaceView) $('#workspace-name').textContent='Map';
       if (DR.padded) { DR.padded = false; setMapPadding(false); }
       DR.explain?.destroy(); DR.wf?.destroy(); DR.explain = DR.wf = null; DR.id = null; DR.wfSig = '';
       renderCard();
@@ -143,7 +143,7 @@ export function mountDetail(ctx) {
       risk?.priority ? `<span class="chip">${esc(risk.priority.tier)} ${esc(risk.priority.label || '')}</span>` : '',
     ].join(' ');
     setHtml(drawer.querySelector('.dr-chips'), chips);
-    const tab = tabKey();
+    const tab = tabKey(); drawer.dataset.tab = tab; if (DR.tab !== tab) { drawer.querySelector('.dr-panels').scrollTop=0; DR.tab=tab; }
     for (const b of drawer.querySelectorAll('[role=tab]')) { const on = b.dataset.tab === tab; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; }
     for (const el of drawer.querySelectorAll('.dr-panel')) el.hidden = el.id !== 'dr-p-' + tab;
     const tl = timelineFor(p, D, now);
@@ -217,16 +217,16 @@ export function mountDetail(ctx) {
   function conditionsHtml(p, shown, c, tl, link, power, now) {
     const reporting = tl.nodes.filter(n => ['ok', 'warn', 'critical'].includes(n.status)).length;
     const silentNote = shown.silent && shown.status !== 'unknown' ? '<span class="chip warn">Last known</span>' : '';
-    const kpis = [
-      ['Tier', `${tag(shown.status)} ${silentNote}`],
-      ['Last report', `${esc(ageText(p.lastSeen || p.observedAt, now))}${p.observedAt ? `<small>${esc(dateTimeText(p.observedAt))}</small>` : ''}`],
-      ['Checkpoints reporting', `${reporting} of ${tl.nodes.length}<small>The rest are not reported or unknown</small>`],
-      ['Power', power?.mains === false ? 'Mains lost' : power?.mains === true ? 'Mains connected' : 'Not reported'],
-    ];
+    const latest = p.live?.latest || latestFromValues(p.values, p.observedAt);
+    const read = keys => { for (const key of keys) { const r = latest?.[key]; if (r && Date.now() - Date.parse(r.ts || p.observedAt || '') < 120000) return r.value; } return null; };
+    const powerValue = read(['mains_power','power.mains','main_power_available']);
+    const wifiValue = read(['wifi_connected','wan_connected']);
+    const signal = (label,value) => `<div class="dr-signal ${value === true || value === 1 ? 'ok' : value === false || value === 0 ? 'warn' : 'unknown'}"><span>${label}</span><strong>${value === true || value === 1 ? 'Connected' : value === false || value === 0 ? 'Disconnected' : 'Not reported'}</strong></div>`;
+    const signals = signal('Power', powerValue) + signal('Wi-Fi', wifiValue) + `<div class="dr-signal ${shown.status === 'normal' ? 'ok' : shown.status === 'critical' ? 'critical' : shown.status === 'unknown' ? 'unknown' : 'warn'}"><span>Sensors</span><strong>${shown.status === 'normal' ? 'Normal readings' : shown.status === 'unknown' ? 'Not reported' : 'Needs review'}</strong></div>`;
     const path = tl.nodes.map((n, i) => `<li><button type="button" class="dr-step wf-s-${esc(n.status)}${n.source === 'not_recorded' ? ' is-dashed' : ''}" data-wf="${esc(n.id)}" aria-label="${esc(`${i + 1}. ${n.label}, ${NODE_STATUS_TEXT[n.status]}. Open in the workflow.`)}"><span class="dr-step-g" aria-hidden="true">${esc(NODE_STATUS_GLYPH[n.status] || '?')}</span><span class="dr-step-l">${esc(n.label)}</span><small>${esc(NODE_STATUS_TEXT[n.status])}</small></button></li>`).join('');
-    return `<div class="dr-hero dr-tone-${esc(shown.status)}"><div class="dr-hero-main"><p class="dr-eyebrow">Overall conditions</p><h3 class="dr-headline">${esc(c.headline)}</h3><p class="dr-fresh">${esc(c.freshness)}</p></div><dl class="dr-kpis">${kpis.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${v}</dd></div>`).join('')}</dl></div>
-<div class="dr-cols"><section class="dr-card"><h4>What we see</h4>${list(c.what)}</section><section class="dr-card"><h4>Why it matters</h4>${list(c.why)}</section><section class="dr-card dr-card--unknown"><h4>What we do not know</h4>${list(c.unknown)}</section><section class="dr-card dr-card--next"><h4>What a person should do next</h4>${list(c.nextSteps)}</section></div>
-<section class="dr-path" aria-label="Path of a report through the checkpoints"><div class="dr-path-head"><h4>Where this report has been</h4><button type="button" data-tabgo="workflow" class="dr-linkbtn">Open the workflow</button></div><ol>${path}</ol></section>
+    return `<div class="dr-hero dr-tone-${esc(shown.status)}"><div class="dr-hero-main"><p class="dr-eyebrow">Overall conditions</p><h3 class="dr-headline">${esc(shown.status === "normal" ? "Reporting normally" : shown.status === "unknown" ? "Waiting for a report" : shown.status === "critical" ? "Needs urgent review" : "Check this device")}</h3><p class="dr-fresh">Last report ${esc(ageText(p.lastSeen || p.observedAt, now))}</p></div><div class="dr-signals">${signals}</div></div>
+<details class="dr-more"><summary>Why this status · more details</summary><div class="dr-cols"><section class="dr-card"><h4>What we see</h4>${list(c.what)}</section><section class="dr-card"><h4>Why it matters</h4>${list(c.why)}</section><section class="dr-card dr-card--unknown"><h4>What we do not know</h4>${list(c.unknown)}</section><section class="dr-card dr-card--next"><h4>What a person should do next</h4>${list(c.nextSteps)}</section></div></details>
+<details class="dr-more"><summary>Report checkpoints</summary><section class="dr-path" aria-label="Path of a report through the checkpoints"><div class="dr-path-head"><h4>Where this report has been</h4><button type="button" data-tabgo="workflow" class="dr-linkbtn">Open the workflow</button></div><ol>${path}</ol></section></details>
 <p class="dr-advisory">${esc(c.advisory || ADVISORY_LINE)}</p>`;
   }
 

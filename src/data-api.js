@@ -38,8 +38,9 @@ export async function dataApi(ctx,kind){try{
  const {location}=await loadLiveDevice(db,url.searchParams.get('id'));if(!location)throw new HttpError(409,'This device has no verified registered location.');
  if(kind==='location')return json({coordinates:location,googleImageConfigured:Boolean(ctx.env.GOOGLE_MAPS_API_KEY),mapsUrl:`https://www.google.com/maps/search/?api=1&query=${location[1]},${location[0]}`,note:'Imagery is geographic context, not a current disaster photograph.'});
  if(!ctx.env.GOOGLE_MAPS_API_KEY)throw new HttpError(503,'Google Maps Static API key is not configured.');
- const q=new URLSearchParams({center:location[1]+','+location[0],zoom:'18',size:'600x360',maptype:'satellite',markers:location[1]+','+location[0],key:ctx.env.GOOGLE_MAPS_API_KEY});
- const r=await (ctx.fetcher||fetch)('https://maps.googleapis.com/maps/api/staticmap?'+q,{signal:AbortSignal.timeout(8000)});if(!r.ok||!r.headers.get('content-type')?.startsWith('image/'))throw new HttpError(503,'Google imagery is unavailable. Check server key, API enablement and billing.');
+ const street=url.searchParams.get('view')==='street';
+ const q=new URLSearchParams(street?{location:location[1]+','+location[0],size:'600x360',source:'outdoor',radius:'50',return_error_code:'true',key:ctx.env.GOOGLE_MAPS_API_KEY}:{center:location[1]+','+location[0],zoom:'18',size:'600x360',maptype:'satellite',markers:location[1]+','+location[0],key:ctx.env.GOOGLE_MAPS_API_KEY});
+ const r=await (ctx.fetcher||fetch)('https://maps.googleapis.com/maps/api/'+(street?'streetview':'staticmap')+'?'+q,{signal:AbortSignal.timeout(8000),redirect:'error'});if(!r.ok||!r.headers.get('content-type')?.startsWith('image/'))throw new HttpError(503,'Google imagery is unavailable. Check server key, API enablement and billing.');
  return new Response(r.body,{headers:{'Content-Type':r.headers.get('content-type'),'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
  }
  throw new HttpError(404,'Not found.');});

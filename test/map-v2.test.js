@@ -28,3 +28,16 @@ test('an old critical reading stays last known and missing sensors stay unknown'
   assert.match(out.what.join(' '), /last known/i);
   assert.match(out.unknown.join(' '), /No temperature reading/i);
 });
+
+test('address matching rejects ambiguous or unavailable locations', async () => {
+  const {matchCustomerAddress}=await import('../src/customer-location.js');
+  await assert.rejects(()=>matchCustomerAddress('123 Example Street, TX',async()=>new Response(JSON.stringify({result:{addressMatches:[]}}))),/matched uniquely/);
+  await assert.rejects(()=>matchCustomerAddress('123 Example Street, TX',async()=>{throw Error('offline');}),/unavailable/);
+});
+
+test('state selection uses complete state bounds rather than a clipped map tile',async()=>{
+  const {MapView}=await import('../ui/command/map.js');
+  const bounds=[-106.65,25.84,-93.5,36.5];let fitted;
+  MapView.prototype.onClick.call({drawing:false,hit:()=>({kind:'state',properties:{bounds:JSON.stringify(bounds)},geometry:{coordinates:[[[0,0],[1,1]]]}}),clearHover(){},fitTo:b=>{fitted=b;}},{point:{x:10,y:10}});
+  assert.deepEqual(fitted,bounds);
+});
