@@ -8,6 +8,7 @@ import { investigateSystem } from '../src/system-agent.js';
 import { simulatedCompletion } from '../src/system-simulator.js';
 import { nemotronCompletion } from '../src/nemotron.js';
 import { opsSystem, opsAgent } from '../src/system-api.js';
+import { sha256Hex } from '../src/auth.js';
 
 let server, client, db, a, b, foreign;
 const NOW = new Date('2026-11-08T01:00:00Z');
@@ -130,7 +131,11 @@ test('NIM transport sends tools, rejects redirects/insecure hosts and hides prov
   const fetcher = async (url, i) => { assert.equal(url, 'https://integrate.api.nvidia.com/v1/chat/completions'); init = i;
     return Response.json({ choices: [{ message: { tool_calls: [{ id: 'a', type: 'function', function: { name: 'read_sensor_timeline', arguments: '{}' } }] } }] }); };
   await nemotronCompletion({ NVIDIA_API_KEY: 'never-print' }, { messages: [], tools: [] }, fetcher);
-  assert.equal(init.redirect, 'error'); assert.equal(JSON.parse(init.body).stream, false);
+  assert.equal(init.redirect, 'manual'); assert.equal(JSON.parse(init.body).stream, false);
+  await assert.rejects(nemotronCompletion({ NVIDIA_API_KEY: 'x' }, {}, async (_url, init) => {
+    assert.equal(init.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'https://untrusted.example/' } });
+  }), e => e.status === 502 && /HTTP 302/.test(e.message));
   await assert.rejects(nemotronCompletion({ NVIDIA_BASE_URL: 'http://remote.example/v1' }, {}, fetcher), /HTTPS/);
   await assert.rejects(nemotronCompletion({ NVIDIA_API_KEY: 'x' }, {}, async () => new Response('secret failure details', { status: 401 })), e => e.status === 502 && !e.message.includes('secret'));
 });
@@ -156,6 +161,13 @@ test('checkpoint is persisted once; retries are idempotent and labeled as simula
   const changed = await opsAgent(ctx('POST', url, { ...body, goalHours: 48 })); assert.equal(changed.status, 409);
   const retrieved = await read(await opsAgent(ctx('GET', `${url}&run_id=${first.body.id}`)));
   assert.equal(retrieved.body.trace.length, 4);
+  assert.equal(retrieved.body.citedEvidence.length, retrieved.body.checkpoint.evidenceIds.length);
+  for (const cited of retrieved.body.citedEvidence) {
+    assert.ok(retrieved.body.checkpoint.evidenceIds.includes(cited.id));
+    assert.ok(['reading', 'event', 'incident', 'context'].includes(cited.kind));
+    assert.ok(!('keyHash' in cited) && !('name' in cited) && !('actor' in cited));
+    if (cited.kind === 'reading') { assert.ok(cited.observedAt); assert.equal(cited.receivedAt, NOW.toISOString()); }
+  }
   assert.equal(await db.collection('device_messages').countDocuments({}), 0);
 });
 
@@ -164,7 +176,37 @@ test('a failed live-model request preserves a failed audit record without a chec
     requestId: 'failed-real-model-001', deviceId: String(a), engine: 'nemotron',
   }, { env: { ...env, NVIDIA_API_KEY: 'test-only' }, fetcher: async () => new Response('private upstream text', { status: 401 }) }));
   assert.equal(response.status, 502);
-  assert.ok(!(await response.text()).includes('private upstream text'));
+  const result = await response.json();
+  assert.ok(!JSON.stringify(result).includes('private upstream text'));
+  assert.equal(result.state, 'failed');
+  assert.equal(result.checkpoint, null);
+  assert.deepEqual(result.trace, []);
+  assert.equal(result.modelVerified, false);
   const run = await db.collection('system_agent_runs').findOne({ engine: 'nemotron', state: 'failed' });
+  assert.equal(result.id, run._id);
   assert.ok(run); assert.equal(run.checkpoint, undefined); assert.deepEqual(run.trace, []);
+  const recovered = await read(await opsAgent(ctx('GET', `/api/ops/agent?mode=exercise&run_id=${result.id}`)));
+  assert.equal(recovered.body.state, 'failed');
+  assert.equal((await opsAgent(ctx('GET', `/api/ops/agent?run_id=${result.id}`))).status, 404);
+  assert.equal((await opsAgent(ctx('GET', `/api/ops/agent?mode=exercise&run_id=${result.id}`, null,
+    { data: { operator: { role: 'operator', email: 'another-operator@example.test', id: 'someone-else' } } }))).status, 404);
+});
+
+test('interrupted runs expire on actor-scoped status read and never restart on the same request id', async () => {
+  const body = { requestId: 'interrupted-checkpoint-001', deviceId: String(a), engine: 'simulator' };
+  const id = await sha256Hex(`admin-key:exercise:${body.requestId}`);
+  const fingerprint = await sha256Hex(JSON.stringify({ deviceId: body.deviceId, goalHours: 24, engine: body.engine }));
+  await db.collection('system_agent_runs').insertOne({ _id: id, actor: 'admin-key', mode: 'exercise', deviceId: body.deviceId,
+    state: 'running', engine: body.engine, fingerprint, createdAt: ago(181), trace: [{ number: 1, tool: 'read_sensor_timeline', status: 'completed' }] });
+  const wrongMode = await opsAgent(ctx('GET', `/api/ops/agent?run_id=${id}`));
+  assert.equal(wrongMode.status, 404);
+  assert.equal((await db.collection('system_agent_runs').findOne({ _id: id })).state, 'running');
+  const recovered = await read(await opsAgent(ctx('GET', `/api/ops/agent?mode=exercise&run_id=${id}`)));
+  assert.equal(recovered.body.state, 'failed');
+  assert.equal(recovered.body.trace.length, 1);
+  assert.equal(recovered.body.checkpoint, null);
+  assert.match(recovered.body.error, /Start a new run/);
+  const retry = await read(await opsAgent(ctx('POST', '/api/ops/agent?mode=exercise', body)));
+  assert.equal(retry.status, 200); assert.equal(retry.body.state, 'failed');
+  assert.equal(retry.body.id, id);
 });
