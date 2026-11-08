@@ -9,6 +9,7 @@ const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/d
 export async function onRequest(context){
   const {request,env}=context;const path=new URL(request.url).pathname;const method=request.method;
   // 1) public
+  if(path==='/api/simulations'&&['GET','HEAD','POST'].includes(method))return context.next();
   if(path==='/api/demo'&&['GET','HEAD'].includes(method))return context.next();
   if(['/api/session','/api/health','/api/ready','/api/weather','/api/recovery','/api/customer/register','/api/customer/login'].includes(path)||(method==='GET'&&path==='/api/customer/me'))return passCustomer(context,path);
   // A dedicated scheduler credential is accepted only by its exact refresh endpoint.

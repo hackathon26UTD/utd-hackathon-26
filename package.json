@@ -23,7 +23,9 @@
     "system:demo": "node scripts/system-demo.mjs",
     "nvidia:check": "node scripts/check-nvidia.mjs",
     "data": "node scripts/data-admin.mjs",
-    "mesh-test": "node scripts/mesh-test.mjs"
+    "mesh-test": "node scripts/mesh-test.mjs",
+    "simulate": "node scripts/simulations.mjs",
+    "email:preview": "node scripts/preview-customer-email.mjs"
   },
   "repository": {
     "type": "git",

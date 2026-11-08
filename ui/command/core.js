@@ -20,9 +20,11 @@ export function normalizeStatus(s) {
 // What to draw for a device. A device that has gone quiet is never "normal": it becomes unknown.
 // Anything worse than normal stays as it was, flagged as last known (stale critical never turns safe).
 export function displayStatus(dev, now = Date.now()) {
+  if (dev?.synthetic === true && dev?.source === 'simulation-studio' && time(dev.simulationClock) !== null) now = time(dev.simulationClock);
   const status = normalizeStatus(dev?.risk?.status ?? dev?.severity);
   const seen = time(dev?.lastSeen) ?? time(dev?.observedAt);
-  const silent = dev?.offline === true || dev?.stale === true || seen === null || now - seen > SILENT_AFTER_MS;
+  const simulation = dev?.synthetic === true && dev?.source === 'simulation-studio';
+  const silent = dev?.offline === true || dev?.stale === true || seen === null || (!simulation && now - seen > SILENT_AFTER_MS);
   if (status === 'normal' && silent) return { status: 'unknown', lastKnown: true, silent };
   return { status, lastKnown: silent && status !== 'unknown', silent };
 }
