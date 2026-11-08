@@ -102,12 +102,17 @@ export class MapView {
       transformConstrain: (center, zoom) => {const c=constrainConus(center,zoom,this.map?.getContainer().clientWidth||0,this.map?.getContainer().clientHeight||0,this.homeMinZoom||MIN_ZOOM);return {center:new maplibregl.LngLat(c.lng,c.lat),zoom:c.zoom};},
       bounds: CONUS_FIT, fitBoundsOptions: { padding: this.pad, duration: 0 },
     });
-    const credits=document.createElement('div');credits.className='map-credits';credits.setAttribute('aria-label','Map attribution');this.map.getContainer().parentElement.append(credits);
-    const attribution=new maplibregl.AttributionControl({compact:false});this.map.addControl(attribution,'bottom-right');
-    credits.append(this.map.getContainer().querySelector('.maplibregl-ctrl-attrib'));
+    this.map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
+    const minimizeCredits=()=>{
+      const control=this.map.getContainer().querySelector('.maplibregl-ctrl-attrib');
+      if(!control?.classList.contains('maplibregl-compact'))return;
+      if(control.classList.contains('maplibregl-compact-show'))control.querySelector('summary')?.click();
+      this.map.off('sourcedata',minimizeCredits);this.map.off('styledata',minimizeCredits);
+    };
+    this.map.on('sourcedata',minimizeCredits);this.map.on('styledata',minimizeCredits);minimizeCredits();
     const limit=()=>{const camera=this.map.cameraForBounds(CONUS_FIT,{padding:24});if(camera){this.homeMinZoom=Math.max(MIN_ZOOM,camera.zoom);this.map.setMinZoom(this.homeMinZoom);}};
     this.map.on('resize',limit);limit();
-    this.map.once('remove',()=>{credits.remove();for(const entry of this.radarCache?.values()||[])entry.cancel?.();});
+    this.map.once('remove',()=>{for(const entry of this.radarCache?.values()||[])entry.cancel?.();});
     this.windFlow = mountWindFlow(this);
     if (interactive) {
       this.map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
