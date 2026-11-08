@@ -13,6 +13,8 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 - Remove the current persistent side navigation and side tabs. Do not just recolor or relocate the same dashboard rail.
 - Device-specific information is secondary and appears when a device is deliberately selected.
 - **Selection opens an expandable card anchored to the selected house**, not a permanent side panel or a separate default device screen. Exact answer to the selection question, November 7.
+- **The compact card shows status, why the house needs attention, and when it last reported.** Sensor details/history/logs/actions follow on expansion.
+- **Disaster regions are the default visual priority; individual devices appear as the operator zooms in.** Do not open on a wall of house markers.
 - The experience must feel animated, dynamic and modern while remaining operationally useful.
 - Use Ayan's actual Argus UI components. A kit import, a gallery or CSS-class decoration is not enough evidence of a component-led product.
 - Inspect what is actually rendered. The cookie experience is explicitly part of this review.
@@ -20,7 +22,7 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 
 ### Pending Ayan's answer
 
-- Compact house-card information priority: attention/status and freshness, sensor/device health, or customer/help/actions. Asked once; awaiting the answer. Full details remain available on expansion.
+- Initial geographic coverage: U.S. overview, Texas, or Dallas-Fort Worth. Asked once; awaiting the answer. Current verified data is Texas-focused and must not be relabeled nationwide.
 
 ### Proposed, not yet approved
 
@@ -116,7 +118,7 @@ Ayan chose an expandable card anchored to the selected house. This is locked. Do
 ### Compact and expanded states
 
 - At rest there is no card. Selecting a house opens one compact card at that map feature.
-- Proposed compact size: 280-320px wide, with identity, a small set of essential information and explicit Expand/Close. Initial information priority is awaiting Ayan's answer.
+- Proposed compact size: 280-320px wide, with identity and Ayan's chosen essentials: status, why attention is needed, and last report time, followed by explicit Expand/Close. If no attention condition is reported, say what is known without declaring the home safe.
 - Expand grows that same anchored card in place; it does not spawn another independent panel. Proposed expanded width 360-420px, with a bounded height and internal content scroll.
 - Compose its content from actual `Kit.sectionBox`, `Kit.details`, `Kit.pill`/`Kit.statusDot` and `Kit.foldOpen`. MapLibre provides geographic anchoring/placement, not another visual card design. There is no invented `Kit.mapCard` factory.
 - The card follows the selected home's geographic location during pan/zoom. Use an appropriate anchor side and minimal camera padding if needed to keep both card and house visible. Do not repeatedly pan after each reading.
@@ -136,6 +138,8 @@ Ayan chose an expandable card anchored to the selected house. This is locked. Do
 
 ### Information order
 
+The compact card stops after identity/status, one plain reason and report freshness. Expansion progressively reveals the rest; do not cram this whole list into the initial popup.
+
 1. Device/home identity and location, reported status, freshness and power-save mode.
 2. Why it needs review: plain reasons tied to recorded evidence, including last-known critical reports.
 3. Current readings, with units and observation time: water/moisture, temperature/humidity, smoke/air proxies where present, mains power, connection, battery and mode. "Not reported" is distinct from false/zero.
@@ -147,7 +151,19 @@ Selected-device sensor values are operational evidence, not the rejected fleet-w
 
 ## 6. Region and layer behavior
 
-The operator should see spatial patterns at street scale, then move to an individual device without losing geographic context.
+Ayan chose **disaster regions first, individual devices as you zoom in**. The default is therefore a geographic incident overview, not the current dense scatter of 32 exercise pins. Initial geographic coverage is the next open decision.
+
+### Semantic zoom
+
+- Wide overview: show verified incident/hazard footprints and their clear source meaning. Group device evidence quietly; no individual-house label wall.
+- Region/neighborhood: reveal reported-condition clusters and coverage, retaining hazard context. Cluster counts, if used, belong to geography rather than KPI cards and must come from actual data.
+- Street/house scale: reveal individual devices at their recorded locations. Device selection opens the anchored card. Keep relevant region boundaries understandable as zoom changes.
+- Use scale/density-based transitions with hysteresis, not flicker at one exact zoom threshold. Exact thresholds need a rendered prototype across real data density.
+- Do not automatically choose a region, open a house or keep refitting the map because a poll returned more data.
+
+Official warnings and incident areas, FEMA declaration areas, historical flood-risk polygons and algorithmic device-risk cells are not interchangeable. A FEMA declaration may not supply an exact active incident footprint; do not invent one. Historical flood hazard is context, not a report that a street is flooded now. Earthquake epicenters are not automatically disaster-area polygons. If no verified area is available, show the unavailable/empty distinction honestly rather than painting a synthetic disaster region.
+
+The operator should move from regional patterns to street-level evidence without losing geographic context.
 
 - Device markers need clear selected, critical, stale/unknown and linked states, explained in an on-demand legend.
 - Cluster markers at regional scale; expand to individual properties at street scale. Avoid covering every road with a permanent marker label.
@@ -250,7 +266,9 @@ Required implementation verification when that phase starts:
 - Initial audit: found 30.3% visible map, 12.6% cookie panel, permanent KPI/queue/inspector, and cookie focus jump.
 - Ayan chose map only, all tools on demand. This supersedes earlier proposals for a permanent live activity strip.
 - Ayan chose an expandable card anchored to the selected house. This supersedes the floating inspector/full-page alternatives.
-- Compact card information priority: pending answer.
+- Ayan chose compact-card status, attention reason and last report time.
+- Ayan chose disaster regions first, with individual devices appearing on zoom.
+- Initial geographic coverage is pending.
 - To resolve next: information order within selection; whether area inspection uses the same pattern; initial region and source defaults; which live events deserve attention; mobile tool behavior. Ask progressively, not as a large questionnaire.
 
 This document remains a draft until the pending decisions and visual review are resolved. No production UI change is claimed by writing it.
@@ -263,7 +281,7 @@ Operator opens the command center. The map is already the workspace; no house is
 
 ### Understand one house
 
-Operator selects a house. A compact card opens at that house. Its initial content follows the pending priority decision. Expand reveals the detailed evidence in the same anchored card. Switching houses moves the selection and replaces that card. Close returns to the undisturbed map. An unknown location is never assigned a fabricated anchor.
+Operator selects a house. A compact card opens at that house. Its compact content is status, a plain attention reason and last report time, as Ayan selected. Expand reveals the detailed evidence in the same anchored card. Switching houses moves the selection and replaces that card. Close returns to the undisturbed map. An unknown location is never assigned a fabricated anchor.
 
 ### Check a suspected flood area
 
@@ -301,3 +319,30 @@ Every task is reachable without interacting with map canvas pixels. Search/list 
 - Do not load optional analytics first and ask about consent later. Do not add a cookie prompt for nonexistent options merely because another website has one.
 - Do not substitute a permanently visible activity strip for the chosen map-only state.
 - Do not substitute a side sheet for the chosen geographically anchored expandable house card.
+
+## 15. Compact card content examples and freshness rules
+
+These are labeled design examples, not live observations or approved final copy.
+
+| Case | Compact card example | Expanded context |
+| --- | --- | --- |
+| Current critical observation | `HB-1003` / `Critical observation` / `Water sensor reported water` / `Observed 2 min ago` | Exact reading, time, source, recent history and manual follow-up |
+| Power interruption | `HB-1020` / `Needs review` / `Mains power lost; backup active` / `Observed 40 sec ago` | Battery/mode/network readings and original timestamps |
+| Critical but stale | `HB-1003` / `Critical, last known` / `Earlier water report still needs review` / `Observed 2 hr ago` | Last network receipt, whether data was replayed, unresolved incident evidence |
+| No recent reports | `HB-1010` / `Unknown now` / `No recent observations` / `Last observation 32 min ago` | Last-known state, last receipt and connection history |
+| Reporting without active evidence of an alarm | `HB-1002` / `Reporting` / `No active alarm reported` / `Observed 30 sec ago` | What sensors actually reported and what remains missing; no "home is safe" claim |
+
+Identity is context, not a fourth KPI. Compact essentials remain status/reason/freshness. Avoid adding six sensor tiles into the collapsed state.
+
+"Last reported" must not confuse network receipt with measurement time. For a delayed/offline replay, make the older observation age visible in the compact card and label it delayed/last known; show last received/last connected separately on expansion. A newly received old measurement cannot be styled as fresh evidence. If device clock quality is unknown or server time is a fallback, label that clearly. Absolute time and timezone should be available alongside relative age.
+
+## 16. Working hierarchy for regional information
+
+Astra must show distinct semantics, not just attractive colored polygons:
+
+1. Verified active official hazard/incident geometry, with event name, source and age.
+2. Reported device-condition regions/clusters, explicitly derived from the available boxes.
+3. Operator-drawn operational zones, explicitly owned and editable with audit.
+4. Historical susceptibility/context layers, enabled deliberately and labeled as context.
+
+The first wide view prioritizes disaster regions as Ayan chose. The map may not have trustworthy geometry for every event or dataset. Unsupported coverage is a data limitation, not permission to draw a plausible shape. Choosing a national initial view would require national source/bounds work; the current Texas-focused implementation is not proof that national incident coverage is finished.
