@@ -19,7 +19,8 @@
     "site": "node scripts/site.mjs",
     "firmware:sync": "node scripts/firmware.mjs sync",
     "firmware:build": "node scripts/firmware.mjs build",
-    "provision": "node scripts/provision-boxes.mjs"
+    "provision": "node scripts/provision-boxes.mjs",
+    "mesh-test": "node scripts/mesh-test.mjs"
   },
   "repository": {
     "type": "git",
