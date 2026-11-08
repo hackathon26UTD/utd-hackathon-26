@@ -17,6 +17,7 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 - **Disaster regions are the default visual priority; individual devices appear as the operator zooms in.** Do not open on a wall of house markers.
 - **Selecting a disaster region zooms into it and opens a compact summary anchored to that area.** Exact answer to region-selection question, November 7.
 - **Open on a U.S. disaster overview, then move into regions and neighborhoods.** The target is national, not a Dallas or Texas default.
+- **Use satellite imagery with disaster layers.** Exact answer to the map-style question, November 7.
 - The experience must feel animated, dynamic and modern while remaining operationally useful.
 - Use Ayan's actual Argus UI components. A kit import, a gallery or CSS-class decoration is not enough evidence of a component-led product.
 - Inspect what is actually rendered. The cookie experience is explicitly part of this review.
@@ -24,7 +25,7 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 
 ### Remaining design review
 
-The foundational layout and selection choices above are locked. Exact visual composition, map style, tool placement, expansion dimensions and motion treatment still need a rendered design review. Backend national coverage remains implementation/research work, not an unanswered user preference.
+The foundational layout and selection choices above are locked. Exact visual composition, imagery provider, tool placement, expansion dimensions and motion treatment still need a rendered design review. Backend national coverage remains implementation/research work, not an unanswered user preference.
 
 ### Proposed, not yet approved
 
@@ -435,3 +436,18 @@ These links establish source starting points, not proof of national integration.
 5. Implement the accepted composition, preserve roles/data semantics, then run the scope-matched acceptance gates in section 11.
 
 No implementation is accepted merely because the requirements packet is complete. This brief is ready for teammate design work, while visual review and the replacement command center remain outstanding.
+
+
+## 20. Satellite imagery: locked direction and review prototype
+
+Ayan selected satellite imagery with disaster layers. Use imagery as the geographic base, not a decorative background underneath a conventional dashboard. Disaster overlays, geographic labels and card text must remain readable against both bright terrain and dark water. Imagery is not a real-time view of damage. Source collection age, coverage and resolution need explicit source information; never describe an old roof image as an observation of the present event.
+
+Candidate examined for the independent review prototype: [USGS imagery-only basemap](https://www.usgs.gov/faqs/what-are-urls-imagery-services-national-map-and-are-they-cached-or-dynamic), a cached orthoimagery service. It includes aerial imagery and is not a promise of satellite-only acquisition. The service's metadata reports USDA/USGS attribution and a June 2024 data-refresh description; that is not a capture date for every tile. Final provider and licensing/attribution/coverage need production review. No imagery provider credentials are embedded in the prototype.
+
+The independent source is under `docs/design/prototype/`. It is not wired into public Pages or the production command center. Build with `node docs/design/prototype/build.mjs`, then serve `work/map-review/` over HTTP. It uses actual Kit.buttonMenu, Kit.searchField, Kit.tickBox, Kit.sectionBox, Kit.pill, Kit.details, Kit.foldOpen and Kit.historyList factories. Product CSS owns spatial placement and a geographic leader line, not replacement component styling.
+
+Prototype scope: U.S. imagery overview, grouped national alert label, deliberate area zoom/anchored summary, neighborhood-only fictional device markers, compact/expanded house card, on-demand search/layers/activity/privacy, source age, no consent interruption, no page scrolling, reduced motion and one explicitly requested exercise-report animation. No production writes, model requests, private household data or made-up live stream.
+
+Snapshot evidence: the successful NWS active-alert request returned 322 features at retrieval, with two non-null geometries. The prototype includes only those two geometries, with original source/issue times and retrieval timestamp in `alerts-snapshot.json`. It does not claim complete national hazards. Missing-geometry alerts need source-zone resolution in real implementation. The API rejected a `limit` parameter on this active endpoint during this check; verify supported query parameters instead of assuming pagination syntax.
+
+This is a reviewable interaction proposal, not an accepted final design. Remaining full-product work includes national completeness/zone geometry, Alaska/Hawaii entry, source failures/retry controls, message/zone/model flows, mobile edge cases, light-theme review and production integration. Do not equate prototype screenshots with completion of the replacement command center.

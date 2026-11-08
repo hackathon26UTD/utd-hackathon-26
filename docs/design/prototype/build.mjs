@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {mkdir,copyFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import path from 'node:path';
+const dir=path.dirname(fileURLToPath(import.meta.url)),repo=path.resolve(dir,'../../..');
+const out=path.resolve(process.argv[2]||path.join(repo,'work/map-review'));await mkdir(out,{recursive:true});
+await build({entryPoints:{review:path.join(dir,'review.js'),'review-style':path.join(dir,'review.css')},outdir:out,bundle:true,format:'esm',minify:true,loader:{'.woff2':'file'},assetNames:'[name]-[hash]'});
+await copyFile(path.join(out,'review-style.css'),path.join(out,'review.css'));
+await copyFile(path.join(dir,'index.html'),path.join(out,'index.html'));
+await copyFile(path.join(repo,'node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs'),path.join(out,'map-worker.mjs'));
+console.log(out);

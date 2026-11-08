@@ -174,3 +174,11 @@ Ayan then selected "Expandable card anchored to the selected house." Updated the
 Ayan selected compact-card content: status, attention reason and last report time. He also selected a disaster-region-first map, with individual devices revealed on zoom. Updated semantic zoom and source-geometry truth requirements. Asked the initial geographic coverage question because current data is Texas-focused and must not be represented as national coverage.
 
 Ayan selected the U.S. disaster overview, then regions and neighborhoods. All five foundational layout/content/geography decisions are now recorded. Added national data/aggregation/source-geometry gaps and explicit truthfulness/performance requirements; no nationwide coverage is claimed from existing Texas endpoints. Exact visual/motion review remains for the Astra design pass.
+
+## 2026-11-07 | Ayan | Satellite map design review proposal
+- Ayan locked satellite imagery with disaster layers. Updated the living brief and Astra instructions.
+- Added an independent local prototype under docs/design/prototype, not a production route. Actual Argus factories power tools, search, layer toggles, status, anchored cards, expansion, readings and history.
+- USGS imagery context retains attribution. A dated NWS snapshot supplies only two actual non-null alert geometries from 322 returned records. Three fictional devices are clearly labeled. No private data or production writes.
+- Inspected desktop/mobile renders; corrected overlapping national labels and map-control/card overlap. The prototype has no KPI row, side rail or default selected house. It uses no cookie-consent interruption; privacy/access is an on-demand tool.
+- Ten rendered route/state checks passed automated accessibility/error/overflow/card-bounds checks. Search, layer toggles, Escape, normal/reduced motion and camera continuity exercised. At 1920x1080, map fills viewport and app chrome leaves 97.7% unobstructed at rest.
+- User visual review, complete national source integration and the actual production replacement remain pending. A local proposal does not prove those complete.
