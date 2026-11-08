@@ -7,6 +7,8 @@
     "nodejs_compat"
   ],
   "vars": {
-    "MONGODB_DB": "utd_hackathon_26"
+    "MONGODB_DB": "utd_hackathon_26",
+    // Labeled display preview for the registered Uno Q only; telemetry is unchanged.
+    "WIFI_PREVIEW_DEVICE_IDS": "6af08de410eb36e804a787ed"
   }
 }

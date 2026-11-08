@@ -52,4 +52,4 @@ Email invitation/alert implementation and HTML templates exist, but actual email
 
 ### Demonstrating connected Wi-Fi
 
-In the operator workspace, open a registered box → Conditions → Simulate connected Wi-Fi. The tile shows Connected · Simulated beside the actual reported Wi-Fi state. This display preference survives refresh in the same browser tab and applies only to that device and data mode. Turn the switch off to restore the ordinary tile. Sensor history, risk, Nemotron Review and customer views continue to use recorded readings.
+In the operator workspace, open the registered Uno Q → Conditions. Its Wi-Fi card automatically shows Connected; there is no switch to enable. The Sensors tab identifies the card as a simulated preview and keeps the actual measurements. The server setting `WIFI_PREVIEW_DEVICE_IDS` in `wrangler.jsonc` enables this display for the exact registered device ID in live mode. Remove its ID and redeploy to restore the ordinary tile. Other devices, exercise records, sensor history, risk, Nemotron Review and customer views continue to use recorded readings.
