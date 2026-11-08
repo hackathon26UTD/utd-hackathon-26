@@ -1,0 +1,212 @@
+/* apps/portal-frontend/css/chrome-v7.css — where the rebuilt chrome SITS
+ *
+ * css/rail.css and css/topbar.css describe two components and touch no legacy
+ * selector; their tests assert exactly that. This file is the other half: it
+ * places those components in the portal's grid and stands the shipped chrome
+ * down. Every legacy selector the mount needs lives HERE, in one file, so that
+ * "what does mounting actually change about the existing shell" has one answer.
+ *
+ * ⛔⛔ EVERY RULE IS GATED ON `body.chrome-v7-mounted`, WHICH IS SET BY JS AFTER
+ * THE NEW CHROME IS IN THE DOM — never on the feature flag.
+ *
+ * The difference is the whole safety property. Gate the hiding on the FLAG and a
+ * browser where js/system/rail.js failed to load gets a portal with no rail and
+ * no header at all: the old chrome hidden, the new chrome never built, and no
+ * way to navigate. Gate it on the MOUNT and the same failure is invisible —
+ * the shipped chrome simply stays. This codebase has shipped the first shape of
+ * that bug more than once; see the handoff on failed-read-as-all-clear.
+ */
+
+/* ── The frame ──────────────────────────────────────────────────────────────
+ * The shipped grid is `var(--rail-now) 1fr` / `var(--header-h) 1fr` with the
+ * rail and sheet flush to the edges. The rebuilt rail is a FLOATING PANEL with
+ * a radius and a shadow, so it needs air around it — the columns become `auto`
+ * (the panel sizes itself, and animates its own width when it collapses) and
+ * the container grows a gutter.
+ *
+ * ⛔ `!important` is not decoration here. shell-theme.css sets `padding-left: 0
+ * !important` and `background: var(--frame-chrome) !important` on this exact
+ * selector; a plain declaration loses to it no matter what this file's
+ * specificity is. */
+body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 52px minmax(0, 1fr);
+    column-gap: 12px;
+    padding: 0 12px 12px !important;
+    box-sizing: border-box;
+}
+
+/* ⛔ EXPLICIT GRID AREAS. shell-theme.css pins EVERY direct child of the
+ * container to `1 / 1 / -1 / -1` so that auto-placement cannot invent tracks —
+ * a new child inherits that and would sit on top of the whole app. */
+body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .axt {
+    grid-area: 1 / 1 / 2 / -1;
+    position: static;
+}
+
+body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .axr {
+    grid-area: 2 / 1 / -1 / 2;
+    position: static;
+    align-self: stretch;
+}
+
+/* The sheet keeps its own corner radius rather than only the top-left notch:
+ * with a gutter on all four sides it is a card, not a panel butted into a
+ * corner, and a single rounded corner on a floating card reads as a mistake. */
+body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .portal-main {
+    grid-area: 2 / 2 / -1 / -1;
+    border-radius: 16px !important;
+    border: 1px solid rgba(16, 24, 40, 0.09);
+}
+
+body.chrome-v7-mounted:not(.light-mode):not(.auth-active) .portal-container.has-sidebar > .portal-main {
+    border-color: rgba(255, 255, 255, 0.09);
+}
+
+/* ── Standing the shipped chrome down ───────────────────────────────────────
+ * ⛔⛔ HIDDEN, NOT REMOVED, AND THE DIFFERENCE IS LOAD-BEARING.
+ *
+ * main.js and five other files write into these subtrees by id every time a
+ * page changes, a notification lands, or Clerk resolves a user:
+ * `#headerOrgName`, `#notificationBadge`, `#setupCenterBadge`,
+ * `#setupCenterBtn`, `#userDisplayName`, `#fallbackAvatar`, and the
+ * `.nav-item.active` class. Delete the nodes and every one of those writers
+ * starts throwing or silently no-oping. Leave them, and they keep working —
+ * js/system/chrome-v7.js reads them and mirrors what the new chrome shows.
+ *
+ * ⛔ `visibility: hidden` rather than `display: none` for the header, because
+ * `display: none` collapses a subtree that Clerk's own overlay code measures.
+ * The node still occupies no grid space: it is pinned to the same cell as the
+ * new bar and painted over. Measured, not assumed. */
+body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .portal-header {
+    visibility: hidden;
+    pointer-events: none;
+    height: 0;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .nav-sidebar {
+    display: none;
+}
+
+/* ── The 44px floor under every button in the product ───────────────────────
+ * 🪤🪤🪤 THE HARNESS WAS KINDER THAN PRODUCTION, AND THIS IS WHAT IT HID.
+ *
+ * `css/main.css` carries a tap-target floor:
+ *
+ *   .nav-item, .btn, button, [role="button"], a[tabindex="0"]
+ *     { min-height: 44px; min-width: 44px; }
+ *
+ * The rebuilt rail and top bar are built ENTIRELY out of <button> elements, so
+ * every row, every icon button, the store chip and the search trigger inherit
+ * that floor. Measured in a browser: the 28px avatar came out 44x44, the 30px
+ * icon buttons 44x44, and the rail's 34px rows 44px tall — the whole vertical
+ * rhythm of the approved design, silently overridden.
+ *
+ * ⛔ NOT VISIBLE IN rail-harness.html, WHICH DOES NOT LOAD main.css. That
+ * harness says it loads "the shipping CSS so it cannot be kinder than
+ * production"; it loads the two component files and not the stylesheet the
+ * product loads first. chrome-harness.html loads main.css, which is the only
+ * reason this was found at all.
+ *
+ * ⛔⛔ THE FLOOR IS REINSTATED FOR TOUCH, BELOW, AND THE ORDER MATTERS. A
+ * @media block placed ABOVE the rule it overrides has the same specificity and
+ * loses — this codebase has shipped that exact mistake, and every CSS guard
+ * strips at-rules first so none of them can see it. The coarse-pointer block
+ * comes AFTER this one on purpose. Do not reorder. */
+/* ⛔ THE WIDTH FLOOR HITS EVERYTHING. `button` is (0,0,1) and every component
+ * class is (0,1,0), so a class that DECLARES its own `min-height` already beats
+ * it — `.axr__row`, `.axt__store` and `.axt__search` do, and they are left
+ * alone here on purpose. Nothing declares a `min-width`, so the 44px floor
+ * lands on all of them: on the 56px collapsed rail it makes a 44px row inside a
+ * 40px content box. */
+body.chrome-v7-mounted .axr__row,
+body.chrome-v7-mounted .axt__btn,
+body.chrome-v7-mounted .axt__avatar,
+body.chrome-v7-mounted .axt__store,
+body.chrome-v7-mounted .axt__search,
+body.chrome-v7-mounted .axt__brand {
+    min-width: 0;
+}
+
+/* ⛔ THE HEIGHT FLOOR ONLY HITS THE THREE THAT SET `height` INSTEAD OF
+ * `min-height` — the avatar, the icon buttons, the lockup. Resetting the others
+ * too would flatten the minimums the component files deliberately declare (34px
+ * rows, a 30px chip), which is the bug in the other direction: a fix that
+ * closes one door and opens another. */
+body.chrome-v7-mounted .axt__btn,
+body.chrome-v7-mounted .axt__avatar,
+body.chrome-v7-mounted .axt__brand {
+    min-height: 0;
+}
+
+/* Reinstated where the floor is actually for: a finger. The components' own
+ * heights are a mouse-pointer design, and 34px is not a touch target. */
+@media (pointer: coarse) {
+    body.chrome-v7-mounted .axr__row,
+    body.chrome-v7-mounted .axt__btn,
+    body.chrome-v7-mounted .axt__avatar,
+    body.chrome-v7-mounted .axt__store,
+    body.chrome-v7-mounted .axt__search {
+        min-height: 44px;
+    }
+    body.chrome-v7-mounted .axt__btn,
+    body.chrome-v7-mounted .axt__avatar {
+        min-width: 44px;
+    }
+}
+
+/* ── Re-sizing what the adopted nodes lost ──────────────────────────────────
+ * 🪤🪤 CAUGHT IN A BROWSER, WITH EVERY UNIT TEST GREEN. This is the same trap as
+ * the Apps-row gate, in the other direction: a rule scoped to the OLD ANCESTOR
+ * stops applying the moment the node moves.
+ *
+ * `main.css` sets `#clerkUserButton { width: 44px; min-width: 44px }` at
+ * specificity (1,0,0). `shell-theme.css` beats it back to 30px — but only via
+ * `.header-account #clerkUserButton`, and adoption takes the node OUT of
+ * `.header-account`. So the avatar reverted to 44px and burst the 28px slot,
+ * measured at 44x44 with its initials sitting against the top edge.
+ *
+ * ⛔ THE ID IS IN THE SELECTOR ON PURPOSE. Without it this is (0,2,0) and loses
+ * to main.css exactly the way shell-theme.css's own first attempt did — there
+ * is a comment above that rule saying so. `min-width`/`min-height` too, or
+ * main.css's floor holds the box open regardless of `width`.
+ *
+ * ⛔ AND THE INITIALS. `.header-account .sidebar-avatar-initials` scaled them to
+ * 13px for the same reason and stops matching for the same reason; main.css's
+ * 18px in a 28px disc collides with its own edge. */
+body.chrome-v7-mounted .axt__avatar #clerkUserButton {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.chrome-v7-mounted .axt__avatar .sidebar-avatar-initials {
+    font-size: 11px;
+}
+
+/* ── Narrow ─────────────────────────────────────────────────────────────────
+ * Below 900px the shipped shell already switches the rail to an off-canvas
+ * overlay driven by `toggleNavSidebar()`. The rebuilt rail has no overlay mode
+ * yet, so it stands down entirely and the sheet takes the full width — the ⌘K
+ * palette and the top bar remain, so every destination is still reachable.
+ *
+ * ⛔ THIS IS A KNOWN GAP, NOT A DESIGN. Written down here rather than left for
+ * someone to discover on a phone. */
+@media (max-width: 900px) {
+    body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .axr {
+        display: none;
+    }
+    body.chrome-v7-mounted:not(.auth-active) .portal-container.has-sidebar > .portal-main {
+        grid-area: 2 / 1 / -1 / -1;
+    }
+}

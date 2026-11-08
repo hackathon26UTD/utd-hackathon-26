@@ -157,3 +157,10 @@ Verification completed: `npm run site -- status` successfully read the Pages pro
 - Request: flood region data. Added `src/flood.js` (registered like `beacon.js`, no changes to Ayan's modules): `GET /api/flood/zone`, `GET /api/flood/zones` (GeoJSON for a map layer) and admin `POST /api/flood/homes/refresh`, which adds a `floodZone` field to `homes` documents only. Source: FEMA NFHL MapServer layer 28; results cached in MongoDB 30 days with TTL indexes (`POST /setup` creates them).
 - Verified: 35/35 tests (6 new, fake FEMA so CI does not depend on FEMA), build OK, and a live run against FEMA + Atlas (`dhruv-dev` user): point lookups correct, cache hit on repeat, 9 AE polygons on the Trinity.
 - Next: run `POST /api/setup` then `POST /api/flood/homes/refresh` on production with the admin key; Ayan to decide whether the command center shows the polygon layer and uses `floodZone.risk` in priority. Demo account cannot reach these routes (middleware allows it only `/api/account`, `/api/command-center`, `/api/layers`).
+
+
+## 2026-11-07: resumed Ayan's Claude session after usage limit
+
+Located the actual session and six completed module results; three integration/security/safety jobs were cut off. Preserved all inherited uncommitted code before changes, integrated current main/flood-zone work, repaired the customer dependency test and polling check, connected the real Argus kit to product screens, and completed local end-to-end/UI/security-safety checks. See CLAUDE_CONTINUATION.md for attribution, exact evidence, limitations and pending hardware/key setup. No fake readings or customer accounts were inserted into production for these checks.
+
+Final local release evidence for Claude continuation: 236/236 tests pass; 43/43 isolated platform checks pass; real-kit gallery draws 108 standards in each theme with no console errors; eight public page/theme combinations pass automated WCAG checks. Marketing and command mobile views fit 390px. Physical hardware, key-gated feeds and NVIDIA remain unverified/unconfigured.

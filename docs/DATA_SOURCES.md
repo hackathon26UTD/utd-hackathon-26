@@ -8,19 +8,19 @@ Status legend: **Integrated** = used by app code today · **Tested** = endpoint 
 
 | Source | What it gives | Key (`.env` name) | Endpoint | Status |
 | --- | --- | --- | --- | --- |
-| NWS alerts | Active warnings with polygons | none (send a User-Agent) | `https://api.weather.gov/alerts/active?area=TX` | **Integrated** (`functions/api/weather.js`) |
-| USGS earthquakes | Last-day quakes, GeoJSON | none | `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson` | **Integrated** |
-| OpenFEMA declarations | Declared disasters by state | none | `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries` | **Integrated** |
-| USGS water gauges | Live river stage (param `00065`) | none | `https://waterservices.usgs.gov/nwis/iv/?format=json&stateCd=tx&parameterCd=00065&siteStatus=active` | Tested |
+| NWS alerts | Active warnings with polygons | none (send a User-Agent) | `https://api.weather.gov/alerts/active?area=TX` | **Integrated** (`functions/api/weather.js`; cached overlay `nws` in `src/feeds.js`) |
+| USGS earthquakes | Last-day quakes, GeoJSON | none | `https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson` | **Integrated** (also cached overlay `quakes`) |
+| OpenFEMA declarations | Declared disasters by state | none | `https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries` | **Integrated** (also cached overlay `declarations`, county outlines from Census TIGERweb layer 1) |
+| USGS water gauges | Live river stage (param `00065`) | none | `https://waterservices.usgs.gov/nwis/iv/?format=json&stateCd=tx&parameterCd=00065&siteStatus=active` | **Integrated** (cached overlay `gauges`, per 0.25 degree tile) |
 | ERCOT dashboards | Texas grid supply/demand now | none (unofficial, may change) | `https://www.ercot.com/api/1/services/read/dashboards/supply-demand.json` | Tested |
-| EIA Hourly Grid Monitor | Demand/forecast/generation per grid region (ERCOT = `ERCO`) | `EIA_API_KEY` | `https://api.eia.gov/v2/electricity/rto/region-data/data/?frequency=hourly&data[0]=value&facets[respondent][]=ERCO&api_key=` | Tested, key working |
-| AirNow | Current outdoor AQI by zip or lat/long | `AIRNOW_API_KEY` | `https://www.airnowapi.org/aq/observation/current/ziplatLong?zipCode=75080&format=application/json&api_key=` | Tested, key working |
-| NASA FIRMS | Satellite wildfire hotspots (5000 req / 10 min) | `FIRMS_MAP_KEY` | `https://firms.modaps.eosdis.nasa.gov/api/area/csv/<key>/VIIRS_NOAA20_NRT/<w,s,e,n>/1` | Tested, key working |
-| Open-Meteo | Forecast, rain, river-discharge (flood) forecast | none | `https://api.open-meteo.com/v1/forecast`, `https://flood-api.open-meteo.com/v1/flood` | Tested |
+| EIA Hourly Grid Monitor | Demand/forecast/generation per grid region (ERCOT = `ERCO`) | `EIA_API_KEY` | `https://api.eia.gov/v2/electricity/rto/region-data/data/?frequency=hourly&data[0]=value&facets[respondent][]=ERCO&api_key=` | Integrated as overlay `eia` (needs `EIA_API_KEY` on the server; not yet run with the key) |
+| AirNow | Current outdoor AQI by zip or lat/long | `AIRNOW_API_KEY` | `https://www.airnowapi.org/aq/observation/current/ziplatLong?zipCode=75080&format=application/json&api_key=` | Integrated as overlay `airnow` (needs `AIRNOW_API_KEY`; lat/long query form not yet verified with the key) |
+| NASA FIRMS | Satellite wildfire hotspots (5000 req / 10 min) | `FIRMS_MAP_KEY` | `https://firms.modaps.eosdis.nasa.gov/api/area/csv/<key>/VIIRS_NOAA20_NRT/<w,s,e,n>/1` | Integrated as overlay `firms` (needs `FIRMS_MAP_KEY` on the server; not yet run with the key) |
+| Open-Meteo | Forecast, rain, river-discharge (flood) forecast | none | `https://api.open-meteo.com/v1/forecast`, `https://flood-api.open-meteo.com/v1/flood` | Forecast rain **Integrated** as overlay `weather` (24 h precipitation per geohash5 cell); flood API untested |
 | NWS point forecasts | Hourly forecast per location | none | `https://api.weather.gov/points/{lat},{lon}` → forecastHourly | Tested |
 | NOAA Water Prediction Service | Official river flood forecasts | none | `https://api.water.noaa.gov/nwps/v1/gauges` | Responds; a bbox query returned no gauges, check parameters |
 | NOAA tides (CO-OPS) | Water level / storm surge (coastal demos) | none | `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter` | Untested |
-| FEMA open shelters (NSS) | Open shelters and capacity | none (ArcGIS) | FEMA NSS Open Shelters feature service | Untested |
+| FEMA open shelters (NSS) | Open shelters and capacity | none (ArcGIS) | `https://gis.fema.gov/arcgis/rest/services/NSS/OpenShelters/FeatureServer/0` (verified Nov 7: Point layer, envelope query works) | **Integrated** (cached overlay `shelters`) |
 
 Gotchas found today:
 - **AirNow retired its old endpoints on October 1, 2026.** `/aq/observation/zipCode/current/` and similar return HTTP 410 even with a valid key. Use `/aq/observation/current/ziplatLong` with lowercase `api_key`. Docs require logging in at docs.airnowapi.org.
@@ -33,7 +33,7 @@ Gotchas found today:
 
 | Source | What it gives | Access | Status |
 | --- | --- | --- | --- |
-| FEMA National Flood Hazard Layer | Flood zone per location (100-/500-year) | ArcGIS REST, no key (`hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28`) | **Integrated**: `/api/flood/*` (`src/flood.js`), cached in MongoDB 30 days |
+| FEMA National Flood Hazard Layer | Flood zone per location (100-/500-year) | ArcGIS REST, no key, layer 28 | **Integrated**: teammate `/api/flood/*` and Claude live-cached `nfhl` overlay; preserve both until shared caching is reconciled |
 | FEMA National Risk Index | Expected annual loss + social vulnerability per hazard, by tract | Download / ArcGIS, no key | Untested |
 | CDC/ATSDR Social Vulnerability Index | Elderly, disability, no-vehicle etc. by tract | Download, no key | Untested |
 | Microsoft US Building Footprints / OpenAddresses | Real house outlines/addresses for simulated homes | Download, no key | Untested |

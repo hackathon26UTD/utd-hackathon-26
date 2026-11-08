@@ -1,0 +1,77 @@
+/* ===========================================================================
+ * Glue for the REFERENCE standards (charts, split bar, main menu), which the
+ * ARGUS library draws with their home modules' own sheets and scripts
+ * (vendor/reference/*, byte-identical). Those sheets read the portal's --crm-*
+ * and --axr-* tokens, declared on :root and body.light-mode in argus-crm.css
+ * and on .axr in rail.css, in ARGUS wine and neutral grey.
+ *
+ * Re-declared here on `.kit` (a nearer element than :root, so it wins) from the
+ * kit's own tokens, so the references take the HomeBeacon theme in light and
+ * dark. Gallery only: kit-reference.css is not part of kit.css.
+ * =========================================================================== */
+.kit {
+    --crm-fg: var(--kit-ink);
+    --crm-fg-muted: var(--kit-ink-2);
+    --crm-fg-dim: var(--kit-ink-3);
+    --crm-border: var(--kit-line);
+    --crm-border-strong: var(--kit-line-strong);
+    --crm-surface: var(--kit-surface);
+    --crm-surface-raised: var(--kit-surface);
+    --crm-surface-sunken: var(--kit-surface-2);
+    --crm-neutral-bg: var(--kit-count-bg);
+    --crm-neutral-bd: var(--kit-line-2);
+    --crm-success: var(--kit-ok);
+    --crm-success-fg: var(--kit-ok);
+    --crm-success-bg: var(--kit-ok-tint);
+    --crm-success-bd: var(--kit-ok-line);
+    --crm-danger: var(--kit-bad);
+    --crm-danger-fg: var(--kit-bad);
+    --crm-danger-bg: var(--kit-bad-tint);
+    --crm-danger-bd: var(--kit-bad-line);
+    --crm-warn: var(--kit-warn);
+    --crm-warn-fg: var(--kit-warn);
+    --crm-warn-bg: var(--kit-warn-tint);
+    --crm-warn-bd: var(--kit-draft-line);
+    --crm-info: var(--kit-status-dot-info);
+    --crm-info-fg: var(--kit-status-dot-info);
+    --crm-info-bg: var(--kit-surface-2);
+    --crm-info-bd: var(--kit-line-2);
+    --crm-accent: var(--kit-accent);
+    --crm-accent-hover: var(--kit-accent-ink);
+    --crm-cta: var(--kit-hero);
+    --crm-cta-hover: var(--kit-hero-hover);
+    --crm-cta-fg: var(--kit-hero-fg);
+    --crm-action-bg: var(--kit-surface);
+    --crm-action-bg-hover: var(--kit-nav-bg);
+    --crm-action-fg: var(--kit-ink);
+    --crm-action-border: var(--kit-line-2);
+    --crm-volume: var(--kit-status-dot-info);
+    --crm-cat-1: var(--kit-accent);
+    --crm-cat-2: var(--kit-status-dot-info);
+    --crm-cat-3: var(--kit-ok);
+    --crm-cat-4: var(--kit-bad);
+    --crm-cat-5: var(--kit-ink-3);
+    --crm-step-tint: var(--kit-accent-tint);
+    --crm-mod: var(--kit-accent);
+    --crm-mod-ink: var(--kit-accent-ink);
+    --crm-rail: var(--kit-line);
+    --crm-shadow-1: var(--kit-pop);
+    --crm-shadow-2: var(--kit-pop-2);
+    --ground-chip-2: var(--kit-count-bg-active);
+    --argus-bg-3: var(--kit-surface-2);
+}
+
+/* rail.css re-declares its tokens on .axr and body:not(.light-mode) .axr; this
+   is one specificity step up and later, so it wins in both themes. */
+body .kit .axr {
+    --axr-surface: var(--kit-surface);
+    --axr-edge: var(--kit-line);
+    --axr-shadow: var(--kit-pop);
+    --axr-ink: var(--kit-ink);
+    --axr-mut: var(--kit-ink-3);
+    --axr-hover: var(--kit-ink-wash);
+    --axr-hl: var(--kit-accent);
+    --axr-hl-wash: var(--kit-accent-tint);
+    --axr-hl-ink: var(--kit-accent-ink);
+    --axr-branch-line: var(--kit-line-2);
+}

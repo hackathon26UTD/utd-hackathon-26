@@ -6,6 +6,8 @@ on:
   pull_request:
     paths:
       - 'public/**'
+      - 'ui/**'
+      - 'scripts/**'
       - 'functions/**'
       - 'lib/**'
       - 'src/**'

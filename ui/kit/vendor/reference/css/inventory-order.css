@@ -1,0 +1,756 @@
+/* ============================================================================
+ * THE SUB-TAB PAGE, SHARED BY ORDER, VENDORS, MONEY AND ANALYTICS
+ * (Order/Vendors/Money/Analytics rebuild 2026-09-24)
+ *
+ * docs/ARGUS_PORTAL_REBUILD_2026_09_24.md section 3, "Sub-tab": a head row
+ * (the tab's name, one plain sentence, the ONE filled action on the right), a
+ * toolbar (search left, a segmented filter, quiet 8px buttons right), then
+ * framed tables. These four tabs share one anatomy so they read as one
+ * product; the rules live here because this sheet is loaded on every
+ * Inventory mount (ROUTE_STYLES.hermes and loadInventoryBundle both list it).
+ *
+ * The page root is `div.kit.inv-sub` plus the module's own class. Everything
+ * reads --kit-* tokens, which flip with the theme under `.kit`, so there is no
+ * light-mode block and no raw colour here.
+ *
+ *   header.inv-sub__head        h2.inv-sub__title, p.inv-sub__lede, .inv-sub__acts
+ *   section.inv-sub__kpis       Kit.balance cards, each in a .inv-sub__kpi slot
+ *   .kit-toolbar                Kit.toolbar: Kit.searchBox + Kit.segs + quiet buttons
+ *   section.inv-sub__sec        .inv-sub__sec-head (title, meta, "?" help), a table
+ *   .inv-sub__empty             a guided empty state: what, why, one button
+ *
+ * ⛔ No control here is a pill: controls 8px (--kit-r-ctl), tags 6px.
+ * ⛔ No class contains card, panel, widget, tile, -page or spin.
+ * ========================================================================== */
+
+.inv-sub {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+/* ── Head row ─────────────────────────────────────────────────────────── */
+/* The help banner under a sub-tab's head (Kit.helpBanner). Not
+   .inv-sub__help: that is the small "?" button further down. */
+.inv-sub .inv-sub__banner {
+    margin: 4px 0 16px;
+}
+
+.inv-sub .inv-sub__head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 4px 0 0;
+}
+
+.inv-sub .inv-sub__words {
+    min-width: 0;
+    flex: 1 1 320px;
+}
+
+.inv-sub .inv-sub__title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -0.012em;
+    color: var(--kit-ink);
+}
+
+.inv-sub .inv-sub__lede {
+    margin: 4px 0 0;
+    max-width: 64ch;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--kit-ink-2);
+}
+
+.inv-sub .inv-sub__acts {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* The one filled (wine) action is `.crm-btn.crm-btn--cta` (css/argus-crm.css),
+   8px corners. This only keeps it the kit's control height. */
+.inv-sub .inv-sub__go {
+    min-height: 34px;
+    padding: 8px 16px;
+    border-radius: var(--kit-r-ctl);
+}
+
+/* ── KPI strip ────────────────────────────────────────────────────────── */
+.inv-sub .inv-sub__kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    align-items: stretch;
+}
+
+.inv-sub .inv-sub__kpi {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.inv-sub .inv-sub__kpi > .kit-bal {
+    flex: 1 1 auto;
+}
+
+/* A KPI still being read: its label and a still bar where the figure goes.
+   No number, so nothing can be read as data; no shimmer, because nothing on
+   these pages loops. */
+.inv-sub .inv-sub__kpi-wait {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 132px;
+    padding: 16px 18px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: 16px;
+}
+
+.inv-sub .inv-sub__kpi-wait-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--kit-ink-2);
+}
+
+.inv-sub .inv-sub__kpi-wait-bar {
+    width: 45%;
+    height: 28px;
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-meter-bg);
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+/* ⛔ Every rule here that re-dresses a kit part is written `.kit.inv-sub …`:
+   the kit's own rule is `.kit .kit-*` at the same weight, and this sheet
+   loads lazily, so a tie would be won by whichever sheet happened to load
+   last. One more class makes the page's intent win regardless of order. */
+.kit.inv-sub .kit-toolbar {
+    margin-top: 0;
+}
+
+/* A segment's count: a plain number after its label, never a bubble. */
+.inv-sub .inv-sub__segn {
+    margin-left: 6px;
+    font-variant-numeric: tabular-nums;
+    color: var(--kit-ink-3);
+}
+
+.kit.inv-sub .kit-seg[aria-pressed='true'] {
+    font-weight: 650;
+}
+
+.inv-sub .kit-seg[aria-pressed='true'] .inv-sub__segn {
+    color: var(--kit-ink-2);
+}
+
+/* ── Sections ─────────────────────────────────────────────────────────── */
+.inv-sub .inv-sub__sec {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.inv-sub .inv-sub__sec-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-height: 28px;
+}
+
+.inv-sub .inv-sub__sec-title {
+    margin: 0;
+    font-size: var(--kit-fs-title);
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--kit-ink);
+}
+
+.inv-sub .inv-sub__sec-meta {
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-sub .inv-sub__sec-spacer {
+    flex: 1;
+}
+
+/* The "?" that holds a legend instead of a paragraph across the page. */
+.inv-sub .inv-sub__help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+    padding: 0;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-r-tag);
+    background: var(--kit-surface);
+    color: var(--kit-ink-3);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+    cursor: help;
+    transition:
+        color var(--kit-dur) var(--kit-ease),
+        border-color var(--kit-dur) var(--kit-ease);
+}
+
+.inv-sub .inv-sub__help:hover,
+.inv-sub .inv-sub__help[aria-expanded='true'] {
+    color: var(--kit-ink);
+    border-color: var(--kit-btn-hover-line);
+}
+
+.inv-sub .inv-sub__help:focus-visible {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 2px;
+}
+
+.inv-sub .inv-sub__tip {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface-2);
+    font-size: var(--kit-fs-caption);
+    line-height: 1.5;
+    color: var(--kit-ink-2);
+}
+
+.inv-sub .inv-sub__tip[hidden] {
+    display: none;
+}
+
+/* ── Tables ───────────────────────────────────────────────────────────────
+   Kit.table is the frame (1px border, rounded corners, tinted header band,
+   full-width row rules, numbers right-aligned in tabular figures). It sits
+   directly under its section head here, so it drops the kit's top margin, and
+   takes the rebuild spec's 12px corners. */
+.kit.inv-sub .kit-table {
+    margin-top: 0;
+    border-radius: 12px;
+}
+
+.kit.inv-sub .kit-row--link:focus-visible {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: -2px;
+}
+
+/* Two lines in one cell: the thing, then what it is. */
+.inv-sub .inv-sub__cell-main {
+    font-weight: 550;
+    color: var(--kit-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 38ch;
+}
+
+.inv-sub .inv-sub__cell-sub {
+    margin-top: 2px;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 44ch;
+}
+
+.inv-sub .inv-sub__muted {
+    color: var(--kit-ink-3);
+}
+
+.inv-sub .inv-sub__warn {
+    color: var(--kit-warn);
+    font-weight: 600;
+}
+
+.inv-sub .inv-sub__bad {
+    color: var(--kit-bad);
+    font-weight: 600;
+}
+
+/* A quiet action inside a row. Smaller than the page's buttons so a column of
+   them reads as one control per row, not as a wall of buttons. */
+.kit.inv-sub .inv-sub__rowbtn {
+    min-height: 28px;
+    padding: 4px 11px;
+    font-size: 12.5px;
+    box-shadow: none;
+}
+
+.inv-sub .inv-sub__rowacts {
+    display: inline-flex;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+/* The line under a table: a count, a "showing 8 of 40", never a paragraph. */
+.inv-sub .inv-sub__foot {
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+
+/* ── Guided empty and failed states ───────────────────────────────────── */
+.inv-sub .inv-sub__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 30px 24px 32px;
+    text-align: center;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: 12px;
+}
+
+.inv-sub .inv-sub__empty-title {
+    font-size: var(--kit-fs-title);
+    font-weight: 650;
+    color: var(--kit-ink);
+}
+
+.inv-sub .inv-sub__empty-body {
+    margin: 0;
+    max-width: 52ch;
+    font-size: var(--kit-fs-body);
+    line-height: 1.5;
+    color: var(--kit-ink-2);
+}
+
+.inv-sub .inv-sub__empty-acts {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+/* Kit.unread (a failed read) and Kit.notSetUp get the same frame as the
+   table they stand in for, so a failure never reads as a missing block. */
+.kit.inv-sub .kit-unread,
+.kit.inv-sub .kit-notsetup {
+    padding: 28px 24px 30px;
+    background: var(--kit-surface);
+    border: 1px solid var(--kit-line);
+    border-radius: 12px;
+}
+
+.kit.inv-sub .kit-skel__box {
+    border-radius: 12px;
+}
+
+@media (max-width: 640px) {
+    .inv-sub .inv-sub__acts {
+        width: 100%;
+    }
+
+    .inv-sub .inv-sub__acts > * {
+        flex: 1 1 auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .inv-sub .inv-sub__help {
+        transition: none;
+    }
+}
+
+/* ============================================================================
+ * ORDER (js/inventory/order.js)
+ *
+ * The page is the shared anatomy above: head row, three KPI cards, a toolbar
+ * with the view switch, then framed tables. What is left for this module is
+ * the purchase-order drawer and a few states. Every colour is a token: --kit-*
+ * inside the `.kit` roots, --ground-* on the dialog chrome that sits outside
+ * one. No raw hex, no palette of its own.
+ *
+ * ⛔ The drawer's `.nexus-dialog` is NOT a `.kit` root: `.kit` paints a
+ * transparent ground and would compete with the chrome's background. Its body
+ * is the `.kit` root (`.inv-order__dbody`).
+ * ========================================================================== */
+
+.inv-order .inv-order__bar .kit-search {
+    flex: 0 1 320px;
+}
+
+.inv-order .inv-order__body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    min-width: 0;
+}
+
+/* "No supplier on file" is a state, not a company: it must not look like a
+   supplier's name. */
+.inv-order .inv-order__none {
+    font-weight: 500;
+    font-style: italic;
+    color: var(--kit-ink-3);
+}
+
+/* A caveat that changes what the table means (register silent, register not
+   checked). One line, in the warning ink, never a paragraph. */
+.inv-order .inv-order__caution {
+    color: var(--kit-warn);
+}
+
+.inv-order .inv-order__absent {
+    font-variant-numeric: tabular-nums;
+}
+
+/* KPI card whose script never loaded: said in words. */
+.inv-order .inv-order__kpi-off {
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-3);
+}
+
+/* The item list in a suggested order wraps to two lines at most, so a long
+   supplier order does not turn one row into a paragraph. */
+.inv-order .inv-order__suggest .inv-sub__cell-main,
+.inv-order .inv-order__suggest .inv-sub__cell-sub {
+    max-width: 56ch;
+    white-space: nowrap;
+}
+
+/* ── The purchase-order drawer ─────────────────────────────────────────── */
+.inv-order__dialog {
+    --nx-dialog-w: 760px;
+    max-height: calc(100vh - 64px);
+    overflow-y: auto;
+    text-align: left;
+}
+
+.inv-order__dtop {
+    display: flex;
+    align-items: center;
+}
+
+.inv-order__close {
+    margin-left: auto;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--ground-ink-3);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.inv-order__close:hover {
+    color: var(--ground-ink);
+    background: var(--ground-chip);
+}
+
+.inv-order .inv-order__dbody {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.inv-order .inv-order__dhead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.inv-order .inv-order__dnum {
+    font-size: 20px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+    color: var(--kit-ink);
+}
+
+.inv-order .inv-order__dmeta {
+    margin-top: -8px;
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-2);
+}
+
+.inv-order .inv-order__dnotes {
+    padding: 10px 12px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface-2);
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-2);
+}
+
+.inv-order .inv-order__dacts {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inv-order .inv-order__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* The receive form: the quantity field sits in the number column. */
+.inv-order .inv-order__receive-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.inv-order .inv-order__qty {
+    width: 96px;
+    min-height: 30px;
+    padding: 4px 8px;
+    border: 1px solid var(--kit-line-2);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-surface);
+    color: var(--kit-ink);
+    font: inherit;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.inv-order .inv-order__qty:focus-visible {
+    outline: 2px solid var(--kit-accent);
+    outline-offset: 1px;
+}
+
+/* The one refusal with a remedy: the goods already came in on an invoice. */
+.inv-order .inv-order__refusal {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border: 1px solid var(--kit-line-2);
+    border-left: 3px solid var(--kit-amber);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-warn-tint);
+}
+
+.inv-order .inv-order__refusal-text {
+    flex: 1 1 260px;
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink);
+}
+
+/* The send preview is drawn inside Kit.confirm's own `.kit` modal, outside
+   this page, so its rules are not scoped under `.inv-order`. */
+.inv-order__preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: var(--kit-fs-body);
+}
+
+.inv-order__preview-lines {
+    margin: 0;
+    padding: 8px 12px 8px 28px;
+    border: 1px solid var(--kit-line);
+    border-radius: var(--kit-r-ctl);
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.inv-order__preview-lines li + li {
+    margin-top: 3px;
+}
+
+/* Long names wrap inside the drawer's narrow tables instead of pushing the
+   number columns off the side. */
+.inv-order .inv-order__lines .kit-td:first-child,
+.inv-order .inv-order__timeline .kit-td:first-child {
+    white-space: normal;
+}
+
+.inv-order .inv-order__cover .kit-td:first-child,
+.inv-order .inv-order__orders .kit-td:first-child {
+    min-width: 200px;
+}
+
+.inv-order .inv-order__receive .kit-td {
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.inv-order__dtitle {
+    margin: 0;
+}
+
+.inv-order__preview-to strong {
+    font-weight: 650;
+}
+
+/* ============================================================================
+ * VENDORS (js/inventory/stubs.js + js/inventory/find-suppliers.js)
+ *
+ * The same shared anatomy: head row with the one filled Add vendor, a search
+ * and a segmented filter, then framed tables for the vendors, the barcode
+ * groups to link, the suppliers to find and the register connection. Every
+ * colour is a --kit-* token inside the `.kit` root.
+ * ========================================================================== */
+
+.inv-vendors .inv-vendors__host:empty {
+    display: none;
+}
+
+.inv-vendors .inv-vendors__bar .kit-search {
+    flex: 0 1 300px;
+}
+
+.inv-vendors .inv-vendors__table .kit-td:first-child,
+.inv-vendors .inv-vendors__links .kit-td:first-child {
+    min-width: 220px;
+}
+
+.inv-vendors .inv-vendors__demo-row .kit-td {
+    color: var(--kit-ink-2);
+}
+
+/* The one-line status beside a Link them button ("Linking", a refusal). */
+.inv-vendors .inv-vendors__link-note {
+    align-self: center;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+    white-space: normal;
+    text-align: right;
+}
+
+.inv-vendors .inv-vendors__link-note:empty {
+    display: none;
+}
+
+.inv-vendors .inv-vendors__link-summary {
+    max-width: 60ch;
+}
+
+/* A group's products, opened under its row. */
+.inv-vendors .inv-vendors__link-detail > .kit-td {
+    padding-top: 4px;
+    background: var(--kit-surface-2);
+    white-space: normal;
+}
+
+.inv-vendors .inv-vendors__link-detail[hidden] {
+    display: none;
+}
+
+.inv-vendors .inv-vendors__link-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px 18px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.inv-vendors .inv-vendors__link-item-name {
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink-2);
+}
+
+/* A name a person confirmed reads bold; a barcode lookup does not. */
+.inv-vendors .inv-vendors__link-item-name--verified {
+    font-weight: 650;
+    color: var(--kit-ink);
+}
+
+.inv-vendors .inv-vendors__link-item-sub {
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+
+.inv-vendors .inv-vendors__link-attr {
+    grid-column: 1 / -1;
+    font-size: var(--kit-fs-caption);
+    color: var(--kit-ink-3);
+}
+
+/* The register row: the whole row can wrap its long "stopped reporting"
+   sentence instead of widening the table. */
+.inv-vendors .inv-vendors__conn .kit-td {
+    white-space: normal;
+}
+
+.inv-vendors .inv-vendors__conn-desc {
+    max-width: 72ch;
+    white-space: normal;
+}
+
+.inv-vendors .inv-vendors__conns .kit-td:first-child {
+    min-width: 280px;
+}
+
+/* The status tag is the kit's 6px tag; this only stops it wrapping. */
+.inv-vendors .inv-vendors__status {
+    white-space: nowrap;
+}
+
+/* ── Find more suppliers ──────────────────────────────────────────────── */
+.inv-supplier-finder .inv-supplier-finder__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.inv-supplier-finder .inv-supplier-finder__block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.inv-supplier-finder .inv-supplier-finder__title {
+    margin: 0;
+    font-size: var(--kit-fs-body);
+    font-weight: 650;
+    color: var(--kit-ink-2);
+}
+
+.inv-supplier-finder .inv-supplier-finder__links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.inv-supplier-finder .inv-supplier-finder__links:empty {
+    display: none;
+}
+
+.inv-supplier-finder .inv-supplier-row .kit-td:first-child {
+    min-width: 240px;
+}
+
+.inv-supplier-finder .inv-supplier-row__title {
+    max-width: 44ch;
+}
+
+/* The offer that follows adding a brand: link its products, or not. */
+.inv-supplier-finder .inv-supplier-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border: 1px solid var(--kit-accent-line);
+    border-radius: var(--kit-r-ctl);
+    background: var(--kit-accent-tint);
+}
+
+.inv-supplier-finder .inv-supplier-link__text {
+    flex: 1 1 260px;
+    font-size: var(--kit-fs-body);
+    color: var(--kit-ink);
+}

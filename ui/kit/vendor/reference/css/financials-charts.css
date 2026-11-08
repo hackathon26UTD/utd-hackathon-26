@@ -1,0 +1,865 @@
+/* ============================================================================
+   FINANCIALS: charts and money figures  (js/financials/charts.js, format.js)
+
+   Geometry and type are Mercury's Insights / Transactions screens
+   (docs/financials/mercury-reference/*.md section 3). Colour is ours:
+
+     money in      --crm-revenue   the only green on the page
+     money out     --crm-spend     the dark red, NEVER --crm-danger
+     counts        --crm-volume
+     named groups  --crm-cat-1..5
+
+   ⛔ No raw colour in a rule below. Every value is a --ground-* or --crm-*
+   token, and those carry a literal in BOTH theme blocks (css/main.css,
+   css/argus-crm.css). `transparent` and `currentColor` are the only keywords.
+
+   ⛔ The svg paints NOTHING from attributes: every mark carries a class and
+   the colour arrives here, so the theme toggle reaches all of it.
+   ============================================================================ */
+
+.fin-chart {
+    position: relative;
+    font-family: var(--font-sans, Inter, system-ui, sans-serif);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    letter-spacing: 0.1px;
+    color: var(--ground-ink-2);
+    min-width: 0;
+}
+
+.fin-chart__plot {
+    position: relative;
+    width: 100%;
+    overflow: visible;
+}
+
+.fin-chart__svg {
+    display: block;
+    overflow: visible;
+    max-width: none;
+}
+
+.fin-chart__svg:focus {
+    outline: none;
+}
+
+.fin-chart__svg:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 4px;
+    border-radius: var(--crm-r-xs);
+}
+
+/* The HTML label layer over the svg. Never takes the pointer. */
+.fin-chart__labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+/* ── axes, grid, background ──────────────────────────────────────────────── */
+
+.fin-chart__y {
+    position: absolute;
+    left: 0;
+    transform: translateY(-50%);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    color: var(--ground-ink-3);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* The Transactions strip labels its two ticks one step darker
+   (transactions.md 3.1: the secondary ink there, the tertiary on Insights). */
+.fin-chart__y--kpi {
+    color: var(--ground-ink-2);
+}
+
+.fin-chart__x {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    color: var(--ground-ink-3);
+    white-space: nowrap;
+}
+
+.fin-chart__x.is-on {
+    color: var(--ground-ink);
+    font-weight: 600;
+    letter-spacing: 0.2px;
+}
+
+/* A counterparty name under a thin bar: ellipsis at the slot width. */
+.fin-chart__x--cat {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    color: var(--ground-ink-2);
+}
+
+.fin-chart__dot {
+    fill: var(--ground-line-2);
+}
+
+.fin-chart__zero {
+    stroke: var(--ground-line-2);
+    stroke-width: 1;
+}
+
+.fin-chart__grid,
+.fin-chart__vgrid {
+    stroke: var(--ground-line);
+    stroke-width: 1;
+}
+
+.fin-chart__cross {
+    stroke: var(--ground-line-2);
+    stroke-width: 1;
+    opacity: 0;
+}
+
+.fin-chart__cross.is-on {
+    opacity: 1;
+}
+
+/* Hit targets: the whole column, never the painted pixels. */
+.fin-chart__hit {
+    fill: transparent;
+    pointer-events: all;
+}
+
+/* The stacked chart's hover rect behind the hovered column. */
+.fin-chart__band {
+    fill: var(--crm-neutral-bg);
+    opacity: 0;
+}
+
+.fin-chart__band.is-on {
+    opacity: 1;
+}
+
+/* ── tones: one class per meaning, for strokes, fills and swatches ─────── */
+
+.fin-stroke-revenue {
+    stroke: var(--crm-revenue);
+}
+.fin-stroke-spend {
+    stroke: var(--crm-spend);
+}
+.fin-stroke-volume {
+    stroke: var(--crm-volume);
+}
+.fin-stroke-cat-1 {
+    stroke: var(--crm-cat-1);
+}
+.fin-stroke-cat-2 {
+    stroke: var(--crm-cat-2);
+}
+.fin-stroke-cat-3 {
+    stroke: var(--crm-cat-3);
+}
+.fin-stroke-cat-4 {
+    stroke: var(--crm-cat-4);
+}
+.fin-stroke-cat-5 {
+    stroke: var(--crm-cat-5);
+}
+
+.fin-fill-revenue {
+    fill: var(--crm-revenue);
+}
+.fin-fill-spend {
+    fill: var(--crm-spend);
+}
+.fin-fill-volume {
+    fill: var(--crm-volume);
+}
+.fin-fill-cat-1 {
+    fill: var(--crm-cat-1);
+}
+.fin-fill-cat-2 {
+    fill: var(--crm-cat-2);
+}
+.fin-fill-cat-3 {
+    fill: var(--crm-cat-3);
+}
+.fin-fill-cat-4 {
+    fill: var(--crm-cat-4);
+}
+.fin-fill-cat-5 {
+    fill: var(--crm-cat-5);
+}
+
+.fin-bg-revenue {
+    background: var(--crm-revenue);
+}
+.fin-bg-spend {
+    background: var(--crm-spend);
+}
+.fin-bg-volume {
+    background: var(--crm-volume);
+}
+.fin-bg-cat-1 {
+    background: var(--crm-cat-1);
+}
+.fin-bg-cat-2 {
+    background: var(--crm-cat-2);
+}
+.fin-bg-cat-3 {
+    background: var(--crm-cat-3);
+}
+.fin-bg-cat-4 {
+    background: var(--crm-cat-4);
+}
+.fin-bg-cat-5 {
+    background: var(--crm-cat-5);
+}
+
+/* Gradient stops. "-a" is the bar's END (strong), "-b" the baseline (faint):
+   sampled off Mercury's overview capture, both directions. */
+.fin-stop--revenue-a {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.24;
+}
+.fin-stop--revenue-b {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.03;
+}
+.fin-stop--spend-a {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.2;
+}
+.fin-stop--spend-b {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.03;
+}
+.fin-stop--net-pos-a {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.3;
+}
+.fin-stop--net-pos-b {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.03;
+}
+.fin-stop--net-neg-a {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.26;
+}
+.fin-stop--net-neg-b {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.03;
+}
+.fin-stop--cum-a {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.16;
+}
+.fin-stop--cum-b {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.01;
+}
+/* The running totals fill under whichever line is ahead: money out's is the
+   spend red at the same weight (never --crm-danger). */
+.fin-stop--cumout-a {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.14;
+}
+.fin-stop--cumout-b {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.01;
+}
+.fin-stop--flow-in {
+    stop-color: var(--crm-revenue);
+    stop-opacity: 0.2;
+}
+.fin-stop--flow-out {
+    stop-color: var(--crm-spend);
+    stop-opacity: 0.16;
+}
+
+/* ── marks ───────────────────────────────────────────────────────────────── */
+
+.fin-bar,
+.fin-cap,
+.fin-pt,
+.fin-seg,
+.fin-dot,
+.fin-netline,
+.fin-area,
+.fin-line,
+.fin-sankey__link,
+.fin-sankey__node {
+    transition: opacity var(--crm-dur) var(--crm-ease);
+}
+
+.fin-cap {
+    stroke-width: 1.5;
+}
+
+.fin-cap--thick {
+    stroke-width: 2;
+}
+
+.fin-netline,
+.fin-line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.fin-cumline {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.fin-pt,
+.fin-dot,
+.fin-cumdot {
+    transform-box: fill-box;
+    transform-origin: center;
+    transition:
+        opacity var(--crm-dur) var(--crm-ease),
+        transform var(--crm-dur) var(--crm-ease);
+}
+
+/* The previous period: dashed, in the neutral ink, so identity is never
+   carried by colour alone. */
+.fin-cmp {
+    fill: none;
+    stroke: var(--crm-volume);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+}
+
+.fin-cmp-pt {
+    fill: var(--crm-volume);
+}
+
+/* Mercury's average is a 1px ink line that lands between two pixel rows
+   and reads as a mid grey; a crisp 1px of the secondary ink is the same
+   weight on screen. */
+.fin-avg {
+    stroke: var(--ground-ink-2);
+    stroke-width: 1;
+}
+
+/* "-$228K avg.": a dark pill on light, a light pill on dark. */
+.fin-avg-pill {
+    position: absolute;
+    left: 0;
+    transform: translateY(-50%);
+    /* Mercury: 2px beside the text, 23-24px tall, radius 4 (moneyout.md 3.2). */
+    padding: 3px 2px;
+    border-radius: 4px;
+    background: var(--ground-ink);
+    color: var(--ground-raised);
+    font-size: var(--crm-t-caption);
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Hover (overview.md 3.3): the hovered bucket keeps its colour, the others
+   fade to about 20%, the net line recedes, and only the hovered point shows,
+   grown 1.4x with a surface ring. */
+.fin-chart.is-hovering .fin-bar:not(.is-on),
+.fin-chart.is-hovering .fin-cap:not(.is-on) {
+    opacity: 0.2;
+}
+
+.fin-chart.is-hovering .fin-netline,
+.fin-chart.is-hovering .fin-area {
+    opacity: 0.25;
+}
+
+.fin-chart.is-hovering .fin-pt:not(.is-on) {
+    opacity: 0;
+}
+
+/* Too many buckets for a dot each (about 90 days on 713px): the line
+   carries the shape and the dot appears only for the hovered bucket. */
+.fin-pt--dense:not(.is-on) {
+    opacity: 0;
+}
+
+.fin-chart .fin-pt.is-on,
+.fin-chart .fin-dot.is-on {
+    transform: scale(1.4);
+    stroke: var(--ground-raised);
+    stroke-width: 1;
+}
+
+.fin-cumdot {
+    opacity: 0;
+    stroke: var(--ground-raised);
+    stroke-width: 1.5;
+}
+
+.fin-cumdot.is-on {
+    opacity: 1;
+}
+
+/* ── legend: toggles, a square swatch and a 13px label ───────────────────── */
+
+.fin-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 4px;
+    min-height: 28px;
+    padding-left: 60px;
+}
+
+.fin-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 2px 6px;
+    border: 0;
+    border-radius: var(--crm-r-xs);
+    background: transparent;
+    color: var(--ground-ink-2);
+    font: inherit;
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    cursor: pointer;
+    transition:
+        opacity var(--crm-dur-fast) var(--crm-ease),
+        background-color var(--crm-dur-fast) var(--crm-ease);
+}
+
+.fin-legend__item:hover {
+    background: var(--crm-neutral-bg);
+}
+
+.fin-legend__item:focus-visible {
+    outline: 2px solid var(--crm-focus);
+    outline-offset: 1px;
+}
+
+.fin-legend__item:disabled {
+    cursor: default;
+}
+
+.fin-legend__item:disabled:hover {
+    background: transparent;
+}
+
+.fin-legend__item.is-muted {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+
+.fin-legend__sw {
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: 2px;
+}
+
+.fin-legend__sw--dash {
+    height: 0;
+    border-top: 2px dashed var(--crm-volume);
+    background: transparent;
+    border-radius: 0;
+}
+
+/* ── sankey ──────────────────────────────────────────────────────────────── */
+
+.fin-link-revenue {
+    fill: var(--crm-revenue);
+    fill-opacity: 0.2;
+}
+
+.fin-link-spend {
+    fill: var(--crm-spend);
+    fill-opacity: 0.16;
+}
+
+.fin-chart.is-hovering .fin-sankey__link:not(.is-on) {
+    opacity: 0.45;
+}
+
+.fin-chart.is-hovering .fin-sankey__node:not(.is-on) {
+    opacity: 0.5;
+}
+
+.fin-chart.is-hovering .fin-sankey__label:not(.is-on) {
+    opacity: 0.25;
+}
+
+.fin-sankey__label {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    max-width: 124px;
+    transform: translateY(-50%);
+    font-size: var(--crm-t-body);
+    line-height: 22px;
+    transition: opacity var(--crm-dur) var(--crm-ease);
+}
+
+.fin-sankey__label--l {
+    align-items: flex-end;
+    text-align: right;
+}
+
+.fin-sankey__label--r {
+    align-items: flex-start;
+    text-align: left;
+}
+
+.fin-sankey__name {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ground-ink-2);
+}
+
+.fin-sankey__amt {
+    color: var(--ground-ink);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* ── the share bar (breakdown tables) ────────────────────────────────────── */
+
+.fin-share {
+    display: block;
+    width: 100%;
+    min-width: 80px;
+}
+
+.fin-share__track {
+    position: relative;
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--ground-line);
+}
+
+/* Dark: --ground-line on the card measured 1.16:1 and the staircase lost its
+   track. The control border reads 1.85:1, still quieter than any fill. */
+body:not(.light-mode) .fin-share__track {
+    background: var(--ground-line-3);
+}
+
+.fin-share__fill {
+    position: absolute;
+    top: 0;
+    height: 4px;
+    min-width: 2px;
+    border-radius: 2px;
+    transform-origin: left center;
+    animation: fin-share-in 0.4s var(--crm-ease) 0.1s both;
+}
+
+@keyframes fin-share-in {
+    /* 🪤 0.01, never 0: a backgrounded tab pauses animations, and a bar
+       pinned at a zero first keyframe would never come back
+       (__tests__/portal-invisible-animation.contract.test.js). */
+    from {
+        transform: scaleX(0.01);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+/* ── money with superscript cents ("-$25" + raised ".00") ────────────────── */
+
+.fin-amt {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    white-space: nowrap;
+}
+
+.fin-amt__cents {
+    position: relative;
+    top: -0.36em;
+    padding-left: 0.07em;
+    font-size: 0.73em;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.fin-amt--none {
+    color: var(--ground-ink-3);
+}
+
+/* ── the tooltip, portalled to <body> ────────────────────────────────────
+   Mercury's is a dark card with white text, and in light mode ours is the
+   same: the INK as a surface. In dark mode it is a raised dark card with a
+   hairline (owner, 2026-09-27: "one of the cards is still white"): the ink
+   flips to near-white there, and a white card over a dark page was the one
+   thing on it that did not belong to the theme. */
+
+.fin-tip {
+    position: fixed;
+    z-index: 9998;
+    min-width: 200px;
+    max-width: 320px;
+    padding: 8px 16px;
+    border-radius: var(--crm-r-sm);
+    background: var(--ground-ink);
+    color: var(--ground-raised);
+    box-shadow: var(--crm-shadow-3);
+    font-family: var(--font-sans, Inter, system-ui, sans-serif);
+    font-size: var(--crm-t-body-lg);
+    line-height: 22px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--crm-dur-fast) var(--crm-ease);
+}
+
+.fin-tip.is-on {
+    opacity: 1;
+}
+
+body:not(.light-mode) .fin-tip {
+    border: 1px solid var(--ground-line-2);
+    background: var(--ground-raised);
+    color: var(--ground-ink);
+}
+
+.fin-tip__head {
+    margin-bottom: 2px;
+    font-size: var(--crm-t-caption);
+    opacity: 0.72;
+}
+
+.fin-tip__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fin-tip__row + .fin-tip__row {
+    margin-top: 2px;
+}
+
+.fin-tip__k {
+    width: 10px;
+    height: 2px;
+    flex: none;
+    border-radius: 1px;
+}
+
+.fin-tip__k--dash {
+    height: 0;
+    border-top: 2px dashed currentColor;
+    background: transparent;
+    opacity: 0.6;
+}
+
+.fin-tip__l {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0.78;
+}
+
+.fin-tip__v {
+    margin-left: auto;
+    white-space: nowrap;
+    font-weight: 500;
+}
+
+.fin-tip__row.is-strong .fin-tip__l {
+    opacity: 1;
+}
+
+.fin-tip__div {
+    height: 1px;
+    margin: 6px 0;
+    background: currentColor;
+    opacity: 0.2;
+}
+
+.fin-tip__note {
+    margin-top: 4px;
+    font-size: var(--crm-t-caption);
+    line-height: 18px;
+    opacity: 0.72;
+}
+
+/* ── states ──────────────────────────────────────────────────────────────── */
+
+/* Loading: the dotted field alone, with a wave passing over it. No marks,
+   no baseline, no figure. */
+.fin-chart__skel {
+    position: relative;
+    overflow: hidden;
+    background-image: radial-gradient(circle, var(--ground-line-2) 1px, transparent 1.6px);
+    background-size: 14px 15px;
+    background-position: 59px 7px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, currentColor 15%, currentColor 85%, transparent);
+    mask-image: linear-gradient(to bottom, transparent, currentColor 15%, currentColor 85%, transparent);
+}
+
+.fin-chart__skel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--ground-raised) 50%, transparent);
+    opacity: 0.7;
+    transform: translateX(-100%);
+    animation: fin-wave 1.6s var(--crm-ease) infinite;
+}
+
+@keyframes fin-wave {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(100%);
+    }
+}
+
+/* Failed: a plate with a sentence. Nothing else, not even a baseline. */
+.fin-chart__plate {
+    display: flex;
+    flex-direction: column;
+    gap: var(--crm-s-3);
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: var(--crm-s-6);
+    border-radius: var(--crm-r-md);
+    background: var(--crm-neutral-bg);
+}
+
+.fin-chart__msg {
+    max-width: 42ch;
+    margin: 0;
+    color: var(--ground-ink-2);
+    font-size: var(--crm-t-body-lg);
+    line-height: 22px;
+    text-align: center;
+}
+
+/* A failed chart's Try again: the page's one outlined retry button
+   (.fc-btn--outline, .fi-retry, .atbl-msg__action), inside the plate. */
+.fin-chart__retry {
+    display: inline-flex;
+    align-items: center;
+    box-sizing: border-box;
+    height: 32px;
+    min-width: 0;
+    min-height: 0;
+    padding: 0 var(--crm-s-4);
+    border: 1px solid var(--crm-border-strong);
+    border-radius: var(--crm-r-sm);
+    background: var(--ground-raised);
+    color: var(--ground-ink-2);
+    font: inherit;
+    font-size: 15px;
+    line-height: 24px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.fin-chart__retry:hover {
+    border-color: var(--ground-line-3);
+    color: var(--ground-ink);
+}
+
+.fin-chart__retry:focus-visible {
+    outline: none;
+    box-shadow:
+        0 0 0 1px var(--crm-surface-raised),
+        0 0 0 3px color-mix(in srgb, var(--crm-cta) 50%, transparent);
+}
+
+/* Unavailable (every value unknown) uses the failed plate: no marks, no zero
+   line, the reason in words. Only the data-state tells them apart. */
+
+/* A caption under a chart that could draw only part of the picture (the
+   sankey when money in is unknown): why the other part is missing. */
+.fin-chart__aside {
+    margin: var(--crm-s-2) 0 0;
+    color: var(--ground-ink-3);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+}
+
+/* Empty: the zero chart stays, and a quiet sentence sits over it. */
+.fin-chart__note {
+    position: absolute;
+    top: 38%;
+    left: 50%;
+    max-width: 42ch;
+    margin: 0;
+    padding: var(--crm-s-3) var(--crm-s-6);
+    border-radius: var(--crm-r-md);
+    background: var(--ground-raised);
+    box-shadow: var(--crm-shadow-1);
+    color: var(--ground-ink-2);
+    font-size: var(--crm-t-body-lg);
+    line-height: 22px;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Over a leading run of empty slots (no records yet): quiet words, no box,
+   so the empty stretch reads as "nothing recorded", never as zero. */
+.fin-chart__lead {
+    position: absolute;
+    margin: 0;
+    color: var(--ground-ink-3);
+    font-size: var(--crm-t-body);
+    line-height: 20px;
+    text-align: center;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* The same values as a table, for a screen reader only. Clipped rather than
+   display:none, which would take it out of the accessibility tree. */
+.fin-chart__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fin-chart__skel::after,
+    .fin-share__fill {
+        animation: none;
+    }
+
+    .fin-bar,
+    .fin-cap,
+    .fin-pt,
+    .fin-seg,
+    .fin-dot,
+    .fin-cumdot,
+    .fin-netline,
+    .fin-area,
+    .fin-line,
+    .fin-sankey__link,
+    .fin-sankey__node,
+    .fin-sankey__label,
+    .fin-tip {
+        transition: none;
+    }
+}

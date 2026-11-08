@@ -1,0 +1,678 @@
+/* apps/portal-frontend/css/rail.css — the navigation rail, rebuilt
+ *
+ * ⛔⛔ THIS FILE DOES NOT RESTYLE `.nav-sidebar`. IT REPLACES IT.
+ *
+ * shell-theme.css carries ~900 `!important` declarations aimed at `.nav-sidebar`
+ * / `.nav-item` / `.nav-item-bubble`, layered over five rewrites of the same
+ * chrome. Restyling into that was tried first and lost: forcing `display:flex`
+ * onto the grid item collapsed the rail to 30px, because the width it was
+ * resolving came from a rule three sections away. Every selector here is
+ * `.axr-` prefixed and emitted by js/system/rail.js, so none of those rules
+ * match and none of them have to be understood.
+ *
+ * ⛔ SELF-CONTAINED ON PURPOSE. It reads no `--crm-*`, no `--ax-*`, no
+ * `--shell-*`, no `--frame-*`. Three token systems already exist and disagree;
+ * this file borrows from none of them so that changing any of them cannot move
+ * the rail. Its own tokens are `--axr-*` and they are declared twice: once for
+ * light, once for dark.
+ *
+ * ⛔ EVERY var() CARRIES ITS OWN DECLARATION IN THIS FILE. An undefined custom
+ * property in var() with no fallback invalidates the WHOLE declaration, so a
+ * token that lives somewhere else is a rule that silently does not apply.
+ */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+
+/* Light is the default so the rail is never unstyled if a theme class is late. */
+.axr {
+    --axr-surface: #ffffff;
+    --axr-edge: rgba(16, 24, 40, 0.09);
+    --axr-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 14px 30px -22px rgba(16, 24, 40, 0.3);
+    --axr-ink: #101828;
+    --axr-mut: #667085;
+    --axr-hover: rgba(16, 24, 40, 0.045);
+
+    /* Brand red. ⛔ A STATE, never a fill behind white text. */
+    --axr-hl: #dc2626;
+    --axr-hl-wash: #fef2f2;
+    --axr-hl-ink: #991b1b;
+    --axr-branch-line: rgba(16, 24, 40, 0.16);
+
+    /* ⛔ THE WIDTH IS DERIVED, NOT CHOSEN, AND IT IS NO LONGER A LABEL THAT
+     * DERIVES IT (2026-09-18). Round one took the rail 186px → 172px off the
+     * widest ROW LABEL. The owner then approved shortening that label, expecting
+     * ~137px. It does not go there, and the reason is worth keeping:
+     *
+     *   rows      1px border + 8px pad + 10px row pad + 18px icon + 10px gap
+     *               + LABEL + 10px row pad + 8px pad + 1px border = 66 + LABEL
+     *   headings  1px border + 8px pad + 10px pad
+     *               + HEADING + 10px pad + 8px pad + 1px border   = 38 + HEADING
+     *
+     * ⛭ MEASURED IN CHROME, Inter loaded, via Range.getBoundingClientRect() over
+     * the live text nodes — not estimated:
+     *
+     *   widest row label    "Documents"        70.88  →  rows need     136.88
+     *   widest heading      "RUN THE BUSINESS" 116.70 →  headings need 154.70
+     *
+     * ⛔ SO THE SECTION HEADING BINDS, NOT A LABEL. Shortening the collapse row
+     * from "Close navigation" (103.31px) to "Collapse" (54.00px) took 32.4px out
+     * of the row constraint and it stopped mattering: 136.88 is now the SMALLER
+     * of the two. 154.70 → 172 was 17.3px of slack; 157px keeps 2.30px for
+     * sub-pixel rounding. Anything under ~155px clips "RUN THE BUSINESS", and
+     * `.axr__grouplabel` is `overflow: hidden` with NO `text-overflow`, so it
+     * clips with no ellipsis to admit it — silently, which is worse than wide.
+     *
+     * ⚠️ 116.70 IS THE FALLBACK FACE, NOT INTER, AND THAT IS DELIBERATE. At
+     * 10.5px `-apple-system` sets "RUN THE BUSINESS" 3.6px WIDER than Inter does
+     * (116.70 vs 113.09). Row labels go the other way (Inter is the wider one
+     * there, so rows are sized against Inter). Size each against its own worst
+     * case or a first paint before the webfont lands clips the heading.
+     *
+     * ⛔ 137px NEEDS A COPY CHANGE THIS FILE CANNOT MAKE. To go lower, the
+     * heading "RUN THE BUSINESS" has to get shorter — 99px of heading budget is
+     * what 137px leaves, against 116.70 needed. That is a product decision about
+     * section names, not a CSS one, and it was explicitly out of scope here.
+     *
+     * ⛔ rail-width-fits-its-longest-label.contract.test.js re-does BOTH sums and
+     * pins the ceiling to whichever one binds. Change a padding, a heading or the
+     * collapse word and it fails with the new budget. */
+    --axr-w: 157px;
+    --axr-w-collapsed: 56px;
+
+    /* ⛭ THESE FOUR ARE A REFACTOR, NOT A CHANGE. Each one is exactly the value
+     * that was hard-coded below before; they are tokens now only so that the
+     * width above can be checked against them by a test. Editing one moves the
+     * rail's geometry and will fail that test until --axr-w is re-derived. */
+    --axr-pad: 8px; /* panel padding, inside the 1px border */
+    --axr-row-pad-x: 10px;
+    --axr-gap: 10px; /* icon → label */
+    /* THE BRANCH. The spine drops from the parent row's icon centre
+       (row-pad 10 + icon/2 9 = 19px). The elbow is 12px wide and lands 2px
+       short of the twig box (twig-pad 14); with the twig's own 6px left pad
+       the child's text starts at 19 + 14 + 6 = 39px — one pixel off where the
+       parent's label starts (row-pad 10 + icon 18 + gap 10 = 38), so a child
+       reads as indented under its parent's WORD, not floating under its glyph.
+       ⛔ THE BUDGET IS ARITHMETIC, NOT A GUESS — the first draft of this note
+       said 91px and the sum was 83, which would have clipped "Certifications"
+       (83.74) by three quarters of a pixel and "Staff incidents" (89.74) by
+       seven. twig budget = --axr-w − 2·border − 2·pad − indent − twig-pad −
+       2·twig-pad-x = 157 − 2 − 16 − 19 − 14 − 12 = 94px. Both measured in
+       Chrome at 13px/500; rail-width-fits-its-longest-label.contract.test.js
+       recomputes this from these four tokens and fails on any label it has no
+       measurement for. */
+    --axr-twig-indent: 19px;
+    --axr-twig-pad: 14px;
+    --axr-twig-pad-x: 6px;
+    --axr-twig-h: 30px;
+    --axr-icon: 18px;
+
+    --axr-radius: 16px;
+    --axr-t: 150ms cubic-bezier(0.3, 0.6, 0.3, 1);
+
+    /* ⛔ THE LABELS MOVE ON A DIFFERENT CLOCK FROM THE PANEL, AND THAT IS THE
+     * WHOLE TRICK. Fading them on the same 150ms as the width leaves a frame or
+     * two where a panel's worth of text is being squeezed through a 56px box, reading
+     * as a crush rather than a collapse. So: OUT FAST AND FIRST (90ms, no
+     * delay), IN SLOW AND LAST (120ms after a 90ms wait, by which time the
+     * panel is already wide enough to hold them). */
+    --axr-t-label-out: 90ms cubic-bezier(0.4, 0, 1, 1);
+    --axr-t-label-in: 140ms cubic-bezier(0, 0, 0.2, 1) 150ms;
+
+    /* ⛔ OPENING IS THREE BEATS, NOT ONE (2026-09-03, owner: "push the icons
+     * down elegantly then allow the icon text to appear/fade in and then the
+     * major text above it like store, finances, etc").
+     *
+     *   1. GEOMETRY  0→200ms   the panel widens AND each group heading grows
+     *                          from zero height, which is what pushes the rows
+     *                          below it down. One clock, so they move together.
+     *   2. ROW LABELS 150→290  they start as the push is finishing, into a box
+     *                          already wide enough to hold them.
+     *   3. HEADINGS   270→430  the words land last, on top of rows that have
+     *                          already arrived. This is the beat that makes the
+     *                          sequence read as deliberate rather than as one
+     *                          slab of everything.
+     *
+     * Closing reverses it and is quicker — text gets out of the way FIRST, then
+     * the geometry closes behind it, or a panel's worth of words is squeezed
+     * through a 56px box for a frame and reads as a crush. */
+    --axr-t-geo: 200ms cubic-bezier(0.32, 0.72, 0, 1);
+    --axr-t-head-in: 160ms cubic-bezier(0, 0, 0.2, 1) 270ms;
+    --axr-t-head-out: 70ms cubic-bezier(0.4, 0, 1, 1);
+    --axr-t-geo-out: 170ms cubic-bezier(0.32, 0.72, 0, 1) 60ms;
+}
+
+/* ⛔ `body:not(.light-mode)` is the dark selector, NOT `body.dark-mode`. The
+ * portal marks LIGHT with a class and leaves dark as the absence of it — a
+ * `.dark-mode` rule here would never match anything. */
+body:not(.light-mode) .axr {
+    --axr-surface: #1c1c1c;
+    --axr-edge: rgba(255, 255, 255, 0.09);
+    --axr-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 16px 34px -24px rgba(0, 0, 0, 0.75);
+    --axr-ink: #f2f2f2;
+    --axr-mut: #9b9b9b;
+    --axr-hover: rgba(255, 255, 255, 0.06);
+
+    /* ⛔ #dc2626 on #1c1c1c is 3.9:1 — under the 4.5:1 text bar. The dark
+     * highlight is LIFTED, not reused, and the wash is an alpha tint rather
+     * than a light pink, which would glow on a dark ground. */
+    --axr-hl: #f05252;
+    --axr-hl-wash: rgba(240, 82, 82, 0.14);
+    --axr-hl-ink: #ffb4b4;
+    --axr-branch-line: rgba(255, 255, 255, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .axr {
+        --axr-t: 0ms;
+        --axr-t-label-out: 0ms;
+        --axr-t-label-in: 0ms;
+        --axr-t-geo: 0ms;
+        --axr-t-geo-out: 0ms;
+        --axr-t-head-in: 0ms;
+        --axr-t-head-out: 0ms;
+    }
+}
+
+/* ── The panel ──────────────────────────────────────────────────────────── */
+
+.axr {
+    display: flex;
+    flex-direction: column;
+    width: var(--axr-w);
+    flex: 0 0 var(--axr-w);
+    box-sizing: border-box;
+    background: var(--axr-surface);
+    border: 1px solid var(--axr-edge);
+    border-radius: var(--axr-radius);
+    box-shadow: var(--axr-shadow);
+    padding: var(--axr-pad);
+    overflow: hidden;
+    transition:
+        width var(--axr-t-geo),
+        flex-basis var(--axr-t-geo);
+}
+
+.axr--collapsed {
+    width: var(--axr-w-collapsed);
+    flex-basis: var(--axr-w-collapsed);
+}
+
+/* ⛔ min-height:0 is load-bearing. A flex child defaults to min-height:auto and
+ * refuses to shrink below its content, so without it the scroller never scrolls
+ * and the footer is pushed out of the panel entirely. */
+.axr__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+}
+
+.axr__foot {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--axr-edge);
+    margin-top: 6px;
+    padding-top: 6px;
+}
+
+/* ── Groups ─────────────────────────────────────────────────────────────── */
+
+.axr__group {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.axr__grouplabel {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--axr-mut);
+    padding: 14px var(--axr-row-pad-x) 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    /* The heading becomes a hairline when collapsed, so what animates is its
+     * HEIGHT and the words' opacity — the rule below turns the border on. */
+    max-height: 34px;
+    opacity: 1;
+    border-top: 1px solid transparent;
+    transition:
+        max-height var(--axr-t-geo),
+        opacity var(--axr-t-head-in),
+        padding var(--axr-t-geo),
+        margin var(--axr-t-geo),
+        border-color var(--axr-t-geo);
+}
+
+/* Collapsed: the heading takes NO ROOM AT ALL (2026-09-03, owner: "awkward gaps
+ * when it collapses since text would be there, remove the space").
+ *
+ * ⛔ `max-height: 0` DID NOT MEAN ZERO HEIGHT, and that was the bug. max-height
+ * caps the CONTENT box; the 9px padding-top and the 1px border still count, and
+ * the 8px margin sits outside it. Measured on the collapsed rail: 19px between
+ * the last row of one group and the first of the next, against a 1px gap inside
+ * a group — a hole three quarters the height of a row, holding a hairline at 9%
+ * opacity that nobody can see. It read as a mistake, because visually it is one.
+ *
+ * ⛔ `font-size: 0` was a SNAP and could not be transitioned back either, since
+ * the words reflow at whatever size they land on. Height, padding and margin all
+ * animate, so the heading grows out of nothing when the rail opens — and THAT
+ * growth is what pushes the rows below it down. Beat 1 of the open.
+ *
+ * ⚠️ The grouping is not drawn on the collapsed rail any more. It survives in
+ * the tooltips, in the aria tree (the label is never display:none — see below)
+ * and in the expanded rail. An even icon column is the whole point. */
+.axr--collapsed .axr__grouplabel {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-color: transparent;
+    margin: 0;
+    transition:
+        max-height var(--axr-t-geo-out),
+        opacity var(--axr-t-head-out),
+        padding var(--axr-t-geo-out),
+        margin var(--axr-t-geo-out),
+        border-color var(--axr-t-head-out);
+}
+
+/* ── Rows ───────────────────────────────────────────────────────────────── */
+
+.axr__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--axr-gap);
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 34px;
+    padding: 7px var(--axr-row-pad-x);
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--axr-mut);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    /* `padding` and `gap` are in here because both change on collapse; without
+     * them the glyph jumps 10px sideways while the panel slides. */
+    transition:
+        background var(--axr-t),
+        color var(--axr-t),
+        padding var(--axr-t),
+        gap var(--axr-t);
+}
+
+/* ⛔ NOT `justify-content: center`. That is not animatable, and it made the
+ * glyph teleport to the middle on frame one while the panel was still at full
+ * width. The row keeps `flex-start` and the PADDING carries it, which animates —
+ * and because the label collapses to zero width at the same time, the glyph
+ * ends up centred by arithmetic. Measured: it does not move at all, because
+ * 8px of panel padding + 10px of row padding is already the centre of a 56px
+ * rail holding an 18px glyph. */
+.axr--collapsed .axr__row {
+    padding: 7px 10px;
+    gap: 0;
+}
+
+.axr__row:hover {
+    background: var(--axr-hover);
+    color: var(--axr-ink);
+}
+
+.axr__row:focus-visible {
+    outline: 2px solid var(--axr-hl);
+    outline-offset: 1px;
+}
+
+/* ⚠️ THE WASH CARRIES NO CONTRAST — it is 1.09:1 on white. The 2px marker and
+ * `aria-current` carry the meaning; the wash is decoration. Darkening it to
+ * "fix contrast" would be a design change wearing an accessibility hat. */
+.axr__row[aria-current='page'] {
+    background: var(--axr-hl-wash);
+    color: var(--axr-hl-ink);
+}
+
+.axr__row[aria-current='page']::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 0 2px 2px 0;
+    background: var(--axr-hl);
+}
+
+.axr__icon {
+    display: inline-flex;
+    flex: 0 0 var(--axr-icon);
+    width: var(--axr-icon);
+    height: var(--axr-icon);
+}
+
+/* ⛔ A FIXED BOX, NOT 100%. An <svg> with no width/height collapses to zero
+ * wide inside a flex slot, and a percentage resolves against a parent that has
+ * only a min-height — measured once at ~44px, overlapping its neighbour. */
+.axr__glyph {
+    flex: 0 0 var(--axr-icon);
+    width: var(--axr-icon);
+    height: var(--axr-icon);
+    display: block;
+}
+
+.axr__label {
+    flex: 1 1 auto;
+    /* ⛔ `min-width: 0` OR THE LABEL WILL NOT SHRINK. A flex child defaults to
+     * min-width:auto and refuses to go below its content, so `max-width: 0`
+     * below would animate towards a floor it can never reach and the text would
+     * be clipped mid-word at the panel edge instead of closing. */
+    min-width: 0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 1;
+    transition:
+        opacity var(--axr-t-label-in),
+        max-width var(--axr-t-label-in);
+}
+
+/* ⛔⛔ THIS WAS `display: none`, AND THE COMMENT ABOVE IT ALREADY SAID IT WAS
+ * NOT — it claimed the label was "hidden by width, not by `display`, so the
+ * transition has something to animate rather than snapping". The code did the
+ * opposite, and `display` is not animatable, so the panel slid and the words
+ * vanished on frame one. A comment is not a test.
+ *
+ * ⛔ It still must not be `display: none` for the older reason: that removes the
+ * label from the ACCESSIBILITY TREE, and every row would become an unnamed
+ * button while the rail still looked fine. Width and opacity keep it in the
+ * tree AND give the transition something to run on. */
+.axr--collapsed .axr__label {
+    max-width: 0;
+    opacity: 0;
+    transition:
+        opacity var(--axr-t-label-out),
+        max-width var(--axr-t-label-out);
+    pointer-events: none;
+}
+
+/* ── Making the motion survive the portal ───────────────────────────────────
+ * 🪤🪤🪤 MEASURED, AND IT BREAKS IN LIGHT MODE ONLY. `css/shell-theme.css`
+ * carries:
+ *
+ *     body.light-mode, body.light-mode * {
+ *         transition: background-color 240ms, background 240ms, color 240ms,
+ *                     border-color 240ms, box-shadow 240ms;
+ *     }
+ *
+ * That is the `transition` SHORTHAND on EVERY ELEMENT in the document, at
+ * specificity (0,1,1). Every rule above is a single class at (0,1,0), so in
+ * light mode the shorthand wins and `transition-property` is reset to that
+ * list — the rail's width, the labels' opacity, the row's padding, all dropped.
+ * In DARK mode the selector does not match and the transitions survive.
+ *
+ * ⛭ Computed in Chrome on the same element, not read out of the file:
+ *     light → "background-color, background, color, border-color, box-shadow"
+ *     dark  → "width, flex-basis"
+ *
+ * So the rail would have slid open in dark mode and snapped in light, and no
+ * test that reads either stylesheet could see it: the two rules live in
+ * different files and neither is wrong on its own.
+ *
+ * ⛔ THE DOUBLED CLASS IS THE POINT. `.axr.axr` is (0,2,0) and beats (0,1,1)
+ * outright, so this does not depend on which stylesheet happens to load last —
+ * source order has already been reshuffled twice in this chrome's history. */
+/* ── The branch ──────────────────────────────────────────────────────────────
+   Children of the current module, on a spine with rounded elbows. See the
+   note on `branch()` in js/system/rail.js for why this exists again after
+   2026-08-12 and how the two old failure modes are designed out. */
+.axr__branch {
+    list-style: none;
+    position: relative;
+    margin: 1px 0 5px var(--axr-twig-indent);
+    padding: 0 0 0 var(--axr-twig-pad);
+    max-height: 480px;
+    opacity: 1;
+    overflow: hidden;
+    transition:
+        max-height var(--axr-t-geo),
+        opacity var(--axr-t-head-in),
+        margin var(--axr-t-geo),
+        padding var(--axr-t-geo),
+        visibility var(--axr-t-geo);
+}
+/* The spine. Stops 14px short of the bottom so the last elbow is the end. */
+.axr__branch::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 14px;
+    width: 1.5px;
+    background: var(--axr-branch-line);
+}
+.axr__branch li {
+    position: relative;
+}
+/* The elbow: down from the spine, then out to the twig, on a radius. */
+.axr__branch li::before {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--axr-twig-pad));
+    top: 0;
+    width: 12px;
+    height: calc(var(--axr-twig-h) / 2 + 1px);
+    border-left: 1.5px solid var(--axr-branch-line);
+    border-bottom: 1.5px solid var(--axr-branch-line);
+    border-bottom-left-radius: 8px;
+}
+/* Below the last elbow the spine would keep going; paint it out in the
+   panel's own surface rather than computing the spine's height. */
+.axr__branch li:last-child::after {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--axr-twig-pad) - 1px);
+    top: calc(var(--axr-twig-h) / 2 + 1px);
+    bottom: -6px;
+    width: 4px;
+    background: var(--axr-surface);
+}
+.axr__twig {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: var(--axr-twig-h);
+    padding: 5px var(--axr-twig-pad-x);
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--axr-mut);
+    font: inherit;
+    font-size: 13px; /* the parent row's size — the owner asked for text to stay put */
+    font-weight: 500;
+    line-height: 20px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition:
+        background var(--axr-t),
+        color var(--axr-t);
+}
+.axr__twig:hover {
+    background: var(--axr-hover);
+    color: var(--axr-ink);
+}
+.axr__twig:focus-visible {
+    outline: 2px solid var(--axr-hl);
+    outline-offset: 1px;
+}
+/* The current twig is ink and weight, not the brand red — red is the ROW's
+   state (where you are in the app); this is where you are inside it. */
+.axr__twig[aria-current='true'] {
+    background: var(--axr-hover);
+    color: var(--axr-ink);
+    font-weight: 600;
+}
+/* Collapsed: gone, not dotted. `visibility` rides the same clock so the twigs
+   leave the tab order when the branch has closed, and rejoin as it opens. */
+.axr--collapsed .axr__branch {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+        max-height var(--axr-t-geo-out),
+        opacity var(--axr-t-head-out),
+        margin var(--axr-t-geo-out),
+        padding var(--axr-t-geo-out),
+        visibility var(--axr-t-geo-out);
+}
+
+.axr.axr {
+    transition:
+        width var(--axr-t-geo),
+        flex-basis var(--axr-t-geo);
+}
+
+.axr .axr__row {
+    transition:
+        background var(--axr-t),
+        color var(--axr-t),
+        padding var(--axr-t-geo),
+        gap var(--axr-t-geo);
+}
+
+.axr .axr__label {
+    transition:
+        opacity var(--axr-t-label-in),
+        max-width var(--axr-t-label-in);
+}
+
+.axr .axr__grouplabel {
+    transition:
+        max-height var(--axr-t-geo),
+        opacity var(--axr-t-head-in),
+        padding var(--axr-t-geo),
+        margin var(--axr-t-geo),
+        border-color var(--axr-t-geo);
+}
+
+/* ⛔ The collapsed rules are already (0,2,0), but they must come AFTER the four
+ * above or the un-collapsed timings win the tie and the labels fade out on the
+ * slow, delayed clock — which is the crush this split was made to avoid. */
+.axr .axr--collapsed .axr__label,
+.axr--collapsed .axr__label {
+    transition:
+        opacity var(--axr-t-label-out),
+        max-width var(--axr-t-label-out);
+}
+
+.axr .axr__branch {
+    transition:
+        max-height var(--axr-t-geo),
+        opacity var(--axr-t-head-in),
+        margin var(--axr-t-geo),
+        padding var(--axr-t-geo),
+        visibility var(--axr-t-geo);
+}
+.axr .axr--collapsed .axr__branch,
+.axr--collapsed .axr__branch {
+    transition:
+        max-height var(--axr-t-geo-out),
+        opacity var(--axr-t-head-out),
+        margin var(--axr-t-geo-out),
+        padding var(--axr-t-geo-out),
+        visibility var(--axr-t-geo-out);
+}
+.axr .axr__twig {
+    transition:
+        background var(--axr-t),
+        color var(--axr-t);
+}
+.axr .axr--collapsed .axr__grouplabel,
+.axr--collapsed .axr__grouplabel {
+    transition:
+        max-height var(--axr-t-geo-out),
+        opacity var(--axr-t-head-out),
+        padding var(--axr-t-geo-out),
+        margin var(--axr-t-geo-out),
+        border-color var(--axr-t-head-out);
+}
+
+/* ⛔ NO BRAND HEAD. The Argus lockup lives in the top bar (css/topbar.css),
+ * which is where the approved design put it. The rail carried one briefly and
+ * it read as two logos on one screen. */
+
+/* ── The collapsed rail's name banner ───────────────────────────────────────
+ *
+ * ⛔ IT LIVES ON <body>, NOT IN THE RAIL, and js/system/rail.js positions it.
+ * `.axr` is `overflow: hidden` and `.axr__scroll` is `overflow-y: auto`, so a
+ * `::after` on the row — which is how the shipped rail drew this — is clipped
+ * at the panel edge. `overflow-x: visible` beside `overflow-y: auto` computes
+ * to `auto`, so the one axis cannot be opened on its own.
+ *
+ * ⛭ Deliberately the shipped rail's look (main.css, `.nav-item::after`): same
+ * 8/12 padding, same 8px radius, same 12px medium text, same blur. This is a
+ * restoration, not a redesign — it should be unremarkable to anyone who used
+ * the old rail.
+ *
+ * ⚠️ role="presentation" on purpose. The row's aria-label already carries the
+ * name; announcing the banner too would say every item twice. */
+.axr-tip {
+    position: fixed;
+    z-index: 400;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(15, 15, 18, 0.97);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    color: #f2f2f2;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition:
+        opacity 0.15s ease,
+        transform 0.15s ease;
+}
+
+/* ⛔ NOT `display: none` when idle. The banner is measured before it is placed
+ * (its width is only known once the text is in it), and a display:none node has
+ * no height to centre against. Opacity keeps it measurable. */
+.axr-tip--on {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+body.light-mode .axr-tip {
+    background: rgba(255, 255, 255, 0.97);
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    color: #1a1a1a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .axr-tip {
+        transition: none;
+        transform: none;
+    }
+    .axr-tip--on {
+        transform: none;
+    }
+}
