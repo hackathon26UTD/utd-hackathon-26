@@ -165,6 +165,14 @@ Located the actual session and six completed module results; three integration/s
 
 Final local release evidence for Claude continuation: 236/236 tests pass; 43/43 isolated platform checks pass; real-kit gallery draws 108 standards in each theme with no console errors; eight public page/theme combinations pass automated WCAG checks. Marketing and command mobile views fit 390px. Physical hardware, key-gated feeds and NVIDIA remain unverified/unconfigured.
 
+## 2026-11-07 | Ayan | Page weight, scroll boundaries and entry points
+- User reports heavy loading, blank space at scroll boundaries, and unclear marketing/operator/household entry points.
+- Replaced whole-document mutation rescans with frame-batched changed-subtree updates. Own component changes are excluded from observation; map and select internals do not trigger product restyling.
+- Product pages load core, components, forms and motion. Full gallery still loads every original module. Removed duplicate legacy font imports in favor of the owner's kit typography.
+- Command page contains scrolling within its workspace and rail, with matching root backgrounds and overscroll containment. Marketing retains ordinary page scrolling. Cookie dismissal restores focus without scrolling to the footer.
+- Added visible Website and Household rail destinations, plus home/household links at operator login.
+- Validation: browser login resource decoded weight 696,688 -> 567,728 bytes (18.5% lower), 10 -> 8 resources in this run. This measures payload, not a universal load-time guarantee. Public baseline cookie dismissal moved window to y442; changed build remains y0 after dismissal and wheel scrolling. Automated product audit passed all eight route/theme cases, no horizontal mobile overflow. Actual rendered desktop reviewed.
+- Map-only U.S. overview redesign remains the separate design draft, PR #23. This patch preserves current dashboard structure and teammate backend work.
 ## 2026-11-07 night: device firmware, hub, datasheets (Dhruv)
 
 - Request: firmware for the parts on hand, use I2C to save pins, encryption, and a test plan. Added `firmware/`:
