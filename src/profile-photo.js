@@ -1,7 +1,7 @@
 import { Binary } from 'mongodb';
 import { inflateSync } from 'node:zlib';
 import { withDatabase } from '../lib/mongodb.js';
-import { readCustomerSession, readSession, sameOrigin } from './operator-session.js';
+import { readCustomerSession, readSession, sameOrigin, sessionMatchesAccount } from './operator-session.js';
 import { sha256Hex } from './auth.js';
 
 export const MAX_PHOTO_BYTES = 256 * 1024;
@@ -140,21 +140,19 @@ async function boundedBody(request) {
   return Buffer.concat(chunks,lengthRead);
 }
 export async function profilePhotoKey(kind,email,account) {
-  // Generation prevents a newly registered account inheriting an old email's photo.
-  const generation=account?.profilePhotoId || (account?.createdAt ? new Date(account.createdAt).toISOString() : null);
-  if(!generation) fail(409,'This account needs a stable profile identity before adding a photo.');
-  return sha256Hex(JSON.stringify([kind,email.toLowerCase(),generation]));
+  // Email is retained in the public helper signature for parent compatibility only.
+  if (!['customer','operator'].includes(kind) || typeof account?.sessionGeneration !== 'string' || !account.sessionGeneration) {
+    fail(409,'Sign in again before managing your profile photo.');
+  }
+  return sha256Hex(JSON.stringify(['profile-photo-v2',kind,account.sessionGeneration]));
 }
-// Parent calls inside its existing email-change transaction, before deleting old account.
+// Parent's existing call remains compatible: its account spread must preserve generation.
+// No binary move is needed: the immutable photo key is independent of both email and time.
 export async function migrateProfilePhoto(db,{kind='customer',oldEmail,newEmail,account,session}) {
-  if(!account?.createdAt&&!account?.profilePhotoId) return; // No photo identity has ever been initialized.
-  const collection=db.collection(PHOTO_COLLECTION), options=session?{session}:{};
-  const oldKey=await profilePhotoKey(kind,oldEmail,account), newKey=await profilePhotoKey(kind,newEmail,account);
-  if(oldKey===newKey) return;
-  const photo=await collection.findOne({_id:oldKey},options);
-  if(!photo) return;
-  await collection.insertOne({...photo,_id:newKey},options);
-  await collection.deleteOne({_id:oldKey},options);
+  if (!account?.sessionGeneration) return; // Pre-binding accounts cannot own a v2 photo.
+  const next = await db.collection(kind==='customer'?'customer_accounts':'operator_accounts')
+    .findOne({_id:newEmail},session?{session}:{});
+  if (!next || next.sessionGeneration !== account.sessionGeneration) fail(409,'Account identity changed. Try again.');
 }
 const headers = {'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Vary':'Cookie'};
 export async function profilePhotoHandler(context,kind) {
@@ -167,31 +165,39 @@ export async function profilePhotoHandler(context,kind) {
     const user=kind==='customer'?await readCustomerSession(request,env):await readSession(request,env);
     if(!user) fail(401,'Sign in required.');
     if(user.role!==kind) fail(403,'Demo accounts cannot use profile photos.');
+    if(!user.accountGeneration) fail(401,'Sign in again to manage your profile photo.');
+    // Never hold an account snapshot or transaction open while waiting on upload bytes.
+    const upload=request.method==='PUT'?await boundedBody(request):null;
+    const meta=upload?validateProfilePhoto(upload,request.headers.get('Content-Type')):null;
     return await withDatabase(env,async db=>{
-      const account=await db.collection(kind==='customer'?'customer_accounts':'operator_accounts').findOne({_id:user.email.toLowerCase()});
-      const upload=request.method==='PUT'?await boundedBody(request):null;
-      const meta=upload?validateProfilePhoto(upload,request.headers.get('Content-Type')):null;
-      let identity=account || (kind==='operator'&&user.email.toLowerCase()===env.OPERATOR_EMAIL?.toLowerCase()?{salt:env.OPERATOR_PASSWORD_SALT}:null);
-      if(!identity) fail(401,'Sign in required.');
-      if(!identity.createdAt&&!identity.profilePhotoId) {
-        if(request.method==='GET') fail(404,'No profile photo.');
-        if(request.method==='DELETE') return new Response(null,{status:204,headers});
-        const accounts=db.collection(kind==='customer'?'customer_accounts':'operator_accounts');
-        // Existing bootstrap operator profiles may lack createdAt; persist a stable generation.
-        await accounts.updateOne({_id:user.email.toLowerCase()},{$setOnInsert:{profilePhotoId:crypto.randomUUID()}},{upsert:true});
-        await accounts.updateOne({_id:user.email.toLowerCase(),profilePhotoId:{$exists:false}},{$set:{profilePhotoId:crypto.randomUUID()}});
-        identity=await accounts.findOne({_id:user.email.toLowerCase()});
-      }
-      const _id=await profilePhotoKey(kind,user.email,identity), collection=db.collection(PHOTO_COLLECTION);
-      if(request.method==='GET') {
-        const photo=await collection.findOne({_id}); if(!photo) fail(404,'No profile photo.');
-        const bytes=photo.bytes instanceof Binary?photo.bytes.value():photo.bytes;
-        const checked=validateProfilePhoto(bytes,photo.contentType);
-        return new Response(bytes,{headers:{...headers,'Content-Type':checked.contentType,'Content-Disposition':'inline; filename="profile-photo"'}});
-      }
-      if(request.method==='DELETE') {await collection.deleteOne({_id});return new Response(null,{status:204,headers});}
-      await collection.updateOne({_id},{$set:{...meta,bytes:new Binary(upload),updatedAt:new Date()}},{upsert:true});
-      return Response.json({saved:true,width:meta.width,height:meta.height},{headers});
+      const accounts=db.collection(kind==='customer'?'customer_accounts':'operator_accounts');
+      const collection=db.collection(PHOTO_COLLECTION), session=db.client.startSession();
+      try {
+        return await session.withTransaction(async()=>{
+          const options={session};
+          const account=await accounts.findOne({_id:user.email.toLowerCase()},options);
+          // Authorize the EXACT snapshot used for the photo key, including replacement/revocation.
+          if(!sessionMatchesAccount(user,account,kind,{requireGeneration:true})) fail(401,'Account changed. Sign in again.');
+          const _id=await profilePhotoKey(kind,user.email,account);
+          if(request.method==='GET') {
+            const photo=await collection.findOne({_id},options);if(!photo) fail(404,'No profile photo.');
+            const bytes=photo.bytes instanceof Binary?photo.bytes.value():photo.bytes;
+            const checked=validateProfilePhoto(bytes,photo.contentType);
+            return new Response(bytes,{headers:{...headers,'Content-Type':checked.contentType,'Content-Disposition':'inline; filename="profile-photo"'}});
+          }
+          // An actual account write serializes with rename's delete, password/disable writes,
+          // and account replacement. A stale transaction retries and must reauthorize.
+          const guard=await accounts.updateOne({_id:account._id,sessionGeneration:user.accountGeneration},
+            {$inc:{photoRevision:1}},options);
+          if(guard.matchedCount!==1) fail(401,'Account changed. Sign in again.');
+          if(request.method==='DELETE') {
+            await collection.deleteOne({_id},options);
+            return new Response(null,{status:204,headers});
+          }
+          await collection.updateOne({_id},{$set:{...meta,bytes:new Binary(upload),updatedAt:new Date()}},{...options,upsert:true});
+          return Response.json({saved:true,width:meta.width,height:meta.height},{headers});
+        },{readConcern:{level:'snapshot'},writeConcern:{w:'majority'}});
+      } finally {await session.endSession();}
     });
   } catch(error) {return Response.json({error:error.status?error.message:'Profile photo is unavailable.'},{status:error.status||503,headers});}
 }
