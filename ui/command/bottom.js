@@ -27,7 +27,7 @@ export function mountBottom(ctx) {
     const scope = S.feedScope === 'all' ? 'all' : 'scoped';
     const ids = scopeIds();
     const items = S.live.feed.filter(i => inScope(i, scope, ids)).slice(0, 60);
-    const note = ctx.demo ? 'Exercise mode has no live stream. Switch to a signed in operator session to watch real updates.' : S.liveState === 'unavailable' ? 'Live updates are not available yet.' : '';
+    const note = ctx.demo ? 'Manual synthetic snapshots only. Connected-device events appear in an operator session.' : S.liveState === 'unavailable' ? 'Live updates are not available yet.' : '';
     return `<div class="bar"><label>Show<select id="feed-scope"><option value="all"${S.feedScope === 'all' ? ' selected' : ''}>Everything</option><option value="device"${S.feedScope === 'device' ? ' selected' : ''}>Selected home${S.selectedId ? ': ' + esc(nameOf(S.selectedId)) : ''}</option><option value="region"${S.feedScope === 'region' ? ' selected' : ''}>Selected area${S.selectedRegion ? ': ' + esc(S.selectedRegion) : ''}</option></select></label><small>${esc(items.length)} recent updates</small></div>${note ? `<p class="soft-note">${esc(note)}</p>` : ''}
 <ol class="feed" aria-label="Recent updates">${items.length ? items.map(i => `<li class="${esc(i.kind)}"><time>${esc(timeText(i.at))}</time><span class="kind">${esc(i.kind)}</span><span class="lvl ${esc(i.level)}">${esc(i.level)}</span><span class="txt">${i.deviceId ? `<button class="link-button" data-pick="${esc(i.deviceId)}" data-key="f-${esc(i.key)}">${esc(nameOf(i.deviceId))}</button> ` : ''}${esc(i.text)}</span></li>`).join('') : '<li class="muted empty">Nothing new yet. Updates appear here as devices report.</li>'}</ol>`;
   }
@@ -80,7 +80,7 @@ export function mountBottom(ctx) {
   function showLogs({ deviceId = '', region = '' } = {}) {
     S.logQuery = { ...S.logQuery, deviceId, region, kind: 'all' };
     show('logs');
-    $('#timeline').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    ctx.openWorkspace('activity');
   }
 
   $('#timeline').addEventListener('click', async e => {

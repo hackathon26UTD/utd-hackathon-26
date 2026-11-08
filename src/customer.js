@@ -2,6 +2,7 @@
 // Credentials stay separate: customer cookie (src/operator-session.js), device keys, operator sessions.
 // Advisory only. Missing or stale data is shown as "no recent signal", never as safe.
 import { ObjectId } from 'mongodb';
+import { matchCustomerAddress } from './customer-location.js';
 import { withDatabase } from '../lib/mongodb.js';
 import { HttpError, badRequest, notFound } from './http.js';
 import { sha256Hex, isAdmin } from './auth.js';
@@ -87,6 +88,7 @@ const messagesMod = () => tryImport('messages', () => import('./messages.js'));
 async function depsFor(ctx) {
   const d = ctx.deps || {};
   return {
+    fetcher: d.fetcher || ctx.fetcher,
     loadRisk: d.loadRisk || (await loadRiskMod())?.loadRisk,
     customerView: d.customerView || (await customerViewMod())?.customerView,
     customerMessages: d.customerMessages || (await messagesMod())?.customerMessages,
@@ -153,7 +155,7 @@ function oid(id) {
 // ---------- claiming ----------
 class ClaimFailed extends Error {}
 // Verifies serial plus code, then links the device. Every failure looks the same to the caller.
-export async function claimDevice(db, { email, serial, code, contactName, consent, nickname, now = new Date() }, deps = {}) {
+export async function claimDevice(db, { email, serial, code, contactName, consent, nickname, address, now = new Date() }, deps = {}) {
   await ensureCustomerIndexes(db);
   const s = normalizeSerial(serial), c = normalizeCode(code);
   if (!s || !c) throw new ClaimFailed();
@@ -163,15 +165,40 @@ export async function claimDevice(db, { email, serial, code, contactName, consen
     await db.collection('device_pairing').updateOne({ _id: pairing._id }, { $inc: { failures: 1 } });
     throw new ClaimFailed();
   }
-  const won = await db.collection('device_pairing').updateOne({ _id: pairing._id, claimed: false, codeHash: pairing.codeHash }, { $set: { claimed: true, claimedAt: now } });
-  if (!won.modifiedCount) throw new ClaimFailed();
+  const matched = address === undefined ? null : await matchCustomerAddress(address, deps.fetcher);
   const link = { _id: newId(), deviceId: pairing._id, customerEmail: email, contactName, nickname: nickname || 'My HomeBeacon', consent, consentAt: consent ? now : null, linkedAt: now, active: true, exercise: pairing.exercise === true };
-  try { await db.collection('customer_links').insertOne(link); } catch {
-    await db.collection('device_pairing').updateOne({ _id: pairing._id }, { $set: { claimed: false }, $unset: { claimedAt: '' } });
-    throw new ClaimFailed();
-  }
-  await db.collection('device_pairing').updateOne({ _id: pairing._id }, { $unset: { codeHash: '', salt: '' } });
-  await audit(deps, db, { actor: await customerActor(email), action: 'customer.claim', deviceId: pairing._id, details: { consent }, exercise: link.exercise });
+  const actor = await customerActor(email);
+  const session = db.client.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const options = { session };
+      const device = await db.collection('devices').findOne({ _id: new ObjectId(pairing._id) }, options);
+      if (!device || device.disabled) throw new ClaimFailed();
+      const won = await db.collection('device_pairing').updateOne(
+        { _id: pairing._id, claimed: false, codeHash: pairing.codeHash, expiresAt: { $gt: now } },
+        { $set: { claimed: true, claimedAt: now }, $unset: { codeHash: '', salt: '' } }, options);
+      if (!won.modifiedCount) throw new ClaimFailed();
+      if (matched) {
+        let homeId = device.homeId;
+        if (homeId) {
+          // An ingest home is a stable history identity. Never silently rebind it.
+          const home = await db.collection('homes').findOne({ _id: homeId }, options);
+          const old = home?.location?.coordinates, next = matched.location.coordinates;
+          const distance = old?.length === 2 ? Math.hypot((old[0]-next[0])*Math.cos(next[1]*Math.PI/180),old[1]-next[1])*111320 : Infinity;
+          if (distance > 250) throw new HttpError(409, 'This device already has a different registered location. Contact your installer.');
+        } else {
+          const home = await db.collection('homes').insertOne({ label: matched.address.slice(0,80), ...matched, createdAt: now, updatedAt: now }, options);
+          homeId = home.insertedId;
+        }
+        await db.collection('devices').updateOne({ _id: device._id }, { $set: { homeId, 'meta.address': matched.address, 'meta.locationSource': matched.locationSource, updatedAt: now } }, options);
+      }
+      await db.collection('customer_links').insertOne(link, options);
+      await db.collection('audit_log').insertOne({ at: now, actor, action: 'customer.claim', deviceId: pairing._id, details: { consent }, exercise: link.exercise }, options);
+    }, { readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' }, maxCommitTimeMS: 4000 });
+  } catch (e) {
+    if (e?.code === 11000) throw new ClaimFailed();
+    throw e;
+  } finally { await session.endSession(); }
   return link;
 }
 
@@ -275,6 +302,7 @@ const routes = {
     if (password.length < 10 || password.length > 512) return reply({ error: 'Use a password of at least 10 characters.' }, 400);
     if (!contactName) return reply({ error: 'Enter a contact name of up to 60 characters.' }, 400);
     if (typeof body.consent !== 'boolean') return reply({ error: 'Choose whether the response team may contact you.' }, 400);
+    if (body.acceptTerms !== true) return reply({ error: 'Please agree to the prototype terms before creating your account.' }, 400);
     const nickname = body.nickname === undefined ? null : plain(body.nickname, 40, { min: 1 });
     if (body.nickname !== undefined && !nickname) return reply({ error: 'Use a device name of up to 40 characters.' }, 400);
     return run(ctx, async db => {
@@ -289,14 +317,23 @@ const routes = {
       const salt = existing?.salt || crypto.randomUUID();
       const hash = await passwordHash(password, salt);
       if (existing && !equal(hash, existing.hash)) { await dummyPairingCheck(db, serial, body.code); return reply({ error: FAIL_TEXT }, 400); }
+      const wantsDevice = body.serial !== undefined || body.code !== undefined;
+      if (!wantsDevice) {
+        if (existing) return reply({ error: 'Use sign in for an existing account.' }, 400);
+        try { await accounts.insertOne({ _id: email, hash, salt, contactName, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
+        catch { return reply({ error: FAIL_TEXT }, 400); }
+        await audit(deps, db, {actor:await customerActor(email),action:'customer.register',details:{newAccount:true,acceptedTerms:true,termsVersion:'2026-11-07'}});
+        const token = await issueCustomerSession(ctx.env, email);
+        return reply({ authenticated: true, linked: false }, 201, { 'Set-Cookie': customerCookie(token) });
+      }
       let link;
       try { link = await claimDevice(db, { email, serial, code: body.code, contactName, consent: body.consent, nickname }, deps); }
       catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
       if (!existing) {
-        try { await accounts.insertOne({ _id: email, hash, salt, createdAt: now }); }
+        try { await accounts.insertOne({ _id: email, hash, salt, createdAt: now, termsVersion: '2026-11-07', termsAcceptedAt: now }); }
         catch { await unlinkQuiet(db, link); return reply({ error: FAIL_TEXT }, 400); }
       }
-      await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing }, exercise: link.exercise });
+      await audit(deps, db, { actor: await customerActor(email), action: 'customer.register', deviceId: link.deviceId, details: { newAccount: !existing, termsVersion: '2026-11-07', acceptedTerms: true }, exercise: link.exercise });
       const token = await issueCustomerSession(ctx.env, email);
       return reply({ authenticated: true, linked: true, id: link._id }, 201, { 'Set-Cookie': customerCookie(token) });
     });
@@ -328,7 +365,8 @@ const routes = {
   async me(ctx) {
     if (ctx.request.method !== 'GET') return reply({ error: 'Method not allowed.' }, 405);
     const session = await readCustomerSession(ctx.request, ctx.env, ctx.db);
-    return session ? reply({ authenticated: true, email: session.email, role: 'customer' }) : reply({ authenticated: false }, 401);
+    if (!session) return reply({ authenticated: false }, 401);
+    return run(ctx, async db => { const account=await db.collection('customer_accounts').findOne({_id:session.email},{projection:{contactName:1}}); return reply({authenticated:true,email:session.email,role:'customer',contactName:account?.contactName || ''}); });
   },
 
   async claim(ctx) {
@@ -348,7 +386,7 @@ const routes = {
       const serial = normalizeSerial(body.serial);
       if (serial && !await takeAttempt(db, await rateKey(ctx.env, 'cust-serial', serial), 5, now)) return tooMany();
       try {
-        const link = await claimDevice(db, { email, serial: body.serial, code: body.code, contactName, consent: body.consent, nickname }, await depsFor(ctx));
+        const link = await claimDevice(db, { email, serial: body.serial, code: body.code, contactName, consent: body.consent, nickname, address: body.address }, await depsFor(ctx));
         return reply({ linked: true, id: link._id }, 201);
       } catch (e) { if (e instanceof ClaimFailed) return reply({ error: FAIL_TEXT }, 400); throw e; }
     });

@@ -307,7 +307,7 @@ function deviceLive(d, ctx) {
   const help = ctx.helps.get(id);
   const lastSeen = d.lastSeen ? new Date(d.lastSeen) : null;
   return {
-    id, name: d.name, lng: pos ? pos[0] : null, lat: pos ? pos[1] : null,
+    id, name: d.name, selfBuilt: d.meta?.selfBuilt === true, address: d.meta?.address || null, lng: pos ? pos[0] : null, lat: pos ? pos[1] : null,
     lastSeen: iso(lastSeen), offline: !lastSeen || ctx.now.getTime() - lastSeen.getTime() > OFFLINE_MS,
     latest: ctx.latest.get(id) || {},
     risk: ctx.risk.get(id) || null,

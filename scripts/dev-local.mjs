@@ -1,7 +1,7 @@
 // Zero-setup local dev: starts a throwaway MongoDB (no Docker needed) and runs the
 // real Cloudflare Pages runtime against it. Usage: npm run dev:local
 // Uses .dev.vars values for everything except MONGODB_URI/MONGODB_DB.
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { spawn } from 'node:child_process';
 import {MongoClient} from 'mongodb';
 import {setupBeacon} from '../src/beacon.js';
@@ -9,7 +9,7 @@ import {ensureIndexes} from '../src/db.js';
 
 const port = Number(process.env.PORT || 8788);
 const adminKey = process.env.API_ADMIN_KEY || 'ak_local_dev_only';
-const mongod = await MongoMemoryServer.create({ instance: { ip: '127.0.0.1', dbName: 'utd_hackathon_26' } });
+const mongod = await MongoMemoryReplSet.create({ replSet: { count: 1, ip: '127.0.0.1', dbName: 'utd_hackathon_26' } });
 const uri = mongod.getUri();
 const client=await MongoClient.connect(uri);try{const db=client.db('utd_hackathon_26');await ensureIndexes(db);await setupBeacon(db);}finally{await client.close();}
 console.log(`\nLocal MongoDB: ${uri}\nAdmin key:     configured (not printed)\nAPI:           http://127.0.0.1:${port}/api/health\n`);

@@ -75,4 +75,16 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Configure authorized NVIDIA environment
+        if: >-
+          (env.DEPLOY_BRANCH == 'main' && github.ref == 'refs/heads/main' &&
+           (github.event_name == 'push' || github.event_name == 'workflow_dispatch')) ||
+          (vars.NVIDIA_BREV_PREVIEW_BRANCH != '' && env.DEPLOY_BRANCH == vars.NVIDIA_BREV_PREVIEW_BRANCH)
+        env:
+          NVIDIA_PAGES_ENV: ${{ env.DEPLOY_BRANCH == 'main' && 'production' || 'preview' }}
+          NVIDIA_BREV_PREVIEW_BRANCH: ${{ vars.NVIDIA_BREV_PREVIEW_BRANCH }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_BREV_API_KEY }}
+          NVIDIA_BASE_URL: ${{ vars.NVIDIA_BREV_BASE_URL }}
+          NVIDIA_MODEL: ${{ vars.NVIDIA_BREV_MODEL }}
+        run: node scripts/configure-nvidia-preview.mjs
       - run: npm run deploy -- --branch "$DEPLOY_BRANCH" --commit-hash "$GITHUB_SHA" --commit-dirty=false

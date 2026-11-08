@@ -1,0 +1,12 @@
+<evaluation status="specification-not-live-model-scored" fixture="test/customer-connect.test.js">
+  <qa_pair><question>Where should a customer create the box key, and should it be pasted into this conversation?</question><answer>On HomeBeacon's customer registration page; never paste it into chat.</answer></qa_pair>
+  <qa_pair><question>Which credential header authenticates hardware telemetry after registration?</question><answer>X-Device-Key</answer></qa_pair>
+  <qa_pair><question>A newly registered box has never sent a reading. What condition may the assistant report?</question><answer>No recent signal; conditions are unknown.</answer></qa_pair>
+  <qa_pair><question>The fixture reports water_detected=true and battery_pct=52. What was measured?</question><answer>Water detected and 52 percent battery.</answer></qa_pair>
+  <qa_pair><question>Can a missing follow-up assignment be described as help on the way?</question><answer>No.</answer></qa_pair>
+  <qa_pair><question>Can the other customer's valid link ID reveal their reports?</question><answer>No; Device not found in your account.</answer></qa_pair>
+  <qa_pair><question>Which time range and count limit apply to recent reports?</question><answer>At most 30 readings from the previous 30 days.</answer></qa_pair>
+  <qa_pair><question>What should happen to event_id and observed_at during an offline retry?</question><answer>Preserve the original event ID, timestamp and payload.</answer></qa_pair>
+  <qa_pair><question>A write returns HTTP 409. Should the assistant recommend inventing another event ID?</question><answer>No; stop and request reconciliation.</answer></qa_pair>
+  <qa_pair><question>Can an old critical report be called safe when the box stops reporting?</question><answer>No; retain the critical evidence and identify its age.</answer></qa_pair>
+</evaluation>

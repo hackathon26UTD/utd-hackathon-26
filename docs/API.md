@@ -87,3 +87,7 @@ Code: `src/flood.js`. Requires a signed-in operator session or the admin key (sa
 `risk` values: `high` (Special Flood Hazard Area, 1% annual chance, zones A/V), `moderate` (0.2% annual chance or levee-protected), `minimal` (zone X), `undetermined` (zone D), `open_water`, `unmapped` (no FEMA map at that point). These are regulatory map designations, not a forecast of current flooding; combine with live water sensors and NWS alerts.
 
 Verified 2026-11-07 against live FEMA + Atlas: Richardson (32.95, -96.73) → minimal; Trinity River levee area (32.76, -96.81) → moderate; a 0.04° box on the Trinity returned 9 zone-AE polygons in under 1 s.
+
+## Production data operations
+
+See [DATA_OPERATIONS.md](DATA_OPERATIONS.md) for source coverage, retention, baselines and board configuration semantics. Operator-only endpoints: GET `/api/ops/data-catalog`, GET `/api/ops/data-history?source=nws`, GET `/api/ops/sensor-stats?id=...&days=7`, GET `/api/ops/location?id=...`, GET `/api/ops/location-image?id=...`, POST `/api/ops/response-preview` with `{deviceId,service}`, and GET/PATCH `/api/ops/device-settings?id=...`. POST `/api/ops/data-refresh` accepts an operator or the dedicated scheduler credential on that exact path. Device-key-only GET/POST `/api/device/settings` reads desired message polling or reports the applied revision. Exercise/demo sessions cannot access production data endpoints.
