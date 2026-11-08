@@ -13,6 +13,7 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wifi.h>
+#include <esp_idf_version.h>
 #include <Preferences.h>
 #include "box_protocol.h"
 
@@ -42,6 +43,7 @@ struct Seen { uint32_t key; uint32_t ms; } seen[SEEN_MAX]; int seenNext = 0;
 uint32_t delivered[DELIVERED_MAX]; int deliveredNext = 0;
 uint32_t lastBeaconSent = 0, gatewaySeenAt = 0; char gatewayId[NODE_ID_LEN] = {0}; uint8_t gatewayHops = 0;
 uint32_t statRx = 0, statForwarded = 0, statRejected = 0, statAcked = 0, statDropped = 0;
+volatile uint32_t statTxOk = 0, statTxFail = 0; uint32_t statSendErr = 0;  // radio-level delivery to the next box
 uint32_t lastRxAt = 0;
 
 // Callbacks provided by the sketch.
@@ -65,7 +67,14 @@ bool recentlyForwarded(uint32_t key) {
 bool alreadyDelivered(uint32_t key) { for (auto k : delivered) if (k == key) return true; return false; }
 void markDelivered(uint32_t key) { delivered[deliveredNext] = key; deliveredNext = (deliveredNext + 1) % DELIVERED_MAX; }
 
-void sendTo(const uint8_t *mac, const MeshMsg &m) { esp_now_send(mac, (const uint8_t *)&m, sizeof m); }
+void sendTo(const uint8_t *mac, const MeshMsg &m) { if (esp_now_send(mac, (const uint8_t *)&m, sizeof m) != ESP_OK) statSendErr++; }
+
+// Radio-level result for each unicast frame: OK = the next box's radio acknowledged it.
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+void onSent(const esp_now_send_info_t *, esp_now_send_status_t st) { if (st == ESP_NOW_SEND_SUCCESS) statTxOk++; else statTxFail++; }
+#else
+void onSent(const uint8_t *, esp_now_send_status_t st) { if (st == ESP_NOW_SEND_SUCCESS) statTxOk++; else statTxFail++; }
+#endif
 void flood(const MeshMsg &m, const uint8_t *exceptMac = nullptr) {
   for (int i = 0; i < nodeCount; i++) {
     if (i == selfIdx || (exceptMac && !memcmp(nodes[i].mac, exceptMac, 6))) continue;
@@ -182,10 +191,17 @@ void setOnline(bool on) {
 void loop() {
   processRx();
   uint32_t now = millis();
-  for (auto &p : pending) {
-    if (!p.used || now - p.lastSent < RESEND_MS) continue;
-    p.lastSent = now; p.tries++;
-    MeshMsg f = p.m; flood(f);
+  // Re-send a few held messages per pass (oldest first) so a large backlog does not flood the air.
+  static uint32_t lastResendPass = 0;
+  if (now - lastResendPass >= 500) {
+    lastResendPass = now;
+    for (int sent = 0; sent < 3; sent++) {
+      Pending *oldest = nullptr;
+      for (auto &p : pending) if (p.used && now - p.lastSent >= RESEND_MS && (!oldest || p.lastSent < oldest->lastSent)) oldest = &p;
+      if (!oldest) break;
+      oldest->lastSent = now; oldest->tries++;
+      MeshMsg f = oldest->m; flood(f);
+    }
   }
   if (isOnline && now - lastBeaconSent > BEACON_MS) {
     lastBeaconSent = now;
@@ -203,6 +219,9 @@ bool begin(const char *selfId, const MeshNodeCfg *nodesCfg, int n, const char *p
   if (!parseKey16(pmkHex, pmk) || !parseKey16(lmkHex, lmk)) { Serial.println("[mesh] bad ESP-NOW keys in secrets.h"); return false; }
   Preferences p; p.begin("mesh", false); bootCount = p.getUInt("boot", 0) + 1; p.putUInt("boot", bootCount); p.end();
   rxq = xQueueCreate(24, sizeof(Rx));
+  // Keep the radio listening: with modem sleep an unconnected ESP32 can miss ESP-NOW frames.
+  WiFi.setSleep(false);
+  esp_wifi_set_ps(WIFI_PS_NONE);
   if (esp_now_init() != ESP_OK) return false;
   esp_now_set_pmk(pmk);
   for (int i = 0; i < n && nodeCount < MAX_NODES; i++) {
@@ -216,6 +235,7 @@ bool begin(const char *selfId, const MeshNodeCfg *nodesCfg, int n, const char *p
     nodeCount++;
   }
   esp_now_register_recv_cb(onRecv);
+  esp_now_register_send_cb(onSent);
   if (selfIdx < 0) Serial.printf("[mesh] warning: MY_NODE_ID %s is not in MESH_NODES\n", myId);
   ready = true;
   return true;
@@ -224,6 +244,7 @@ bool begin(const char *selfId, const MeshNodeCfg *nodesCfg, int n, const char *p
 void printStatus() {
   Serial.printf("[mesh] me=%s boot=%u role=%s peers=%d pending=%d rx=%u fwd=%u acked=%u rejected=%u dropped=%u\n",
     myId, bootCount, isOnline ? "GATEWAY" : "relay", nodeCount - (selfIdx >= 0), pendingCount(), statRx, statForwarded, statAcked, statRejected, statDropped);
+  Serial.printf("[mesh] radio: sent ok=%u failed=%u send-errors=%u (failed = next box did not hear it)\n", (unsigned)statTxOk, (unsigned)statTxFail, (unsigned)statSendErr);
   Serial.printf("[mesh] gateway: %s\n", isOnline ? "this box" : gatewayKnown() ? (String(gatewayId) + " (" + gatewayHops + " hops, " + (millis() - gatewaySeenAt) / 1000 + " s ago)").c_str() : "none heard: holding messages until one appears");
 }
 
