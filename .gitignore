@@ -52,4 +52,8 @@ work/
 # Device firmware secrets
 clients/esp32/secrets.h
 
+# Firmware secrets and provisioning state
+firmware/*/secrets.h
+firmware/.provisioned.json
+
 .playwright-mcp/
