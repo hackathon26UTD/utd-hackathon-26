@@ -16,7 +16,7 @@ export function householdUI({ h, api, state }) {
   const notice = h('p', { role: 'status', 'aria-live': 'polite' });
   const picker = h('div'), detail = h('div', { class: 'hh-panel' }), inviteBox = h('div'), createBox = h('div');
   root.append(h('h2', { tabindex: '-1' }, 'Households'), h('p', { class: 'fine' }, 'Share selected live devices. Shared access is read-only.'), notice, inviteBox, picker, detail, createBox);
-  let email = null, households = [], selected = null, current = null, timer = null, stopped = true, version = 0, contextAt = 0, contextId = null, snapshotsNode, contextNode, membersNode, emailNode, copyToken = null, copyHousehold = null;
+  let email = null, households = [], selected = null, current = null, timer = null, stopped = true, listReady = false, version = 0, contextAt = 0, contextId = null, snapshotsNode, contextNode, membersNode, emailNode, copyToken = null, copyHousehold = null;
   const button = (label, fn, attrs = {}) => h('button', { type: 'button', onclick: fn, ...attrs }, label);
   const say = text => { notice.textContent = text || ''; };
   const focus = () => root.querySelector('h2')?.focus();
@@ -69,6 +69,8 @@ export function householdUI({ h, api, state }) {
     const r = await api('/api/customer/households');
     if (stopped || ownVersion !== version) return;
     if (!r.ok) { say(r.data.error || 'Households are unavailable.'); return; }
+    if (!listReady) say('');
+    listReady = true;
     households = r.data.households || [];
     if (!households.some(x => x.id === selected)) selected = households[0]?.id || null;
     picker.replaceChildren(households.length ? choice('Household', selected, households.map(x => ({ value: x.id, label: x.name })), async value => {
@@ -178,11 +180,11 @@ export function householdUI({ h, api, state }) {
     const r = await api('/api/customer/households?id=' + encodeURIComponent(householdId));
     if (stopped || ownVersion !== version || selected !== householdId) return;
     if (!r.ok) {
-      if ([401, 403, 404].includes(r.status)) { current = null; detail.replaceChildren(); copyToken = null; copyHousehold = null; }
+      if ([401, 403, 404].includes(r.status)) { current = null; listReady = false; selected = null; detail.replaceChildren(); copyToken = null; copyHousehold = null; }
       else snapshotsNode?.replaceChildren(h('p', { role: 'status' }, 'Shared reports could not refresh. Current conditions are unknown.'));
       say(r.data.error || 'Household could not refresh.'); return;
     }
-    if (current && (current.household.member.id !== r.data.household.member.id || current.household.member.role !== r.data.household.member.role || JSON.stringify(current.household.linkIds) !== JSON.stringify(r.data.household.linkIds))) redraw = true;
+    if (!current || !detail.childElementCount || current.household.member.id !== r.data.household.member.id || current.household.member.role !== r.data.household.member.role || JSON.stringify(current.household.linkIds) !== JSON.stringify(r.data.household.linkIds)) redraw = true;
     current = r.data;
     if (redraw) { drawDetails(r.data); await loadEmail(); }
     else { renderSnapshots(r.data.devices || []); if (!membersNode?.contains(document.activeElement)) drawMembers(r.data.members || []); }
@@ -190,10 +192,11 @@ export function householdUI({ h, api, state }) {
   }
   async function poll() {
     if (stopped) return;
-    if (!document.hidden) await loadDetail();
-    if (!stopped) timer = setTimeout(poll, 10000);
+    try {if (!document.hidden) {if (!listReady) await refreshList(); else await loadDetail();}}
+    catch {say('Household could not refresh. Retrying shortly.');}
+    finally {if (!stopped) timer = setTimeout(poll, 10000);}
   }
-  function reset() { stopped = true; version++; clearTimeout(timer); email = null; current = null; selected = null; households = []; copyToken = null; copyHousehold = null; contextAt = 0; picker.replaceChildren(); detail.replaceChildren(); createBox.replaceChildren(); say(''); }
+  function reset() { stopped = true; listReady = false; version++; clearTimeout(timer); email = null; current = null; selected = null; households = []; copyToken = null; copyHousehold = null; contextAt = 0; picker.replaceChildren(); detail.replaceChildren(); createBox.replaceChildren(); say(''); }
   document.addEventListener('household-email-updated', () => { if (!stopped) loadEmail(); });
   return {
     node() { return root; },

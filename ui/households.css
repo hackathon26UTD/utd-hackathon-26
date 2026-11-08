@@ -1,6 +1,6 @@
 #customer .households{display:grid;gap:16px;min-width:0;margin-block:24px}
 #customer .households .hh-panel{display:grid;gap:12px;min-width:0}
-#customer .households h2,#customer .households h3,#customer .households p{margin:0}
+#customer .households h2,#customer .households h3,#customer .households p{margin:0;min-width:0;overflow-wrap:anywhere}
 #customer .households .hh-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #customer .households button{border-radius:8px;min-height:32px;padding:6px 12px;white-space:normal}
 #customer .households .hh-devices{display:grid;gap:8px;margin:0;padding:12px;border:1px solid var(--kit-line);border-radius:8px;min-width:0}
@@ -13,7 +13,7 @@
 #customer .households .hh-context{border-top:1px solid var(--kit-line);padding-top:16px}
 #customer .households .hh-context a{overflow-wrap:anywhere}
 #customer .households .kit-select{max-width:100%;min-width:0}
-#customer .households .kit-select>button{max-width:100%;white-space:normal;text-align:left}
+#customer .households .kit-select>button{max-width:100%;white-space:normal;text-align:left;overflow-wrap:anywhere}
 #customer .households [role=status]{overflow-wrap:anywhere}
 #customer .households .hh-readonly{border-left:3px solid var(--kit-line);padding:12px;display:grid;gap:8px}
 @media(max-width:480px){#customer .households.card{padding:14px}#customer .households .hh-actions{align-items:stretch}#customer .households .hh-actions>*{flex:1 1 120px}}
