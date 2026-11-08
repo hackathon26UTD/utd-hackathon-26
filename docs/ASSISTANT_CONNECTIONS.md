@@ -16,7 +16,7 @@ Use a custom remote connection with OAuth and automatic client registration in C
 
 The official MCP SDK provides stateless Streamable HTTP with JSON responses. Only bearer access tokens issued by HomeBeacon are accepted; customer/operator cookies and device/admin keys are not MCP credentials. GET streams are unsupported (405); POST handles initialization, notifications, tool discovery and calls. Origin is restricted when present. Responses are not cached.
 
-Five read-only tools:
+Five read-only tools, including these three customer tools:
 
 - `homebeacon_get_build_guide`: setup steps, ingest schema and website registration link.
 - `homebeacon_list_devices`: the connected customer's current conditions and freshness.
