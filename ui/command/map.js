@@ -39,6 +39,7 @@ export class MapView {
     this.deviceMinZoom = deviceMinZoom; this.showGroups = showGroups;
     this.data = { devices: EMPTY, overview: EMPTY, regions: EMPTY, zones: EMPTY, draw: EMPTY };
     this.ext = {};
+    this.radarTime = null;
     this.visible = new Set(['regions', 'zones']);
     this.selectedZone = '';
     this.highlights = { power: false, water: false };
@@ -59,6 +60,19 @@ export class MapView {
   on(name, fn) { this.handlers[name] = fn; return this; }
   get zoom() { return this.map.getZoom(); }
   bbox() { const b = this.map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; }
+
+  setRadar(time) {
+    this.radarTime = time;
+    const m = this.map;
+    if (!m.getSource('devices')) return;
+    if (m.getLayer('weather-radar')) m.removeLayer('weather-radar');
+    if (m.getSource('weather-radar')) m.removeSource('weather-radar');
+    if (!time) return;
+    const base = 'https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows';
+    const query = `service=WMS&version=1.1.1&request=GetMap&layers=conus_bref_qcd&styles=&format=image%2Fpng&transparent=true&srs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(time)}&bbox={bbox-epsg-3857}`;
+    m.addSource('weather-radar', { type: 'raster', tiles: [`${base}?${query}`], tileSize: 256, attribution: '<a href="https://opengeo.ncep.noaa.gov/geoserver/www/index.html">NOAA MRMS radar</a>' });
+    m.addLayer({ id: 'weather-radar', type: 'raster', source: 'weather-radar', paint: { 'raster-opacity': 0.68, 'raster-fade-duration': 0 } }, m.getLayer('dev-groups') ? 'dev-groups' : undefined);
+  }
 
   setDrawing(on) { this.drawing = on; this.map.getCanvas().style.cursor = on ? 'crosshair' : ''; this.map.doubleClickZoom[on ? 'disable' : 'enable'](); }
 
@@ -133,6 +147,7 @@ export class MapView {
       m.addLayer({ id: 'draw-fill', type: 'fill', source: 'draw', filter: ['==', ['geometry-type'], 'Polygon'], paint: { 'fill-color': '#1676c4', 'fill-opacity': 0.15 } });
       m.addLayer({ id: 'draw-line', type: 'line', source: 'draw', filter: ['!=', ['geometry-type'], 'Point'], paint: { 'line-color': '#1676c4', 'line-width': 2.5, 'line-dasharray': [2, 1] } });
       m.addLayer({ id: 'draw-pts', type: 'circle', source: 'draw', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#1676c4', 'circle-stroke-width': 2.5 } });
+      if (this.radarTime) this.setRadar(this.radarTime);
       for (const name of [...Object.keys(GROUP_LAYERS), ...Object.keys(EXT_STYLE)]) this.applyVisibility(name);
     } catch (error) {
       this.handlers.error?.(error);
