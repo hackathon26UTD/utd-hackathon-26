@@ -356,3 +356,11 @@ fieldset{border:1px solid var(--line);border-radius:4px;padding:10px 14px}.pair{
 .cc.vertical-shell .sidebar-settings .cc-more-menu{left:0;right:auto;top:auto;bottom:calc(100% + 8px);width:240px;max-width:calc(100vw - 104px);max-height:calc(100dvh - 150px);overflow:auto;border-radius:12px}
 .cc.vertical-shell.sidebar-collapsed .settings-label{display:none}
 .cc.vertical-shell.sidebar-collapsed .sidebar-settings{margin-inline:8px}
+
+/* Demo context is explicit; the production workspace has no generated-data banner. */
+.cc.map-only.vertical-shell.has-demo-banner{--topbar-size:96px}
+.hb-product .kit .cc.map-only.vertical-shell.has-demo-banner .cc-hub{height:56px;min-height:56px}
+.demo-banner{position:absolute;top:56px;left:0;right:0;min-height:40px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:14px;padding:4px 12px;background:var(--kit-surface-2);border-bottom:1px solid var(--kit-line);color:var(--kit-ink);font-size:12px;z-index:29}
+.hb-product .kit .demo-banner button{min-height:30px;padding:4px 12px;border-radius:8px;font-size:12px}
+.demo-banner [role=alert]:empty{display:none}
+@media(max-width:700px){.demo-banner{justify-content:space-between}.demo-banner-note{display:none}.demo-banner [role=alert]{position:absolute;top:40px;left:0;right:0;padding:8px;background:var(--kit-surface)}}

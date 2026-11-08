@@ -1,3 +1,5 @@
+November 8 production/demo follow-up: compact End demo banner returns to the protected live workspace. The real Uno Q controller now reports system values through USB and the host. Read [UNOQ_PRODUCTION.md](docs/UNOQ_PRODUCTION.md) for its identity, start/stop procedure and remaining sensor/Wi-Fi/location gaps. Release evidence is in WORKLOG.
+
 November 8 operations readiness (branch `feat/ops-readiness`, not deployed): DB speed-ups, `npm run hb` CLI, Uno Q agent, Resend email, NVIDIA grounding harness. Read [docs/TOMORROW.md](docs/TOMORROW.md) first for the demo day checklist, verified vs unverified items and fallbacks.
 
 November 8 weather-playback follow-up (PR #52, merged `f53ac93`, production verified in combined main `65fddf2`, run `42489529431`): homepage Power/Wi-Fi/Conditions describe monitoring capabilities. Fictional playback moved into Simulations; map Wind/Rain forecast use 24 API hours and leave device clocks unchanged. See docs/PUBLIC_WEATHER_NEWS.md and the latest WORKLOG for release evidence.
