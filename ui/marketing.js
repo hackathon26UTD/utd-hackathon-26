@@ -26,17 +26,17 @@ export function mountMarketing({brand, footer}) {
     <header class="home-header" id="home-header">
       <div class="home-island">
         <a class="home-brand" href="/" aria-label="HomeBeacon home">${brand}</a>
-        <nav class="home-desktop-nav" aria-label="Main navigation"><a href="#device">The device</a><a href="/portal">Sign in ${arrow}</a></nav>
+        <nav class="home-desktop-nav" aria-label="Main navigation"><a href="#device">The device</a><a href="/portal">Sign in ${arrow}</a><a href="/signup">Sign up ${arrow}</a></nav>
         <button class="home-menu-toggle" id="home-nav-toggle" type="button" aria-expanded="false" aria-controls="home-menu" aria-label="Open navigation"><span>Menu</span><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 7h12M4 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
       </div>
       <nav class="home-menu" id="home-menu" aria-label="Expanded navigation" hidden>
         <div><span class="home-menu-label">Explore</span><a href="#how-it-works">How it works ${arrow}</a><a href="#device">Inside the prototype ${arrow}</a><a href="/demo">Open command center ${arrow}</a></div>
-        <div><span class="home-menu-label">Your access</span><a href="/customer?mode=register">Register your home ${arrow}</a><a href="/customer?mode=signin">Homeowner sign in ${arrow}</a><a href="/portal">Operator sign in ${arrow}</a></div>
+        <div><span class="home-menu-label">Your access</span><a href="/signup">Sign up ${arrow}</a><a href="/customer?mode=signin">Homeowner sign in ${arrow}</a><a href="/portal">Operator sign in ${arrow}</a></div>
       </nav>
     </header>
     <main id="main">
       <section class="home-hero home-width" aria-labelledby="home-title">
-        <div class="home-intro"><p class="home-eyebrow"><span class="home-dot" aria-hidden="true"></span>Built for HackUTD 2026</p><h1 id="home-title" class="home-headline">See trouble sooner.<br>Help limit the loss.</h1><p class="home-description">HomeBeacon is built to help homeowners and insurers reduce preventable damage. One shared view brings together home sensors and nearby disaster alerts.</p><div class="home-actions"><a class="button primary home-demo-link" href="/demo">Open command center <span aria-hidden="true">→</span></a><a class="home-register-link" href="/customer?mode=register">Register your home ${arrow}</a></div><p class="home-demo-caption">Hackathon prototype. Demo homes and events are simulated.</p></div>
+        <div class="home-intro"><p class="home-eyebrow"><span class="home-dot" aria-hidden="true"></span>Built for HackUTD 2026</p><h1 id="home-title" class="home-headline">See trouble sooner.<br>Help limit the loss.</h1><p class="home-description">HomeBeacon is built to help homeowners and insurers reduce preventable damage. One shared view brings together home sensors and nearby disaster alerts.</p><div class="home-actions"><a class="button primary home-demo-link" href="/demo">Open command center <span aria-hidden="true">→</span></a><a class="home-register-link" href="/signup">Sign up ${arrow}</a></div><p class="home-demo-caption">Hackathon prototype. Demo homes and events are simulated.</p></div>
         <div class="home-preview-shell">
           <div class="home-preview-bar"><span><i aria-hidden="true"></i>Command center</span><a href="/demo?scenario=hurricane" aria-label="Open hurricane exercise in full view">Full view ${arrow}</a></div>
           <div class="home-preview-frame"><iframe id="home-preview" src="/demo?embed=hero&amp;scenario=hurricane" title="Interactive HomeBeacon hurricane exercise with fictional homes" loading="eager" referrerpolicy="same-origin"></iframe></div>
@@ -56,7 +56,7 @@ export function mountMarketing({brand, footer}) {
         <dl class="home-specs">${specs.map(([label, value, detail]) => `<div><dt>${label}</dt><dd><strong>${value}</strong><span>${detail}</span></dd></div>`).join('')}</dl>
       </section>
 
-      <section class="home-entry home-width" aria-labelledby="home-entry-title"><div><p class="home-eyebrow">Start here</p><h2 id="home-entry-title">Your home, or the whole region.</h2></div><div class="home-entry-links"><a href="/customer?mode=register">Register your home ${arrow}</a><a href="/portal">Operator sign in ${arrow}</a></div></section>
+      <section class="home-entry home-width" aria-labelledby="home-entry-title"><div><p class="home-eyebrow">Start here</p><h2 id="home-entry-title">Your home, or the whole region.</h2></div><div class="home-entry-links"><a href="/signup">Sign up ${arrow}</a><a href="/portal">Operator sign in ${arrow}</a></div></section>
     </main>${footer}
   </div>`;
 
