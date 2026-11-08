@@ -773,6 +773,24 @@ Wi-Fi preview release complete: PR69 merged as66d906272107acf69e098b5ce877dd6693
 
 Dashboard preview verified: PR70 runtime head `0b09661` passed run `42499014079` with706tests,700passes,6environment skips,0failures. Immutable preview https://3c304f4a.utd-hackathon-26.pages.dev matches all19 recursively checked assets plus its share image, public routes, MongoDB readiness and private-route401s. Hosted shared access returns secure separate cookies, routes the existing demo to simulations and denies its batch provisioning with403. Final main reconciliation only incorporates teammate release documentation; runtime source is unchanged. Production verification follows.
 
+## November 8, 2026, 10:24 CST — Dashboard entry production verified
+
+PR #70 merged as `312201ec78938cd97a979758d8b3be7a1c1e3aeb`. Production run `42499416300` passed with 706 tests, 700 passes, zero failures and six environment skips, followed by successful database/build checks and deployment at https://6ada4bb9.utd-hackathon-26.pages.dev. The primary site matches all 19 recursively checked assets and the share image. Eight public routes return 200, readiness reports MongoDB connected, and five checked private endpoints reject anonymous access with 401.
+
+Actual headless Chrome on the primary site follows the homepage Dashboard CTA to signup, switches to Sign in, and signs the existing public demo into simulations. Its verified access read succeeds; inventory creation remains denied with 403. No page errors occurred. The test session was signed out. Real customer/operator role routing and two-household pairing/report isolation were verified with disposable database accounts in the regression suite, not newly created production accounts.
+
+An authenticated production operator live read returned 200 with mode live and the canonical Uno Q online, last seen `2026-11-08T16:24:04.248Z`. Its five actual controller observations are uptime, Wi-Fi connection, load, available memory and CPU temperature. The updated persistent USB uploader continues accepting new reports; the hub is still not linked to a customer. The private local pairing card is ready for its owner's account. This does not establish autonomous Wi-Fi delivery, environmental sensors, mains monitoring or battery endurance. No credentials were rotated, synthetic production reports seeded, or customer messages sent.
+
+## November 8, 2026, ~10:25 CST — live demo path: boxes → laptop → dashboard (Dhruv)
+
+Request: box A Wi-Fi join kept failing (iPhone and Windows hotspot; reasons 2/201/36), so the user said to send the data through the laptop. Demo plan: box A stays on the laptop USB with the Uno Q sensors; box B is a sensorless mesh node.
+
+Changes: `scripts/boxes-to-dashboard.mjs` reads box A's `HB {json}` serial lines and forwards each box's events (`/api/events`), readings (`/api/ingest`: water_detected, flame, mains_power, motion, tilt, mesh_hops) and beacon telemetry (water/main power) under that box's own device key from git-ignored `firmware/.live-box-a.json` / `.live-box-b.json`. Mesh repeats are dropped for 60 s only, so a box that reboots with seq numbers starting over is not lost. `scripts/boxa-power-to-dashboard.mjs` (box A mains only) is superseded by it. Box A now has `USE_MAINS_SENSE 1` (Power MB 3.3 V → D3) and prints `tilt` from the Uno Q. Common mesh/uplink: mesh TX pauses during the Wi-Fi join, Wi-Fi power save off, and disconnect reasons logged.
+
+Verification: the user dipped the water sensor → box A `water.detected` 201, readings/telemetry 202; the live command center showed box A "Immediate review / critical / Water detected indoors" with an open flood incident; box B "Reporting / normal" via mesh (0 hops into box A). Box B went silent once (box A raised `box_B.silent`); a reset brought it back.
+
+Open: box A Wi-Fi is not working (laptop is the gateway; say so to judges); the flame sensor reads true in ambient light (turn the pot down); the Uno Q buzzer fix is not flashed.
+
 ## November 8 — Automatic Uno Q Wi-Fi card preview (Ayan integration workstream)
 
 User asked to remove the Wi-Fi simulation switch and enable the display in the backend, then clarified that the Conditions card should simply say Connected. Replaced the per-tab preference with an exact-device server setting for the canonical Uno Q in `wrangler.jsonc`. Device detail returns separate presentation metadata only in live mode. The Conditions card reads Connected automatically; Sensors retains the simulation explanation and actual measurements. Removed the switch, help row and browser storage preference. Other boxes, exercise records, recorded telemetry, risk and model evidence are unchanged.
