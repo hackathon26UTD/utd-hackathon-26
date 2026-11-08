@@ -1,6 +1,6 @@
 # HomeBeacon current project context
 
-November 8 household work (implementation under final review; deployment evidence follows in WORKLOG): customer household sharing, selected live devices, private addressed invitation links, read-only members, official point weather and regional headlines. Email delivery stays disabled because Ayan deferred sender setup. Email changes end household shares to prevent old access returning. Read [HOUSEHOLDS.md](HOUSEHOLDS.md) and [HOUSEHOLD_CONTEXT_ALERTS.md](HOUSEHOLD_CONTEXT_ALERTS.md).
+November 8 household release (PR #44 merged as `5977037`, production verified): customer household sharing, selected live devices, private addressed invitation links, read-only members, official point weather and regional headlines. Email delivery stays disabled because Ayan deferred sender setup. Email changes end household shares to prevent old access returning. Read [HOUSEHOLDS.md](HOUSEHOLDS.md) and [HOUSEHOLD_CONTEXT_ALERTS.md](HOUSEHOLD_CONTEXT_ALERTS.md).
 
 November 8 customer extension (deployed in PR #37, production verified): self-built box registration, personal OAuth MCP, optional encrypted NVIDIA keys and password-confirmed email changes. Start with [ASSISTANT_CONNECTIONS.md](ASSISTANT_CONNECTIONS.md), then the latest work log. Physical delivery, live customer-key inference and actual ChatGPT/Claude account connections are separate verification steps.
 
