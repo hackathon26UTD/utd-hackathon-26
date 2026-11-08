@@ -14,7 +14,7 @@ test('NWS point-specific weather preserves forecast issue time and missing rain 
 });
 test('cache projection expires alerts, forecast periods and old headlines without resetting source time',()=>{
   const value={status:'ok',alertsStatus:'ok',forecastStatus:'ok',checkedAt:now.toISOString(),forecastIssuedAt:new Date(+now-6*3600000+60000).toISOString(),alerts:[{id:'warning',sent:new Date(+now-60000).toISOString(),expires:new Date(+now+60000).toISOString()}],forecast:[{startTime:now.toISOString(),endTime:new Date(+now+60000).toISOString()},{startTime:new Date(+now+3600000).toISOString(),endTime:new Date(+now+7200000).toISOString()}]};
-  const later=new Date(+now+120000),w=currentWeather(value,later);assert.equal(w.alerts.length,0);assert.equal(w.forecast.length,1);assert.equal(w.forecastStatus,'stale');assert.equal(w.checkedAt,value.checkedAt);assert.equal(value.alerts.length,1);
+  const later=new Date(+now+120000),w=currentWeather({...value,url:'https://forecast.weather.gov/MapClick.php?lat=32.9867&lon=-96.7512'},later);assert.equal(w.alerts.length,0);assert.equal(w.forecast.length,1);assert.equal(w.forecastStatus,'stale');assert.equal(w.checkedAt,value.checkedAt);assert.equal(value.alerts.length,1);assert.equal(w.url,'https://www.weather.gov/');assert.ok(!JSON.stringify(w).includes('96.7512'));
   const news=currentNews({status:'ok',checkedAt:now.toISOString(),items:[{publishedAt:new Date(+now-7*86400000+60000).toISOString()}]},later);assert.equal(news.items.length,0);
   const stale=currentWeather({...value,status:'stale'},later);assert.equal(stale.alerts.length,0);assert.equal(stale.alertsStatus,'stale');
 });
