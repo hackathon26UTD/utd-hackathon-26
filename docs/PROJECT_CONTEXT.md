@@ -1,5 +1,8 @@
 # HomeBeacon current project context
 
+Latest homepage refinement (November 8): uncluttered hero, non-interactive simulated map playback, exactly three example readings (Power/Wi-Fi/Conditions), upper-right theme/motion Settings, project/team/services context and GitHub link. Compact rounded controls and plain status text replace badge clutter. Sidebar collapse is animated and respects reduced motion. See [MARKETING.md](MARKETING.md) and the latest work log for verification.
+
+
 > November 8 map update: Ayan replaced the satellite direction with a near-white lower-48 street map. The map has an Argus kit control bar, optional topography and water overlays, transient place evidence, and a full-page device workspace with Argus tabs, conditions and checkpoint history. Customers create an account before adding a device with their address. See [MAP_V2_SPEC.md](MAP_V2_SPEC.md). Local build and automated checks are recorded in WORKLOG; physical device data remains unverified.
 
 > November 7 evening NVIDIA update: the user's $60 Brev credits now fund a Crusoe L40S running pinned Nemotron Nano 9B v2. Real authenticated tool calls and the complete four-tool investigation passed with synthetic sensor records in disposable local MongoDB. Adyaan's explicitly requested operator account is now provisioned, and the deployed PR #26 preview passed password sign-in, operator session validation and a real NVIDIA layer request (HTTP 200, power loss AND water, zero matching connected homes). This was an authenticated API check; the browser form was not used. Production, physical sensing and firmware load shedding are not established by these model checks. See [BREV.md](BREV.md) for the fixed shutdown deadline and temporary endpoint limitations.

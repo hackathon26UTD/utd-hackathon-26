@@ -1,25 +1,27 @@
 # Public website and portal
 
-> Current as of November 7, 2026. Owner: Ayan's workstream. Code: `ui/marketing.js`, `ui/design.css`, `functions/_middleware.js`.
+Current as of November 8, 2026. Owner: Ayan's workstream. Code: `ui/marketing.js`, `ui/marketing.css`, `ui/display-settings.js`.
 
 ## Current flow
 
-The public root introduces HomeBeacon through a complete marketing site. Top navigation leads to product explanation, command-center preview, hardware, demo and portal. The portal checks the session and redirects to login or the authenticated workspace. Login is a separate route; it must not become the homepage again.
+The public root introduces HomeBeacon. The hero has one command-center action and a separate account link. Sign-in remains a separate route; `/portal` chooses the authenticated workspace or login. Customers create their profile before adding a device and its address.
 
-The hero's custom SVG neighborhood illustrates connected, power-lost, water-detected and reconnected scenarios. Text explains every state. Manual selection and play/pause drive signal transport and observation transitions. Pointer perspective and staged entrance add depth; reduced motion stops active animations and removes spatial transforms. Controls remain usable on touch and keyboard.
+The homepage map is a non-interactive simulated overview, not a second command center. The same-origin demo embed has inert keyboard/pointer access and disables MapLibre interaction and navigation controls. One caption identifies the simulation. Power, Wi-Fi and Conditions are the only three summaries beneath it. The normal example says “No disaster or disturbances detected.” That wording describes the example only, never missing live observations.
 
-Below the hero, the site explains observe/retain/review, shows an actual exercise screenshot, lists command workflows, illustrates a conceptual black box, answers practical limitations and leads into the portal. No customer logos, adoption statistics, real-world safety guarantees or sponsor endorsements are fabricated.
+The preview cycles normal, power loss, water/hurricane and recovery every 6.5 seconds. Pause/Play controls the sequence. It stops when offscreen, the page is hidden, or reduced motion is requested. Lower-power/recovery examples retain unresolved water reports. The full `/demo` and operator command map remain interactive.
 
-## Design and dependencies
+The remaining sections explain first-responder follow-up, local recording and power conservation, prototype hardware, the four-person team, event, services and account access. Event attribution lives in About rather than repeated hero labels. The [official event site](https://zeroday.hackutd.co/) confirms HackUTD 2026: Zero Day, November 7–8 at UTD. The GitHub link is marked as requiring repository access because the source remains private. No unverified sponsor-track claim is made.
 
-Marketing identity "Lamp at Dusk" (cream paper, indigo ink, ember signal, night bands; Fraunces, Instrument Sans, DM Mono) lives in `ui/marketing.css` and is lazy-loaded with `ui/marketing.js`. The command center and login keep the ink/teal tokens in `ui/design.css`. Earlier note: Ink/paper/teal direction, Bricolage headings and Geist body. Component conventions adapt the public Argus Oracle UI reference, not an installed Argus package. Native SVG, CSS and Web Animations provide motion. MapLibre loads only for the command workspace, keeping marketing independent of map initialization. Public map and font licenses are linked in the footer.
+## Design and controls
 
-## Limitations
+Use self-hosted Geist, white/neutral surfaces, green actions and the existing dark kit theme. Comfortable spacing and section rules replace decorative pill labels and stacked boxes. Controls have small rounded corners; tabs remain tabs. The actual vendored Argus kit supplies dropdowns and command navigation; see UI_KIT.md and ui/kit/PROVENANCE.md.
 
-This is a prototype marketing experience, not proof of certified hardware, battery duration, actual deployment in homes or connected NVIDIA inference. The hardware cutaway is a concept illustration. The command preview is a labeled synthetic exercise. The user's final visual acceptance is still pending.
+Settings sits at the upper right on both the homepage and command center. Theme and Motion use real Kit.select controls. Choices persist in browser storage and synchronize across the preview frame and other open pages. The 196/64px command sidebar animates its width and labels together in 280ms. Reduced motion removes these transitions.
 
-## Verification and ongoing work
+MapLibre/OpenFreeMap render the preview, so marketing does load a map. Map and open-source attribution remain visible. Public service descriptions distinguish contextual observations from verified household conditions.
 
-Run a local server after building, then `TEST_BASE_URL=http://localhost:8792 node scripts/test-marketing.mjs`. It checks scenarios, pause, anonymous portal redirect, mobile overflow, reduced motion, page errors and automated accessibility. Portal unit tests also cover signed-in routing. Screenshots are review artifacts; manual screen-reader and cross-browser testing remain.
+## Limits and verification
 
-Do not add decorative endless movement, block access behind motion, or replace the full marketing journey with a login form. Use the latest Ayan feedback and cross-check teammate branches before edits.
+Battery endurance, automatic firmware power saving, offline replay and physical sensor-to-production delivery still need hardware testing. First-responder support is the intended review workflow, not automatic dispatch. Demo observations are fictional. The site does not establish certification, safe entry or damage certainty.
+
+Run the build and existing test suite, then check the homepage in installed headless Chrome: scenario progression and pause, reduced motion, theme synchronization, 320/390px layout, settings keyboard operation, and sidebar animation. Automated accessibility checks are useful but separate from manual screen-reader, cross-browser and legal review. See WORKLOG for this revision's actual results.
