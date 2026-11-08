@@ -16,7 +16,10 @@
     "db:setup": "node --env-file-if-exists=.env scripts/beacon-db.mjs setup",
     "db:seed": "node --env-file-if-exists=.env scripts/beacon-db.mjs seed",
     "db:reconcile": "node --env-file-if-exists=.env scripts/beacon-db.mjs reconcile",
-    "site": "node scripts/site.mjs"
+    "site": "node scripts/site.mjs",
+    "firmware:sync": "node scripts/firmware.mjs sync",
+    "firmware:build": "node scripts/firmware.mjs build",
+    "provision": "node scripts/provision-boxes.mjs"
   },
   "repository": {
     "type": "git",
