@@ -1,5 +1,7 @@
 # Documentation index
 
+- [System intelligence](SYSTEM_INTELLIGENCE.md): related sensor evidence, Nemotron tools, explicit simulator, black-box review checkpoints, confirmed pickup and power/battery integration gates.
+
 - [Ayan's full agent handoff](handovers/AYAN-2026-11-07.md): resume instructions, ownership, exact state, traps, research and open work.
 - [Current context](PROJECT_CONTEXT.md): present product/stack and collaboration requirements.
 - [Request history](history/AYAN_REQUESTS_2026-11-07.md): chronological decisions and selected exact user wording.
