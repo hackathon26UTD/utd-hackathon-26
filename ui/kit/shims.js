@@ -25,7 +25,7 @@
     'use strict';
     if (window.HomeBeaconKit) return;
     var KEY = 'hbkit-theme';
-    var current = 'dark';
+    var current = 'light';
 
     function read() {
         try {
@@ -34,12 +34,7 @@
         } catch (e) {
             /* storage blocked: fall through to the system setting */
         }
-        try {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
-        } catch (e) {
-            /* no matchMedia */
-        }
-        return 'dark';
+        return 'light';
     }
     function write(theme) {
         try {

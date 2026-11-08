@@ -322,6 +322,12 @@ export function drawPreview(points, pin = false) {
 // ---- Overlay catalog ----
 
 export const OVERLAYS = [
+  {id:'nwps',name:'NOAA river flood guidance',note:'Observed and forecast river conditions with native units',minZoom:10},
+  {id:'weather',name:'Forecast precipitation',note:'Open-Meteo forecast rainfall, not observed flood extent',minZoom:11},
+  {id:'ercot',name:'ERCOT supply and demand',note:'Texas grid series, not home outage locations',minZoom:0},
+  {id:'river_forecast',name:'River discharge forecast',note:'Open-Meteo / GloFAS modelled discharge',minZoom:11},
+  {id:'nws_forecast',name:'NWS hourly forecast',note:'Hourly forecast at the map-cell center',minZoom:11},
+  {id:'tides',name:'NOAA coastal water levels',note:'Configured coastal stations, metres relative to MSL',minZoom:0},
   { id: 'nws', name: 'Weather alerts', note: 'NWS active alerts with mapped areas', minZoom: 0 },
   { id: 'nfhl', name: 'FEMA flood zones', note: 'National Flood Hazard Layer. Shown from zoom 11.', minZoom: 11 },
   { id: 'declarations', name: 'FEMA declarations', note: 'Counties with recent declarations', minZoom: 0 },
@@ -330,7 +336,7 @@ export const OVERLAYS = [
   { id: 'shelters', name: 'Open shelters', note: 'FEMA shelter listings', minZoom: 0 },
   { id: 'firms', name: 'Fire detections', note: 'NASA FIRMS. Needs an API key on the server.', minZoom: 0 },
   { id: 'airnow', name: 'Air quality', note: 'AirNow. Needs an API key on the server.', minZoom: 0 },
-  { id: 'eia', name: 'Grid outages', note: 'EIA. Needs an API key on the server.', minZoom: 0 },
+  { id: 'eia', name: 'Regional electricity demand', note: 'EIA / ERCOT demand context, not household outage locations. Requires a server API key.', minZoom: 0 },
 ];
 
 export const SOURCE_STATUS_TEXT = { ok: 'Current', stale: 'Out of date', error: 'Error', needs_key: 'Needs key', unverified: 'Unverified' };

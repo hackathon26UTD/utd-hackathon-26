@@ -16,7 +16,7 @@ The owner's ARGUS UI library, vendored as-is and re-themed. Every part on the pu
   <div class="kit"> ...use Kit.* factories or kit-* classes here... </div>
 ```
 - Everything is scoped under `.kit`. Popovers and dialogs append their own `.kit` root to body.
-- Theme: `body.light-mode` is light, no class is dark. `HomeBeaconKit.setTheme('dark'|'light')`, `toggleTheme()`, event `hbkit:theme`. The choice is saved in `localStorage` key `hbkit-theme`. Paint it from a tiny inline script in head to avoid a flash (see `public/kit.html`).
+- Theme: `body.light-mode` is light, no class is dark. `HomeBeaconKit.setTheme('dark'|'light')`, `toggleTheme()`, event `hbkit:theme`. The choice is saved in `localStorage` key `hbkit-theme`. The external `/theme-init.js` paints the saved setting before styles load. Light is the default.
 - Build: `node scripts/build-ui.mjs` makes `public/assets/kit.{js,css}` (classic script, IIFE), plus gallery-only `kit-gallery` and `kit-reference` bundles, the fonts, and copies of the images the library draws.
 - Rules from the library still apply: no innerHTML, no colours from JS (tone is a class), no native select/date/confirm.
 
@@ -33,43 +33,30 @@ The owner's ARGUS UI library, vendored as-is and re-themed. Every part on the pu
 ## Token map
 The kit keeps every colour as a `--kit-*` token, written twice (light on `.kit`, dark on `body:not(.light-mode) .kit`). The theme repeats those two selectors after the kit sheets, so it wins by order. Anatomy, radii, motion and sizes are untouched.
 
-| Role | Token | Dusk (dark) | Paper (light) |
+| Role | Token | Dark | Light |
 |---|---|---|---|
-| Page ground | `--kit-bg` | #14121c | #f5efe3 |
-| Surface | `--kit-surface` | #1d1b28 | #fffcf5 |
-| Raised / inset surface | `--kit-surface-2` | #191722 | #faf5e9 |
-| Line, strong line | `--kit-line`, `--kit-line-2` | #2d2a3b, #423e55 | #e6dcc6, #d2c5a8 |
-| Ink, ink 2, muted | `--kit-ink`, `-2`, `-3` | #f8f1e5, #d3cbdd, #aaa2ba | #1d1a26, #4a4557, #656072 |
-| Accent (signal amber) | `--kit-accent`, `-ink` | #f6a623, #ffc660 | #b45f06, #8a4600 |
-| Primary fill, its text | `--kit-hero`, `-fg` | #f6a623, #1c1204 | #9a5200, #ffffff |
-| Info | `--kit-status-dot-info` | #7db7ff | #1f5fbf |
-| Done (ok) | `--kit-ok` | #5fd3a6 | #12775a |
-| Caution | `--kit-warn` | #e6cf55 | #6b5600 |
-| Critical | `--kit-bad` | #ff8088 | #b4232c |
+| Page | `--kit-bg` | #151c19 | #f6f7f7 |
+| Surface | `--kit-surface` | #1c2520 | #ffffff |
+| Subtle surface | `--kit-surface-2` | #18211c | #f0f3f1 |
+| Border | `--kit-line` | #35433b | #dce2df |
+| Text | `--kit-ink` | #edf3ef | #1d2926 |
+| Muted text | `--kit-ink-3` | #abbcb0 | #52605b |
+| Action | `--kit-hero` | #81d5b1 | #17634f |
+| Action text | `--kit-hero-fg` | #11261b | #ffffff |
 
-About 200 more component tokens in `kit-standards.css` are re-coloured by rule in the generator: neutrals go to the dusk or paper ramp, wine and red become amber, ARGUS green becomes teal-green, reds that mean "bad" stay red. Person-picture hues are left alone.
+November 7 simplification: neutral surfaces and green actions replace the earlier dusk/paper palette. Status colors retain distinct red, amber, green and unknown treatments. Screen layouts live in their respective stylesheets; `product-kit.css` provides shared theme/component glue without command-center geometry overrides. The floating map controls use compact rounded shapes; account forms use modest radii.
 
-### Contrast (WCAG 2.x)
-Full list with every pair: `docs/UI_KIT_CONTRAST.md`. Body pairs:
+### Contrast
 
-| Pair | Dark | Light | Need |
-|---|---|---|---|
-| Body text on page ground | 16.51:1 (#f8f1e5 on #14121c) | 14.93:1 (#1d1a26 on #f5efe3) | 4.5:1 |
-| Body text on surface | 15.09:1 (#f8f1e5 on #1d1b28) | 16.69:1 (#1d1a26 on #fffcf5) | 4.5:1 |
-| Body text on raised surface | 15.76:1 (#f8f1e5 on #191722) | 15.72:1 (#1d1a26 on #faf5e9) | 4.5:1 |
-| Secondary text on surface | 10.77:1 (#d3cbdd on #1d1b28) | 8.99:1 (#4a4557 on #fffcf5) | 4.5:1 |
-| Muted text on surface | 6.93:1 (#aaa2ba on #1d1b28) | 5.91:1 (#656072 on #fffcf5) | 4.5:1 |
-| Muted text on page ground | 7.58:1 (#aaa2ba on #14121c) | 5.29:1 (#656072 on #f5efe3) | 4.5:1 |
-| Accent text on surface | 10.89:1 (#ffc660 on #1d1b28) | 6.93:1 (#8a4600 on #fffcf5) | 4.5:1 |
-
-(The generator exits non-zero if any text pair falls under 4.5:1.)
+The generator checks text and component pairs and exits non-zero on failure. Current measured values are in [UI_KIT_CONTRAST.md](UI_KIT_CONTRAST.md); do not duplicate them here.
 
 ## Fonts
-Self-hosted from npm, exact versions, latin and latin-ext only. Not Geist, Bricolage or Inter.
-- Display: Young Serif 5.3.0 (`@fontsource/young-serif`), kit headings and the opening word.
-- Body: Hanken Grotesk Variable 5.3.0 (`@fontsource-variable/hanken-grotesk`).
-- Readouts: Spline Sans Mono Variable 5.3.0 (`@fontsource-variable/spline-sans-mono`), used for the kit's mono spots and the KPI numbers.
-Tokens: `--font-display`, `--font-sans`, `--font-mono`, `--kit-chart-font`.
+
+Self-hosted from the existing pinned npm dependencies:
+- Headings and body: Geist Variable, one consistent family.
+- Technical readouts: Spline Sans Mono Variable.
+
+Tokens: `--font-display`, `--font-sans`, `--font-mono`, `--kit-chart-font`. Vendored library sources remain unchanged.
 
 ## Shims
 See PROVENANCE.md. In short: the theme switch, the ARGUS logo images swapped for HomeBeacon art, and token aliases in glue.css. No kit file was edited.

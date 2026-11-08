@@ -1,4 +1,5 @@
-// Right-hand panel: one home or one region cell. All dynamic text goes through ctx.esc.
+import {showDataTool} from './data-tools.js';
+// Geographic inspection card. Kit factories compose the card and evidence disclosure.
 import { STATUS_LABEL, HELP_LABEL, HELP_STATUSES, MSG_STATE_TEXT, ageText, displayStatus, linkText, readingRows, latestFromValues, sparkline, messageState, failText, devicesInBbox } from './core.js';
 import { setHtml, dateTimeText, toast } from './dom.js';
 import { api } from './api.js';
@@ -26,9 +27,38 @@ export function mountDetail(ctx) {
 
   function render() {
     const el = $('#detail');
-    if (S.selectedRegion) return setHtml(el, regionView(S.regions.find(r => r.key === S.selectedRegion)));
-    const p = S.props.find(x => x.id === S.selectedId);
-    setHtml(el, p ? deviceView(p) : emptyView());
+    el.hidden = !S.detailOpen;
+    if (!S.detailOpen) return;
+    const p = S.selectedRegion ? null : S.props.find(x => x.id === S.selectedId);
+    const r = S.selectedRegion ? S.regions.find(x => x.key === S.selectedRegion) : null;
+    const key = S.selectedRegion || S.selectedId || 'empty';
+    const K = window.Kit;
+    if (el.dataset.selection !== key) {
+      const body = document.createElement('div');
+      const tone = document.createElement('div'); tone.className = 'detail-tone';
+      const reason = document.createElement('p'); reason.className = 'card-reason';
+      const age = document.createElement('p'); age.className = 'card-age';
+      const panel = document.createElement('div'); panel.id = 'detail-expanded'; panel.hidden = !S.detailExpanded;
+      const facts = document.createElement('div'); facts.className = 'detail-facts';
+      const content = document.createElement('div'); content.className = 'detail-content';
+      panel.append(facts, content);
+      const footer = document.createElement('div'); footer.className = 'card-footer';
+      const label = document.createElement('span'); label.textContent = 'View evidence';
+      const fold = K.foldOpen({ label: 'Expand evidence', panel, open: !!S.detailExpanded, onToggle: open => { S.detailExpanded = open; el.classList.toggle('is-expanded', open); label.textContent = open ? 'Hide evidence' : 'View evidence'; fold.setAttribute('aria-label', open ? 'Collapse evidence' : 'Expand evidence'); requestAnimationFrame(() => { ctx.positionDetail?.(); if (open) ctx.revealDetailAnchor?.(); }); } });
+      fold.id = 'detail-expand';
+      footer.append(label, fold);
+      body.append(tone, reason, age, footer, panel);
+      const close = document.createElement('button'); close.id = 'detail-close'; close.className = 'small'; close.type = 'button'; close.textContent = 'Close'; close.setAttribute('aria-label', 'Close selected details');
+      el.replaceChildren(K.sectionBox({ title: r ? 'Area overview' : p?.name || p?.id || 'Home details', desc: ctx.demo ? 'Fictional exercise observation' : 'Connected device observation', actions: close, body }));
+      el.dataset.selection = key;
+    }
+    const shown = p ? displayStatus(p) : { status: r?.counts?.critical ? 'critical' : r?.counts?.elevated ? 'elevated' : r?.counts?.watch ? 'watch' : r?.counts?.unknown ? 'unknown' : r?.counts?.normal ? 'normal' : 'unknown' };
+    el.querySelector('.detail-tone').replaceChildren(K.pill(STATUS_LABEL[shown.status], shown.status === 'critical' ? 'bad' : ['elevated', 'watch'].includes(shown.status) ? 'warn' : shown.status === 'normal' ? 'ok' : 'muted'));
+    el.querySelector('.card-reason').textContent = r ? `${r.deviceCount} homes in this area${r.hotspot?.is ? ' · elevated activity' : ''}` : p?.reasons?.[0] || 'No recent evidence available.';
+    el.querySelector('.card-age').textContent = r ? 'Review individual homes before taking action.' : `Last report ${ageText(p?.lastSeen || p?.observedAt)}${shown.lastKnown ? ' · last known condition' : ''}`;
+    el.querySelector('.detail-facts').replaceChildren(K.details({ items: r ? [{ label: 'Area ID', value: r.key }, { label: 'Homes observed', value: r.deviceCount }] : [{ label: 'Device', value: p?.id }, { label: 'Area', value: p?.area || null }] }));
+    setHtml(el.querySelector('.detail-content'), r ? regionView(r) : p ? deviceView(p) : emptyView());
+    requestAnimationFrame(() => ctx.positionDetail?.());
   }
 
   function emptyView() {
@@ -57,7 +87,7 @@ export function mountDetail(ctx) {
     ].join(' ');
     const tabs = [['overview', 'Overview'], ['readings', 'Readings'], ['logs', 'Logs'], ['messages', 'Messages'], ['customer', 'Customer']];
     const unavailable = D?.state === 'unavailable' ? `<p class="soft-note">${esc(failText(D.status, 'Full device detail', D.error))} Showing the summary only.</p>` : D?.state === 'loading' ? '<p class="soft-note">Loading device detail.</p>' : '';
-    return `<div class="eyebrow">Property observation</div><h2>${esc(p.name && p.name !== p.id ? p.name : p.id)}</h2><p class="muted detail-id">${esc(p.id)}${p.area ? ' · ' + esc(p.area) : ''}</p><div class="chips">${chips}</div>
+    return `<div class="chips">${chips}</div>
 <div class="tabs" role="tablist" aria-label="Home details">${tabs.map(([k, l]) => `<button role="tab" id="tab-${k}" aria-selected="${S.detailTab === k}" aria-controls="detail-body" data-tab="${k}" data-key="tab-${k}">${l}</button>`).join('')}</div>
 <div id="detail-body" role="tabpanel" aria-labelledby="tab-${esc(S.detailTab)}">${unavailable}${body(p, shown, risk, dev, D, link, help, now)}</div>`;
   }
@@ -79,7 +109,7 @@ export function mountDetail(ctx) {
 ${corr.length ? `<h3>Area context</h3><ul class="reasons">${corr.map(c => `<li>${esc(c.text)}</li>`).join('')}</ul>` : ''}
 ${power ? `<dl class="mini"><div><dt>Mains</dt><dd>${power.mains === true ? 'Connected' : power.mains === false ? 'Lost' : 'Not reported'}</dd></div><div><dt>Battery</dt><dd>${power.battery_pct == null ? 'Not reported' : esc(power.battery_pct) + '%'}</dd></div><div><dt>Power mode</dt><dd>${esc(power.mode === 'saver' ? 'Power save mode' : power.mode === 'critical' ? 'Critical power save' : power.mode === 'normal' ? 'Normal' : 'Not reported')}</dd></div></dl>` : ''}
 <p class="muted">Last report ${esc(ageText(p.lastSeen || p.observedAt, now))}${p.observedAt ? ' · ' + esc(dateTimeText(p.observedAt)) : ''}</p>
-<div class="actions"><button class="primary" id="d-send"${writeOff()}>Send message to this home</button><button id="follow"${writeOff()}>Record follow-up</button></div>${ctx.demo ? '<p class="soft-note">Exercise mode is read only. Sending and notes are turned off.</p>' : ''}
+<div class="actions"><button class="primary" id="d-send"${writeOff()}>Send message to this home</button><button id="follow"${writeOff()}>Record follow-up</button>${ctx.demo ? '' : '<button data-data-tool="location">Location image</button><button data-data-tool="stats">History and averages</button><button data-data-tool="response">Preview responder message</button><button data-data-tool="settings">Board message polling</button>'}</div>${ctx.demo ? '<p class="soft-note">Exercise mode is read only. Sending and notes are turned off.</p>' : ''}
 <p><small>${esc(risk?.advisory || ADVISORY)}</small></p>`;
   }
 
@@ -133,6 +163,8 @@ ${inside.length ? `<h3>Homes in this area</h3><ul class="log-list">${inside.slic
   $('#detail').addEventListener('click', async e => {
     const t = e.target.closest('button');
     if (!t) return;
+    if(t.dataset.dataTool){const p=S.props.find(p=>p.id===S.selectedId);if(p)return showDataTool(ctx,t.dataset.dataTool,p);}
+    if (t.id === 'detail-close') return ctx.closeDetail();
     if (t.dataset.tab) { S.detailTab = t.dataset.tab; render(); $('#tab-' + S.detailTab)?.focus(); return; }
     if (t.dataset.pick) return ctx.select(t.dataset.pick, { fly: true });
     if (t.dataset.cancel) {

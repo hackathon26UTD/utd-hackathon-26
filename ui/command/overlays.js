@@ -34,6 +34,9 @@ export function mountOverlays(ctx) {
   // ---- panel ----
 
   function render() {
+    $('#quick-weather')?.setAttribute('aria-pressed', String(S.ovOn.has('nws')));
+    const weatherArea = S.feeds.get('nws')?.coverage?.area;
+    if ($('#quick-weather')) $('#quick-weather').textContent = weatherArea ? 'Weather · ' + String(weatherArea).slice(0, 30) : 'Weather';
     const rows = OVERLAYS.map(o => {
       const src = S.feeds.get(o.id);
       const m = S.ov[o.id] || {};
@@ -43,15 +46,15 @@ export function mountOverlays(ctx) {
       const chip = src ? `<span class="chip src-${esc(src.status)}">${esc(SOURCE_STATUS_TEXT[src.status] || src.status)}</span>` : '';
       const age = m.hb ? overlayNote(o.id, m.hb) : src?.fetchedAt ? `Updated ${ageText(src.fetchedAt)}` : '';
       const state = m.error ? `<small class="bad-text">${esc(m.error)}</small>` : '';
-      return `<li class="ov-row"><label class="check"><input type="checkbox" data-ov="${esc(o.id)}"${on ? ' checked' : ''}${needsKey ? ' disabled' : ''}><span><strong>${esc(o.name)}</strong> ${chip}<small>${esc(o.note)}</small>${age ? `<small>${esc(age)}</small>` : ''}${m.count !== undefined && on ? `<small>${esc(m.count)} shapes in view</small>` : ''}${zoomHint ? `<small>${esc(zoomHint)}</small>` : ''}${state}</span></label></li>`;
+      return `<li class="ov-row"><label class="check"><input type="checkbox" data-ov="${esc(o.id)}"${on ? ' checked' : ''}${needsKey || ctx.demo ? ' disabled' : ''}><span><strong>${esc(o.name)}</strong> ${chip}<small>${esc(o.note)}</small>${src?.coverage?.area ? `<small>Coverage: ${esc(src.coverage.area)}</small>` : ''}${src?.note ? `<small>${esc(src.note)}</small>` : ''}${age ? `<small>${esc(age)}</small>` : ''}${m.count !== undefined && on ? `<small>${esc(m.count)} shapes in view</small>` : ''}${zoomHint ? `<small>${esc(zoomHint)}</small>` : ''}${m.extra?.series?.length ? '<details><summary>Regional grid series</summary>'+m.extra.series.slice(-3).map(r=>'<p>'+esc(r.at||r.period||'Time not supplied')+'<br>Demand: '+esc(r.demand??r.value??'Not supplied')+' '+esc(r.unit||'Unit not supplied')+(r.capacity!=null?'<br>Capacity: '+esc(r.capacity)+' '+esc(r.unit||''):'')+'</p>').join('')+'</details>' : ''}${state}</span></label></li>`;
     }).join('');
     const zonesRows = S.zones.map(f => {
       const p = f.properties, t = ZONE_TYPES[p.type] || ZONE_TYPES.custom;
       return `<li class="zone-row${S.zoneSel === p.id ? ' sel' : ''}"><span class="swatch" style="background:${t.color}"></span><div><strong>${esc(p.name)}</strong><small>${esc(t.label)}${p.active === false ? ' · hidden' : ''}</small></div><div class="row-actions"><button class="small" data-zoom-zone="${esc(p.id)}" data-key="z-${esc(p.id)}">Show</button>${canWrite ? `<button class="small" data-edit-zone="${esc(p.id)}">Edit</button><button class="small" data-del-zone="${esc(p.id)}">Delete</button>` : ''}</div></li>`;
     }).join('');
-    const feedNote = S.feedState === 'unavailable' ? '<p class="soft-note">Public feed status is not available yet. Layers can still be switched on.</p>' : '';
+    const feedNote = ctx.demo ? '<p class="soft-note">Sign in as an operator to load public layers. This demo uses fictional homes, risk areas and zones.</p>' : S.feedState === 'unavailable' ? '<p class="soft-note">Public feed status is not available yet. Layers can still be switched on.</p>' : '';
     const zoneNote = S.zoneState === 'unavailable' ? '<p class="soft-note">Operator zones are not available yet.</p>' : S.zoneState === 'auth' ? '<p class="soft-note">Sign in as an operator to load and draw zones.</p>' : '';
-    setHtml($('#overlay-body'), `<fieldset class="base"><legend>Base map</legend><label><input type="radio" name="base" value="street" ${mv.styleKey === 'street' ? 'checked' : ''}> Streets</label><label><input type="radio" name="base" value="light" ${mv.styleKey === 'light' ? 'checked' : ''}> Light</label></fieldset>
+    setHtml($('#overlay-body'), `<fieldset class="base"><legend>Base map</legend><label><input type="radio" name="base" value="satellite" ${mv.styleKey === 'satellite' ? 'checked' : ''}> Satellite</label><label><input type="radio" name="base" value="street" ${mv.styleKey === 'street' ? 'checked' : ''}> Streets</label><label><input type="radio" name="base" value="light" ${mv.styleKey === 'light' ? 'checked' : ''}> Light</label></fieldset><p class="soft-note">Satellite imagery is geographic context, not current disaster evidence. Image dates and coverage vary.</p>
 <ul class="ov-list"><li class="ov-row"><label class="check"><input type="checkbox" data-ov="regions"${S.ovOn.has('regions') ? ' checked' : ''}><span><strong>Risk areas</strong><small>Grouped by area, colored by the worst reported condition. Grey means unknown.</small>${S.riskState === 'unavailable' ? '<small class="bad-text">Not available yet.</small>' : S.riskAt ? `<small>Updated ${esc(ageText(new Date(S.riskAt).toISOString()))}</small>` : ''}</span></label></li>
 <li class="ov-row"><label class="check"><input type="checkbox" data-ov="zones"${S.ovOn.has('zones') ? ' checked' : ''}><span><strong>Operator zones</strong><small>${ctx.demo ? 'Fictional exercise zones.' : 'Drawn by your team.'}</small></span></label></li>${rows}</ul>${feedNote}
 <h3>Zones</h3>${zoneNote}<div class="actions"><button id="draw-area"${canWrite ? '' : ' disabled title="Exercise mode is read only"'}>Draw area</button><button id="draw-pin"${canWrite ? '' : ' disabled title="Exercise mode is read only"'}>Place pin</button></div><ul class="zone-list">${zonesRows || '<li class="muted">No zones yet.</li>'}</ul>
@@ -75,11 +78,12 @@ export function mountOverlays(ctx) {
   $('#overlay-toggle').onclick = () => {
     const panel = $('#overlay-panel'), open = panel.classList.toggle('open');
     $('#overlay-toggle').setAttribute('aria-expanded', String(open));
-    if (open) { render(); loadFeeds(); }
+    if (open) { if (S.detailOpen) ctx.closeDetail({ restoreFocus: false }); ctx.closeWorkspace({ focus: false }); render(); loadFeeds(); $('#overlay-close').focus(); }
   };
   $('#overlay-close').onclick = () => { $('#overlay-panel').classList.remove('open'); $('#overlay-toggle').setAttribute('aria-expanded', 'false'); $('#overlay-toggle').focus(); };
 
   function toggle(id, on) {
+    if (ctx.demo && OVERLAYS.some(o => o.id === id)) return;
     on ? S.ovOn.add(id) : S.ovOn.delete(id);
     mv.setVisible(id, on);
     if (id === 'regions') ctx.loadRegions();
@@ -90,6 +94,7 @@ export function mountOverlays(ctx) {
   // ---- public layers ----
 
   async function loadFeeds() {
+    if (ctx.demo) { S.feedState = 'read_only'; render(); return; }
     const r = await api('/api/feeds');
     S.feedState = r.ok ? 'ok' : 'unavailable';
     if (r.ok) S.feeds = new Map((r.data?.sources || []).map(s => [s.id, s]));
@@ -97,13 +102,14 @@ export function mountOverlays(ctx) {
   }
 
   async function loadOverlay(id) {
+    if (ctx.demo) return;
     const def = OVERLAYS.find(o => o.id === id);
     S.ov[id] = S.ov[id] || {};
     if (def?.minZoom && mv.zoom < def.minZoom) { render(); return; }
     const r = await api(overlayUrl(id, mv.bbox()));
     if (r.ok && r.data) {
       mv.setExt(id, r.data);
-      S.ov[id] = { hb: r.data.hb || null, count: (r.data.features || []).length, error: '' };
+      S.ov[id] = { hb: r.data.hb || null, count: (r.data.features || []).length, extra:r.data.extra||null, error: '' };
     } else if (r.status === 401) {
       S.ov[id] = { ...S.ov[id], error: ctx.demo ? 'Sign in to load public layers.' : failText(401) };
     } else {
@@ -270,11 +276,19 @@ ${feature ? `<div class="actions"><button type="button" id="zone-redraw">Redraw 
   };
   $('#zone-fields').addEventListener('input', e => { if (e.target.name === 'name') $('#zname-count').textContent = `${e.target.value.length}/80`; });
 
-  return { render, loadZones, loadFeeds, selectZone, addPoint, reloadVisible, isDrawing: () => !!S.drawing, reloadAll: () => { for (const id of S.ovOn) if (OVERLAYS.some(o => o.id === id)) loadOverlay(id); } };
+  setInterval(()=>{if(!document.hidden&&!ctx.demo){loadFeeds();for(const id of S.ovOn)if(OVERLAYS.some(o=>o.id===id))loadOverlay(id);}},60000);
+  return { render, toggle, loadZones, loadFeeds, selectZone, addPoint, reloadVisible, isDrawing: () => !!S.drawing, reloadAll: () => { for (const id of S.ovOn) if (OVERLAYS.some(o => o.id === id)) loadOverlay(id); } };
 }
 
 export function onOverlayClick(ctx, hit, lngLat) {
   const layer = hit.kind.slice('overlay:'.length);
   const d = describeOverlayFeature(layer, hit.properties);
+  if (['nws', 'exerciseWind'].includes(layer) && hit.geometry?.type?.includes('Polygon')) {
+    const pairs = [];
+    const visit = c => { if (typeof c?.[0] === 'number') pairs.push(c); else if (Array.isArray(c)) c.forEach(visit); };
+    visit(hit.geometry.coordinates);
+    if (pairs.length) ctx.mv.fitTo([Math.min(...pairs.map(p => p[0])), Math.min(...pairs.map(p => p[1])), Math.max(...pairs.map(p => p[0])), Math.max(...pairs.map(p => p[1]))], { maxZoom: 9 });
+    if (layer === 'exerciseWind') d.lines.push('Fictional exercise exposure. Not a forecast or official storm radius.');
+  }
   ctx.mv.popup(lngLat, d.title, d.lines);
 }
