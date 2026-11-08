@@ -272,10 +272,11 @@ test('ingest hook leaves the original response intact and adds downlink hints an
   assert.equal(badRes.status, 400);
   assert.equal(Object.hasOwn(await badRes.json(), 'messages_pending'), false);
   // Wrong key: the handler's 401 passes through and is counted.
-  const before401 = (await db.collection('audit_log').findOne({ action: 'device.key_rejected' }))?.details?.count || 0;
+  const totalRejected = async()=> (await db.collection('audit_log').find({action:'device.key_rejected'}).toArray()).reduce((n,x)=>n+(x.details?.count||0),0);
+  const before401 = await totalRejected();
   const wrong = await ingestWithDownlink(ctxOf('POST', '/api/beacon/ingest', { admin: false, key: 'dk_nope', body: { device_id: id, event_id: 'x', temperature_c: 1 } }));
   assert.equal(wrong.status, 401);
-  assert.ok((await db.collection('audit_log').findOne({ action: 'device.key_rejected' })).details.count > before401);
+  assert.equal(await totalRejected(),before401+1);
 });
 
 test('legacy ingest hook logs gaps and power mode changes only when the mode changes', async () => {

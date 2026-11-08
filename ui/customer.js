@@ -1,3 +1,5 @@
+import {startProductKit} from './product-kit.js';
+startProductKit();
 // Customer side of HomeBeacon. All text is set with textContent; the server returns an allowlisted view only.
 const root = document.getElementById('customer');
 const STATUS = { normal: 'Reporting normally', needs_attention: 'Needs attention', urgent: 'Urgent', no_recent_signal: 'No recent signal' };

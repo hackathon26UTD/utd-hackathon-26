@@ -5,3 +5,5 @@ Read [the full November 7 handoff](docs/handovers/AYAN-2026-11-07.md) before con
 Always cross-check current main, open PRs and teammate branches before editing. This is Ayan's workstream, not a claim of sole ownership of the team's work. Preserve Dhruv's API, hardware and shared credential changes, and Adyaan's organization/database setup.
 
 For a contributor handoff brief, use [START_HERE.md](docs/START_HERE.md). Cloudflare management/Mongo linkage is documented in [SITE_CONTROL.md](docs/SITE_CONTROL.md).
+
+Latest work: [Integration continuation](docs/INTEGRATION_CONTINUATION.md), including the real owner kit, customer role and live platform. Earlier capability/design notes are superseded there.

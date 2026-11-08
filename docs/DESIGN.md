@@ -1,5 +1,8 @@
 # HomeBeacon design contract
 
+> Latest continuation: [INTEGRATION_CONTINUATION.md](INTEGRATION_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
+
+
 ## Direction
 
 An operational recovery map, built for comparing affected homes and deciding the next follow-up. HomeBeacon is the product name. Avoid promotional claims, decorative gradients, invented risk percentages, and em dashes.

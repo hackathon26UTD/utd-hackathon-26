@@ -172,7 +172,7 @@ export function mountDialogs(ctx) {
 
   ctx.pair = async id => {
     if (ctx.demo) return toast('Exercise mode is read only.');
-    if (!confirm('Create a new registration code for this device? Any earlier unused code stops working.')) return;
+    if (!await window.Kit.confirm({title:'Create registration code?',message:'Any earlier unused code stops working.',confirmText:'Create code'})) return;
     const r = await api('/api/ops/pairing', { method: 'POST', body: { device_id: id } });
     if (!r.ok) return toast(failText(r.status, 'Registration codes', r.error), { error: true });
     const d = r.data || {};

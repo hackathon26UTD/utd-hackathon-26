@@ -1,5 +1,8 @@
 # HomeBeacon current project context
 
+> Latest continuation: [INTEGRATION_CONTINUATION.md](INTEGRATION_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
+
+
 Updated November 7, 2026, America/Chicago. Owner of this handoff stream: Ayan Basheer. Read [Ayan's full handoff](handovers/AYAN-2026-11-07.md) and [request history](history/AYAN_REQUESTS_2026-11-07.md), then verify current branches and providers.
 
 ## Current product

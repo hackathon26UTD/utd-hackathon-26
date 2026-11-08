@@ -69,7 +69,9 @@ step('live feed returns devices in the region', live.status === 200 && (live.bod
 const cursor = live.body?.cursor ?? live.body?.next ?? live.body?.since;
 step('live feed returns a cursor', !!cursor, Object.keys(live.body || {}).join(','));
 await new Promise((r) => setTimeout(r, 7000)); // the cursor overlaps by 2 s, so wait past it
-const delta = await A('GET', `/api/ops/live?${q({ bbox, mode: 'exercise', since: cursor || '' })}`);
+const overlap = await A('GET', `/api/ops/live?${q({ bbox, mode: 'exercise', since: cursor || '' })}`);
+await new Promise(r=>setTimeout(r,2500));
+const delta = await A('GET', `/api/ops/live?${q({ bbox, mode: 'exercise', since: overlap.body?.cursor || '' })}`);
 step('live feed with cursor returns only changes', delta.status === 200 && (delta.body.devices?.length ?? 99) < (live.body.devices?.length ?? 0), `delta ${delta.body?.devices?.length}`);
 const regions = await A('GET', `/api/risk?${q({ level: 'regions', bbox, mode: 'exercise' })}`);
 step('region risk groups boxes into areas', regions.status === 200 && Array.isArray(regions.body.regions) && regions.body.regions.length >= 1, JSON.stringify(regions.body).slice(0, 200));
