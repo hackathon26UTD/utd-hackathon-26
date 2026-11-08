@@ -3,13 +3,14 @@
 import { LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
 import { api, exerciseMode } from './api.js';
 import { MapView } from './map.js';
+import { mountToolbar, loadSavedView } from './toolbar.js'; // MAP-V2
+import { mountPlaceCard } from './place-card.js'; // MAP-V2
 import { setHtml, announce, toast, debounce } from './dom.js';
 import { mountDetail } from './detail.js';
-import { mountOverlays, onOverlayClick } from './overlays.js';
+import { mountOverlays } from './overlays.js';
 import { mountBottom } from './bottom.js';
 import { mountDialogs } from './dialogs.js';
 
-const DEFAULT_CENTER = [-98, 38];
 const SCENARIOS = [
   { id: 'normal', label: 'Normal day', description: 'A baseline of recent reports and normal power.' },
   { id: 'power-outage', label: 'Power outage', description: 'Backup power takes over as a neighborhood loses power.' },
@@ -22,15 +23,14 @@ const requestedScenario = route.get('scenario') === 'hurricane' ? 'water-hurrica
 
 function layout({ demo, role, footer, brand }) {
   return `<div class="shell cc map-only vertical-shell${embedded ? ' is-embedded' : ''}"><main id="main" class="workspace"><h1 class="sr-only">HomeBeacon response map</h1>
-<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="HomeBeacon website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>HomeBeacon</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">United States</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>More</summary><div class="cc-more-menu">${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button data-theme-toggle>Switch theme</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
-<div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. No live disaster data.' : 'U.S. imagery · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
-<div class="map-tools" role="toolbar" aria-label="Map tools"><button id="quick-weather" aria-pressed="false"${demo ? ' disabled title="Official weather layers require operator sign-in"' : ''}>Weather</button>${demo ? '<button id="quick-wind" aria-pressed="true">Wind · exercise</button>' : ''}<button id="quick-power" aria-pressed="false">Power loss</button><button id="quick-water" aria-pressed="false">Water reports</button><button id="overlay-toggle" aria-expanded="false" aria-controls="overlay-panel">Layers</button><button id="fit-homes">Find devices</button><button id="national-view">U.S. view</button><button id="open-view-builder" aria-controls="layer-dialog" aria-expanded="false">Create view</button></div>
+<header class="cc-hub"><button id="sidebar-toggle" type="button" aria-label="Collapse sidebar" aria-controls="workspace-navigation" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM9 5v14"/></svg></button><a href="/" class="cc-brand" aria-label="HomeBeacon website"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/></svg>HomeBeacon</a><span class="cc-page-divider" aria-hidden="true">/</span><span id="workspace-name" class="cc-page-name">Map</span><span class="cc-scope">Lower 48 states</span><span class="tag" id="mode-tag">${demo || exerciseMode ? 'Exercise' : 'Connected devices'}</span><span class="live-pill" id="live-pill" role="status">Connecting</span><details class="cc-more" id="command-more"><summary>More</summary><div class="cc-more-menu">${!demo && role ? `<a href="${exerciseMode ? '/command-center' : '/command-center?mode=exercise'}">${exerciseMode ? 'Show live data' : 'Show exercise data'}</a>` : ''}<button id="build-layer">Create a view</button><button id="sources">Data sources</button><button data-theme-toggle>Switch theme</button><a href="/customer">My home</a><a href="/status">System status</a><a href="/privacy">Privacy</a><a href="/accessibility">Accessibility</a>${!role ? '<a href="/login">Operator sign-in</a>' : '<a href="/profile">Profile</a><button id="signout">Sign out</button>'}</div></details></header>
+<div class="notice" id="notice">${demo ? 'Fictional homes and hurricane exercise. No live disaster data.' : 'Lower 48 states · weather coverage is regional. Missing reports mean unknown conditions.'}</div>
 <aside id="workspace-navigation" class="workspace-sidebar"><div id="workspace-menu"></div><div class="workspace-sidebar-foot"><span class="sidebar-dot" aria-hidden="true"></span><span>HackUTD prototype</span></div></aside><div id="embed-label" class="embed-label" hidden>Fictional hurricane exercise</div>
 <section class="stats" aria-label="Response overview" id="stats" hidden></section><div id="active-layer" class="hidden notice" role="status"></div>
 <section class="board" aria-label="Properties and map"><div class="map-wrap"><div id="map" class="map" role="region" aria-label="United States response map. Open Devices for a keyboard-accessible home list."></div>
 <aside id="overlay-panel" class="overlay-panel" aria-label="Map layers and zones"><div class="ov-head"><strong>Layers and zones</strong><button id="overlay-close" class="small" aria-label="Close layers panel">Close</button></div><div id="overlay-body" class="ov-body"></div></aside>
 <div id="draw-bar" class="draw-bar hidden" role="group" aria-label="Zone drawing"><p id="draw-help"></p><span id="draw-count" class="muted"></span><div class="tools"><button id="draw-undo" class="small">Undo point</button><button id="draw-finish" class="small primary">Finish</button><button id="draw-cancel" class="small">Cancel</button></div></div>
-<details class="map-caption"><summary>Map key &amp; sources</summary><div class="map-key"><p>${LADDER.slice().reverse().map(k => `<span class="tag ${k}">${STATUS_LABEL[k]}</span>`).join(' ')}</p><p class="legend-note"><small>Large blue circles group device locations, not severity. Small blue ring: linked customer. Grey edge: last known. Unknown does not mean safe.</small></p><small id="map-status">Loading USGS imagery. Imagery dates vary; this is not a live disaster photograph.</small><p><small>${demo ? 'Dallas and Florida homes, wind exposure and zones are fictional. Wind circles are not a forecast.' : 'National imagery is geographic context. Public-layer coverage varies by source; see Data sources for verified coverage. Electricity demand is not household outage telemetry.'}</small></p></div></details></div>
+<details class="map-caption"><summary>Map key &amp; sources</summary><div class="map-key"><p>${LADDER.slice().reverse().map(k => `<span class="tag ${k}">${STATUS_LABEL[k]}</span>`).join(' ')}</p><p class="legend-note"><small>Large blue circles group device locations, not severity. Small blue ring: linked customer. Grey edge: last known. Unknown does not mean safe.</small></p><small id="map-status">Loading street map.</small><p><small>${demo ? 'Dallas and Florida homes, wind exposure and zones are fictional. Wind circles are not a forecast.' : 'The base map is geographic context. Public-layer coverage varies by source; see Data sources for verified coverage. Electricity demand is not household outage telemetry.'}</small></p></div></details></div>
 <aside id="device-panel" class="queue" aria-label="Devices and priorities" hidden><div class="panel-title"><div><h2 id="queue-title">Devices</h2><p class="view-lead">Search observations, compare readings and choose a home to inspect.</p></div><button id="queue-close" class="small" aria-label="Close device list">Close</button></div><div class="queue-tabs" role="tablist" aria-label="Lists">${[['homes', 'Homes'], ['priorities', 'Priorities'], ['regions', 'Areas']].map(([k, l]) => `<button role="tab" data-qtab="${k}" aria-selected="${k === 'homes'}" id="qtab-${k}">${l}</button>`).join('')}</div><div class="panel-head" id="queue-filters"><label><span class="sr-only">Search homes</span><input id="search" type="search" placeholder="Search home or area"></label><label><span class="sr-only">Filter by status</span><select id="filter"><option value="all">All statuses</option><option value="critical">Critical</option><option value="elevated">Elevated</option><option value="watch">Watch</option><option value="unknown">Unknown</option><option value="normal">No active alerts</option><option value="offline">Not reporting</option><option value="linked">Customer linked</option><option value="power">Power loss</option></select></label><label><span class="sr-only">Sort homes</span><select id="home-sort"><option value="priority">Sort by priority</option><option value="power">Power loss first</option><option value="battery">Lowest battery</option><option value="age">Oldest report</option></select></label></div><div id="properties" class="properties" aria-label="List"></div><div class="queue-foot"><button id="send-area"${demo ? ' disabled title="Exercise mode is read only"' : ''}>Message map area</button><button id="export" class="small">Export homes</button></div></aside>
 <svg id="detail-connector" aria-hidden="true"><path></path></svg><section id="detail" class="detail" aria-label="Selected home details" aria-live="polite" hidden></section></section>
 <section id="timeline" class="timeline cc-bottom" aria-label="Activity" hidden><div class="panel-title"><div><h2 id="activity-title" tabindex="-1">Activity</h2><p class="view-lead">Device updates, operator logs and message delivery.</p></div><button id="activity-close" class="small">Close</button></div><div class="activity-content"><div class="activity-toolbar"><div class="tabs" role="tablist" aria-label="Activity"><button role="tab" data-btab="feed" aria-selected="true">Updates</button><button role="tab" data-btab="logs" aria-selected="false">Logs</button><button role="tab" data-btab="sent" aria-selected="false">Sent messages</button></div></div><div id="bottom-body" class="bottom-body" role="tabpanel"></div></div></section>
@@ -59,7 +59,7 @@ export async function mountCommand(env) {
   // Full workspace views sit beside the retained map canvas, not inside its inert subtree.
   $('.workspace').append($('#device-panel'));
   $('#embed-label').hidden = !embedded;
-  $('.map-wrap').append($('.map-tools'), $('#notice'), $('#active-layer'));
+  $('.map-wrap').append($('#notice'), $('#active-layer'));
 
   const S = {
     demo, role, base: [], live: newLiveState(), liveState: 'starting', errors: 0, liveAt: 0, props: [], selectedId: null, selectedRegion: null,
@@ -112,22 +112,26 @@ export async function mountCommand(env) {
 
   // ---- map ----
 
-  const mv = new MapView(maplibregl, 'map', { center: DEFAULT_CENTER, zoom: 3.4, styleKey: 'satellite', deviceMinZoom: S.embed ? 7 : 11, showGroups: !S.embed });
+  ctx.embed = embedded;
+  const mv = new MapView(maplibregl, 'map', { styleKey: embedded ? 'street' : loadSavedView().base, deviceMinZoom: S.embed ? 7 : 11, showGroups: !S.embed, padding: { top: embedded ? 24 : 64, right: 40, bottom: embedded ? 24 : 56, left: 40 } }); // MAP-V2
   ctx.mv = mv;
-  mv.on('error', () => { $('#map-status').textContent = 'Map or imagery unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
+  ctx.toolbar = mountToolbar({ root: $('.map-wrap'), map: mv, ctx }); // MAP-V2
+  ctx.placeCard = mountPlaceCard({ map: mv, ctx, mapEl: $('.map-wrap') }); // MAP-V2
+  mv.on('error', () => { $('#map-status').textContent = 'Map unavailable. Open Devices to continue using the list.'; $('#notice').textContent = (demo ? 'Exercise data. ' : '') + 'Some map tiles are unavailable. Devices and readings remain accessible.'; });
   mv.map.on('load', () => { updateMapSource(); renderMap(); if (!S.nationalFitted) { if (S.embed) fitScenario({ animate: false }); else fitNational(); } });
+  mv.handlers.base = () => { updateMapSource(); ctx.toolbar.sync(); };
   mv.map.on('style.load', updateMapSource);
-  function updateMapSource() { $('#map-status').textContent = mv.styleKey === 'satellite' ? 'USDA / USGS The National Map imagery. Collection dates and resolution vary; not live disaster imagery.' : 'Street map · OpenFreeMap / OpenStreetMap. Geographic context only.'; }
+  function updateMapSource() { $('#map-status').textContent = mv.styleKey === 'topo' ? 'Topographic map · USGS The National Map. Geographic context only.' : 'Street map · OpenFreeMap / OpenStreetMap. Geographic context only.'; } // MAP-V2
   mv.on('moveend', debounce(() => { loadRegions(); overlays?.reloadVisible(); }, 600));
   mv.on('click', (e, hit) => {
     if (S.drawing) return overlays.addPoint(e.lngLat);
     if (!hit) return;
-    if (hit.kind === 'device') ctx.select(hit.properties.id);
-    else if (hit.kind === 'group') { mv.flyTo(hit.geometry.coordinates, 11.5); announce(`${hit.properties.count} connected homes in this group. Zooming to neighborhood view.`); }
+    if (hit.kind === 'group') { mv.flyTo(hit.geometry.coordinates, 11.5); announce(`${hit.properties.count} connected homes in this group. Zooming to neighborhood view.`); }
     else if (hit.kind === 'zone') overlays.selectZone(hit.properties.id);
     else if (hit.kind === 'region') ctx.selectRegion(hit.properties.key);
-    else if (hit.kind.startsWith('overlay:')) onOverlayClick(ctx, hit, e.lngLat);
   });
+  // MAP-V2: a device opens the drawer; other places pin the place card (see place-card.js).
+  mv.onDeviceClick(id => (ctx.drawer?.openDevice ? ctx.drawer.openDevice(id) : ctx.select(id)));
   mv.map.on('dblclick', e => { if (S.drawing) { e.preventDefault(); document.querySelector('#draw-finish').click(); } });
 
   // ---- panels ----
@@ -146,7 +150,6 @@ export async function mountCommand(env) {
     S.workspaceView = view;
     $('.workspace').classList.toggle('view-open', !!view);
     $('.board').inert = !!view; $('.board').setAttribute('aria-hidden', String(!!view));
-    $('.map-tools').inert = !!view;
     for (const [key, selector] of Object.entries(viewPanels)) {
       const panel = $(selector); panel.hidden = key !== view; panel.inert = key !== view;
       panel.setAttribute('aria-hidden', String(key !== view));
@@ -351,7 +354,7 @@ export async function mountCommand(env) {
     mv.setExt('exerciseWind', wind); mv.setVisible('exerciseWind', !!wind.features?.length);
     const zonesOn = id === 'water-hurricane';
     zonesOn ? S.ovOn.add('zones') : S.ovOn.delete('zones'); mv.setVisible('zones', zonesOn);
-    $('#quick-wind')?.setAttribute('aria-pressed', String(!!wind.features?.length));
+    ctx.toolbar?.sync(); // MAP-V2
     $('#notice').textContent = (S.demoMeta?.label || 'Scenario') + ' · fictional homes and readings. Read only.';
     recompute(); renderAll(); await loadRegions(); ctx.positionDetail();
     if (!initial && S.embed) fitScenario({ animate: true });
@@ -417,14 +420,11 @@ export async function mountCommand(env) {
   }
 
   function fitNational({ animate = false } = {}) {
-    const mobile = innerWidth < 700;
     S.nationalFitted = true;
-    mv.map.fitBounds([[-125, 24], [-66, 50]], {
-      padding: { top: mobile ? 165 : 155, right: mobile ? 18 : 40, bottom: mobile ? 105 : 50, left: mobile ? 18 : 40 },
-      maxZoom: 5,
-      duration: animate && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 500 : 0,
-    });
+    ctx.closeDetail?.({ restoreFocus: false }); ctx.closeWorkspace?.({ focus: false });
+    mv.fitConus({ animate }); // MAP-V2: lower 48 only
   }
+  ctx.fitNational = fitNational; ctx.fitHomes = () => fitHomes();
 
   function fitScenario({ animate = true } = {}) {
     const florida = S.props.filter(p => p.coordinates?.[0] > -90 && p.coordinates?.[0] < -75).map(p => p.coordinates);
@@ -485,10 +485,6 @@ export async function mountCommand(env) {
     loadScenario(SCENARIOS[(at + 1) % SCENARIOS.length].id);
   });
   $('#home-sort').onchange = e => { S.sort = e.target.value; renderList(); };
-  $('#national-view').onclick = () => { ctx.closeDetail({ restoreFocus: false }); ctx.closeWorkspace({ focus: false }); fitNational({ animate: true }); };
-  for (const key of ['power', 'water']) $('#quick-' + key).onclick = e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); mv.setHighlight(key, on); };
-  $('#quick-weather').onclick = e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); overlays.toggle('nws', on); };
-  $('#quick-wind')?.addEventListener('click', e => { const on = e.currentTarget.getAttribute('aria-pressed') !== 'true'; e.currentTarget.setAttribute('aria-pressed', String(on)); mv.setVisible('exerciseWind', on); });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape' || document.querySelector('dialog[open]')) return;
     if (ctx.closeViewBuilder?.()) { e.preventDefault(); return; }
@@ -497,7 +493,6 @@ export async function mountCommand(env) {
     if (S.detailOpen) { e.preventDefault(); ctx.closeDetail(); }
     else if (S.workspaceView) ctx.closeWorkspace();
   });
-  $('#fit-homes').onclick = fitHomes;
   $('#send-area').onclick = () => ctx.openMessage({ type: 'bbox' });
   $('#signout')?.addEventListener('click', async () => { await fetch('/api/session', { method: 'DELETE' }); location.href = '/login'; });
   $('#export').onclick = () => {
@@ -553,8 +548,9 @@ export async function mountCommand(env) {
     if (demo) {
       S.regions = localRegions(S.props); S.followUps = localFollowUps(S.props); S.riskState = 'ok'; S.riskAt = Date.now();
     } else {
-      const bbox = mv.bbox().map(n => n.toFixed(4)).join(',');
-      const r = await api(`/api/risk?level=regions&bbox=${bbox}&precision=${precisionForZoom(mv.zoom)}&limit=60`);
+      const box = mv.apiBbox(); // MAP-V2: never ask for places outside the lower 48
+      const bbox = box ? box.map(n => n.toFixed(4)).join(',') : '';
+      const r = box ? await api(`/api/risk?level=regions&bbox=${bbox}&precision=${precisionForZoom(mv.zoom)}&limit=60`) : { ok: false, status: 0 };
       if (r.status === 401) { location.href = '/login'; return; }
       if (r.ok) { S.regions = r.data?.regions || []; S.followUps = r.data?.followUps || []; S.riskState = 'ok'; S.riskAt = Date.now(); }
       else { S.riskState = 'unavailable'; S.riskStatus = r.status; }

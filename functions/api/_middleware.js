@@ -5,7 +5,7 @@ const json=(body,status,extra={})=>Response.json(body,{status,headers:{'Cache-Co
 const DEVICE_POST=['/api/ingest','/api/events','/api/beacon/ingest','/api/device/messages','/api/device/logs','/api/device/settings'];
 const DEVICE_GET=['/api/device/messages','/api/device/settings'];
 // Read-only paths a demo account may GET (exercise data only; handlers filter on the exercise flag).
-const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
+const DEMO_GET=['/api/account','/api/command-center','/api/ops/live','/api/ops/device','/api/ops/place','/api/ops/device-timeline','/api/ops/logs','/api/risk','/api/overlays','/api/feeds'];
 export async function onRequest(context){
   const {request,env}=context;const path=new URL(request.url).pathname;const method=request.method;
   // 1) public
