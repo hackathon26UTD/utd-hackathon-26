@@ -1,5 +1,11 @@
 # Hardware plan, constraints, and observed inventory
 
+## Confirmed pickup — November 7, 2026, 6:53 PM screenshot
+
+The user supplied HARP status **Picked up**. Visible: USB-C cable ×1; **6×AA holder ×1**; breadboard ×1; jumper kit ×1; diodes ×4; F-F/M-F jumper sets ×1 each; resistors ×10; DS1307 ×2; flame ×1; PIR ×1; power module ×2; tilt ×1; water sensor ×2. This supersedes draft quantities/status below for those visible items. Cells, capacity, module ratings, wiring and working backup are not established by checkout.
+
+See [system integration](SYSTEM_INTELLIGENCE.md) for power goals, evidence/Nemotron workflows and bench tests. A single holder does not establish independent backup for both boxes and the gateway. The portable power-policy header is a tested reference, not integrated firmware actuation.
+
 ## Current plan: home disaster blackbox (State Farm track) — updated November 7, 2026 evening
 
 Concept and honesty constraints are in [HOME_BLACK_BOX.md](HOME_BLACK_BOX.md). This section records the hardware we have, what was requested from HARP, and how the boards talk to each other. Everything below is planned and unverified on real hardware until the work log says otherwise.

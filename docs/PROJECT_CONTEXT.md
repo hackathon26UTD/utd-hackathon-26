@@ -1,5 +1,7 @@
 # HomeBeacon current project context
 
+> System integration: [SYSTEM_INTELLIGENCE.md](SYSTEM_INTELLIGENCE.md) defines the additive evidence/Nemotron backend and power-policy reference. The user chose a labeled simulator for now; actual NVIDIA inference and automatic firmware load shedding remain unverified. A November 7 6:53 PM screenshot confirms pickup, including **one** AA holder (not the earlier draft's two).
+
 > Latest continuation: [INTEGRATION_CONTINUATION.md](INTEGRATION_CONTINUATION.md). The actual Argus kit, dusk/paper theme, customer role and live/risk/downlink modules supersede older design and capability notes below.
 
 
