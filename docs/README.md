@@ -12,6 +12,10 @@ Current entry point for the **hackathon26UTD** organization. Updated November 8,
 - [Current context](PROJECT_CONTEXT.md) and [root handoff](../HANDOFF.md): resuming active work.
 - [Brand and compatibility](BRAND.md), [rename decision](decisions/0001-safe-home-name.md), [changelog](../CHANGELOG.md) and [work log](WORKLOG.md).
 
+- [Map-only command-center design](design/COMMAND_CENTER_MAP_ONLY.md) and [Astra brief](design/ASTRA_COMMAND_CENTER_BRIEF.md): current requirements, evidence, pending decisions and acceptance gates.
+
+- [Demo day runbook](TOMORROW.md): readiness checklist, commands, hardware steps, demo script, fallbacks and honest non-claims.
+- [Developer CLI](CLI.md), [performance](PERFORMANCE.md), [Uno Q agent](UNOQ_AGENT.md), [power design](POWER_DESIGN.md), [email](EMAIL.md), [NVIDIA harness](HARNESS.md), [how it works](HOW_IT_WORKS.md), [thresholds](THRESHOLDS.md) and [runbook](RUNBOOK.md): November 8 operations readiness set.
 ## Operator workspace
 
 - [Command center](command-center.md), [map contract](MAP_V2_SPEC.md), [world views](MAP_WORLD_VIEWS.md), [workflow canvas](WORKFLOW_CANVAS.md).

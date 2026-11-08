@@ -1,3 +1,6 @@
+November 8 operations readiness (branch `feat/ops-readiness`, not deployed): DB speed-ups, `npm run hb` CLI, Uno Q agent, Resend email, NVIDIA grounding harness. Read [docs/TOMORROW.md](docs/TOMORROW.md) first for the demo day checklist, verified vs unverified items and fallbacks.
+
+# Start here: Ayan's HomeBeacon handoff
 # Start here: Ayan's Safe Home handoff
 
 November 8 public-weather release (PR #48, `6e4df46`, production verified): public hazards, a live NWS News tab, local official alert boundaries, mainland zoom limits and buffered NOAA radar playback. Private device access remains protected. See [Public weather and News](docs/PUBLIC_WEATHER_NEWS.md) and WORKLOG for release evidence.
