@@ -4,7 +4,7 @@ import { devicePolicy, FRESH_MS } from '../domain/system-policy.js';
 
 // All model-visible fields are allowlisted. No names, addresses, credentials, notes or arbitrary metadata.
 export const SENSORS = ['mains_power', 'power.mains', 'water_detected', 'water_raw', 'water_level_mm', 'temp_c',
-  'humidity_pct', 'flame', 'smoke_alarm', 'sound_hits', 'motion', 'battery_pct', 'battery_mv', 'battery_v',
+  'humidity_pct', 'flame', 'flame_raw', 'tilt', 'smoke_alarm', 'sound_hits', 'motion', 'battery_pct', 'battery_mv', 'battery_v',
   'rssi', 'wifi_connected', 'wan_connected', 'api_reachable', 'power_mode', 'queue_depth', 'uptime_s'];
 const EVENT_TYPES = ['power.lost', 'power.restored', 'water.detected', 'water.cleared', 'help.request', 'ok.report',
   'alarm.sound', 'flame.detected', 'box.boot', 'box_b.silent', 'power.policy'];
@@ -34,10 +34,24 @@ export async function loadSystemEvidence(db, { deviceId, exercise = false, now =
     const latestRows = await db.collection('readings').aggregate([
       { $match: match }, { $sort: { ts: -1, _id: -1 } }, { $group: { _id: '$sensor', reading: { $first: '$$ROOT' } } },
     ], { maxTimeMS: 5000 }).toArray();
+    // Preserve an opposing critical/power reading at the exact latest timestamp even when
+    // the bounded history is full. Do not arbitrarily declare a tied false/true reading authoritative.
+    const conflictQueries = latestRows.map(({ reading: r }) => {
+      let value;
+      if (['mains_power', 'power.mains', 'water_detected', 'flame', 'smoke_alarm'].includes(r.sensor)) {
+        value = { $in: r.value === true || r.value === 1 ? [false, 0] : [true, 1] };
+      } else if (r.sensor === 'temp_c') value = typeof r.value === 'number' && r.value >= 55 ? { $lt: 55 } : { $gte: 55 };
+      else if (r.sensor === 'sound_hits') value = typeof r.value === 'number' && r.value >= 6 ? { $lt: 6 } : { $gte: 6 };
+      return value ? { sensor: r.sensor, ts: r.ts, value } : null;
+    }).filter(Boolean);
+    const conflictingRows = conflictQueries.length ? await db.collection('readings').aggregate([
+      { $match: { deviceId: device._id, $or: conflictQueries } }, { $sort: { _id: -1 } },
+      { $group: { _id: '$sensor', reading: { $first: '$$ROOT' } } },
+    ], { maxTimeMS: 5000 }).toArray() : [];
     const history = await db.collection('readings').find({ ...match, ts: { $gte: since, $lte: now } },
       { projection: { _id: 1, sensor: 1, value: 1, ts: 1, receivedAt: 1 } }).sort({ ts: -1, _id: -1 }).limit(HISTORY_LIMIT + 1).toArray();
     const latest = {};
-    const rows = [...latestRows.map(x => x.reading), ...history.slice(0, HISTORY_LIMIT)];
+    const rows = [...latestRows.map(x => x.reading), ...conflictingRows.map(x => x.reading), ...history.slice(0, HISTORY_LIMIT)];
     const seen = new Set();
     for (const r of rows) {
       if (seen.has(String(r._id)) || !safeValue(r) || !iso(r.ts)) continue;
@@ -72,7 +86,16 @@ export async function loadSystemEvidence(db, { deviceId, exercise = false, now =
     ], { maxTimeMS: 5000 }).toArray();
     if (latestHelp && !events.some(e => e.id === `event:${latestHelp._id}`)) events.push({ id: `event:${latestHelp._id}`,
       deviceId: id, type: latestHelp.type, observedAt: iso(latestHelp.data?.observed_at), receivedAt: iso(latestHelp.ts) });
+    const opposing = observations.filter(o => o.deviceId === id && o.observedAt === latest[o.sensor]?.observedAt && o.value !== latest[o.sensor]?.value);
+    const criticalReading = o => ['water_detected', 'flame', 'smoke_alarm'].includes(o.sensor) ? o.value === true || o.value === 1 :
+      o.sensor === 'temp_c' ? typeof o.value === 'number' && o.value >= 55 : o.sensor === 'sound_hits' && typeof o.value === 'number' && o.value >= 6;
+    const mainsValue = v => v === true || v === 1 ? true : v === false || v === 0 ? false : null;
+    const mainsObservationConflict = opposing.some(o => o.sensor === 'mains_power' && mainsValue(o.value) !== null &&
+      mainsValue(latest.mains_power.value) !== null && mainsValue(o.value) !== mainsValue(latest.mains_power.value));
+    const criticalObservationConflict = opposing.some(o => criticalReading(o) || criticalReading(latest[o.sensor]));
     devices.push({ id, homeId: target.homeId ? String(target.homeId) : null, lastReceivedAt: iso(device.lastSeen), latest,
+      ...(mainsObservationConflict ? { mainsObservationConflict: true } : {}),
+      ...(criticalObservationConflict ? { criticalObservationConflict: true } : {}),
       helpObservation: latestHelp ? { evidenceId: `event:${latestHelp._id}`, type: latestHelp.type,
         observedAt: iso(latestHelp.data?.observed_at), receivedAt: iso(latestHelp.ts) } : null,
       latchedCritical: Boolean(latchedCritical) || latestHelp?.type === 'help.request' });
