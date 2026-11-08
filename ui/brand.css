@@ -1,0 +1,10 @@
+/* Outlined artwork stays identical across platforms and never waits on a font. */
+.safehome-brand{display:inline-flex;align-items:center;flex:none;width:151px;height:48px;line-height:1}
+.safehome-brand img{display:block;width:100%;height:100%;max-width:none;object-fit:contain}
+.safehome-brand .safehome-brand-dark{display:none}
+html[data-hbkit-theme=dark] .safehome-brand .safehome-brand-light{display:none}
+html[data-hbkit-theme=dark] .safehome-brand .safehome-brand-dark{display:block}
+.cc.map-only.vertical-shell .cc-brand .safehome-brand{padding:0;border:0;width:126px;height:40px}
+.home-site .home-brand .safehome-brand{width:176px;height:56px}
+@media(max-width:600px){.home-site .home-brand .safehome-brand{width:138px;height:44px}.safehome-brand{width:138px;height:44px}.cc.map-only.vertical-shell .cc-brand .safehome-brand{width:113px;height:36px}}
+@media(max-width:360px){.home-site .home-brand .safehome-brand{width:104px;height:34px}.home-site .home-brand{padding:8px}}

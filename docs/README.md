@@ -30,6 +30,8 @@ Current entry point for the **hackathon26UTD** organization. Updated November 8,
 
 ## Data and devices
 
+- [Real box connection](LIVE_DEVICE_CONNECTION.md): ESP/Q paths, repeatable database-to-dashboard check and the open CPU limit.
+
 - [Core API](API.md), [additive telemetry/incident schema](mongodb-architecture.md), [system contract](SYSTEM_SPEC.md).
 - [Source catalog](DATA_SOURCES.md), [feed integration](FEEDS.md), [world feed coverage](WORLD_FEEDS.md), [data operations](DATA_OPERATIONS.md).
 - [Retained history and reference averages](DEVICE_HISTORY.md), [simulations and headless use](SIMULATIONS.md).

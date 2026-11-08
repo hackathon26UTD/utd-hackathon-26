@@ -2,6 +2,7 @@
 // Polling design: see docs/LIVE_DOWNLINK.md. Missing data is unknown; nothing here infers occupancy or safety.
 import { ObjectId } from 'mongodb';
 import { HttpError, badRequest, notFound } from './http.js';
+import { configuredWifiPreviewIds } from './display-preview.js';
 
 export const OFFLINE_MS = 15 * 60_000;
 export const RESET_AFTER_MS = 30 * 60_000;
@@ -401,8 +402,12 @@ export async function getDeviceDetail(db, { id, exercise = false, now = new Date
   for (const k of Object.keys(series)) series[k] = series[k].slice(-120);
   const live = deviceLive(d, { homesById: scope.homesById, latest, links: lh.links, helps: lh.helps, risk: risk.map, now });
   const help = lh.helps.get(sid);
+  // Presentation metadata only: never feed a preview into readings, risk or model evidence.
+  const previewIds = configuredWifiPreviewIds(env);
+  const displayPreview = !exercise && previewIds.includes(sid) ? { wifiConnected: true, source: 'simulation' } : null;
   return {
     device: { id: sid, name: d.name, type: d.type || null, lng: live.lng, lat: live.lat, lastSeen: live.lastSeen, offline: live.offline, exercise: d.meta?.exercise === true },
+    displayPreview,
     latest: live.latest, series, risk: live.risk, link: live.link,
     help: { status: live.help.status, note: help?.note || '', updatedAt: live.help.updatedAt, history: (help?.history || []).slice(-20) },
     logs: logs.map(logRow),
