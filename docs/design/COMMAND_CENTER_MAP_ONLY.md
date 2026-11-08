@@ -7,7 +7,7 @@ Status: Ayan approved the rendered satellite-map direction for Astra to develop 
 
 ### Locked by Ayan
 
-- The default workspace is **map only, with all tools opening on demand**. Exact answer to the layout question, November 7.
+- The default workspace is **a full map, with detail panels opening on demand**. Ayan initially chose all tools on demand, then explicitly added visible basic overlay buttons and a compact floating tab island (section 22).
 - The map is the command center, not a small dashboard widget. It owns the viewport.
 - No KPI row or KPI cards in the command-center landing state.
 - Remove the old full-height dashboard rail and side tabs. Ayan later requested a compact floating left tab island for Devices, Priorities and related views. That small island is allowed; its panels open on demand. Do not restore the old permanent columns.
@@ -62,7 +62,7 @@ New acceptance evidence must show actual component composition at the point of u
 
 ### Layout
 
-The map fills 100vw x 100dvh. No page-length command-center document and no normal page scrolling at rest. Map controls, legal attribution and one small command hub overlay it.
+The map fills 100vw x 100dvh. No page-length command-center document and no normal page scrolling at rest. Map controls, legal attribution, a small command hub, direct basic overlays and the compact floating tab island overlay it.
 
 Target at 1440 x 960 and 1920 x 1080:
 - Map canvas occupies the entire application viewport.
@@ -74,7 +74,7 @@ At 390 x 844, preserve the map as the default screen. Tools open in an appropria
 
 ### Minimal controls
 
-One floating command hub, proposed top left, contains a small brand/region identity and a clear Tools or Search action. The exact wording and arrangement are to be reviewed, but it must not grow into a row of eight buttons.
+The floating command hub at top left contains a small brand/region identity and a clear Tools or Search action. Basic overlay buttons sit below it, with a small floating view island to the left; opened content is temporary. The exact wording and arrangement are to be reviewed, but it must not grow into a row of eight buttons.
 
 A quiet connection/freshness indicator can sit beside the hub. "Feed connected" means the software connection is live; it does not mean houses are safe. Do not use a fleet count as a KPI substitute.
 
@@ -98,7 +98,7 @@ Conventional zoom, compass and scale remain where map users expect them. Keep Op
 
 This is an interaction diagram, not a visual mockup. No map should be replaced by decorative blobs or a fake static city drawing.
 
-## 4. Tools open on demand
+## 4. Tool panels open on demand
 
 | Task | Proposed interaction | Closure and state |
 | --- | --- | --- |
