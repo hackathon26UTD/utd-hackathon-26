@@ -1,7 +1,7 @@
 # HomeBeacon command center: map-only design contract
 
 Owner: Ayan's workstream. Updated November 7, 2026, America/Chicago.
-Status: evolving design brief for Ayan and the teammate using Astra. This is not a claim that the replacement UI is implemented or accepted. Record new answers here rather than scattering requirements across chats.
+Status: Ayan approved the rendered satellite-map direction for Astra to develop and refine. This is an evolving implementation brief, not a claim that the production replacement is implemented or accepted. Record new answers here rather than scattering requirements across chats.
 
 ## 1. Decisions and their source
 
@@ -21,11 +21,12 @@ Status: evolving design brief for Ayan and the teammate using Astra. This is not
 - The experience must feel animated, dynamic and modern while remaining operationally useful.
 - Use Ayan's actual Argus UI components. A kit import, a gallery or CSS-class decoration is not enough evidence of a component-led product.
 - Inspect what is actually rendered. The cookie experience is explicitly part of this review.
+- **Use the rendered satellite-map composition for Astra and refine the details.** Exact answer to composition review, November 7. This approves the direction, not a claim of production completion.
 - First consolidate what we want in this living design document. A teammate will use Astra. Do not silently deploy another redesign before this design is resolved.
 
 ### Remaining design review
 
-The foundational layout and selection choices above are locked. Exact visual composition, imagery provider, tool placement, expansion dimensions and motion treatment still need a rendered design review. Backend national coverage remains implementation/research work, not an unanswered user preference.
+The foundational layout and selection choices above are locked. The rendered composition is approved as the direction. Imagery provider, detailed tool placement, expansion dimensions and motion treatment remain refinements for Astra. Backend national coverage remains implementation/research work, not an unanswered user preference.
 
 ### Proposed, not yet approved
 
@@ -277,7 +278,7 @@ Required implementation verification when that phase starts:
 - Performance repair shipped separately in PR #25: scoped component updates, smaller runtime/font payload, contained page scrolling and cookie focus repair. This does not implement the map-only redesign.
 - Design review next: exact visual composition; source/layer defaults within the chosen national overview; event attention/coalescing; mobile tool fit. The foundational user choices above are already answered.
 
-This document remains a draft until the pending decisions and visual review are resolved. No production UI change is claimed by writing it.
+Ayan approved the rendered satellite-map direction on November 7: "Use this direction for Astra and refine the details." The requirements/design handoff is ready. Detailed implementation and production validation remain assigned to the next workstream.
 
 ## 13. Scenario walkthroughs Astra must cover
 
@@ -450,4 +451,32 @@ Prototype scope: U.S. imagery overview, grouped national alert label, deliberate
 
 Snapshot evidence: the successful NWS active-alert request returned 322 features at retrieval, with two non-null geometries. The prototype includes only those two geometries, with original source/issue times and retrieval timestamp in `alerts-snapshot.json`. It does not claim complete national hazards. Missing-geometry alerts need source-zone resolution in real implementation. The API rejected a `limit` parameter on this active endpoint during this check; verify supported query parameters instead of assuming pagination syntax.
 
-This is a reviewable interaction proposal, not an accepted final design. Remaining full-product work includes national completeness/zone geometry, Alaska/Hawaii entry, source failures/retry controls, message/zone/model flows, mobile edge cases, light-theme review and production integration. Do not equate prototype screenshots with completion of the replacement command center.
+Ayan approved this rendered direction for Astra to develop and refine. It is not an accepted final production implementation. Remaining full-product work includes national completeness/zone geometry, Alaska/Hawaii entry, source failures/retry controls, message/zone/model flows, mobile edge cases, light-theme review and production integration. Do not equate prototype screenshots with completion of the replacement command center.
+
+
+## 21. Handoff acceptance and remaining implementation
+
+Ayan's latest decision: **"Use this direction for Astra and refine the details."** The requirements-gathering and directional-review stage requested in the original message is complete. Continue adding refinements here during implementation. Do not reopen the locked map/layout/selection choices as if they were unanswered.
+
+| Original request | Authoritative handoff evidence | State |
+| --- | --- | --- |
+| First gather what we want and keep a design document | Sections 1–20 plus explicit user answers recorded with source/date | Complete for handoff |
+| Map dominates rather than acting as a small widget | Approved full-viewport rendered prototype; 1920px measurement: 97.7% unobstructed by app chrome at rest | Direction approved |
+| Remove side tabs/rail and KPI cards | Prototype idle DOM has neither; national desktop/mobile captures show the map-only state | Direction approved; production replacement remains |
+| Device details only on deliberate selection | Prototype opens with no selection; explicit region/house selection and anchored compact/expanded evidence demonstrated | Direction approved |
+| Modern, animated and dynamic | Actual transitions, deliberate camera movement, controlled new-report emphasis, normal/reduced-motion interaction checks | Direction approved; detail refinement remains |
+| Actual Argus components | Prototype source calls the eight verified factories; vendor source unchanged | Demonstrated in proposal; product integration remains |
+| Critique cookie banner | Section 9 records duplicate-choice/interruption problems; prototype has on-demand privacy with no consent banner for nonexistent options | Critique and proposed treatment delivered |
+| Actually inspect rendered work | Ten screenshot states, page-error/axe/overflow/bounds audit, 1920px interaction check, manual image inspection and corrected overlaps/anchor occlusion | Demonstrated for proposal |
+| Give teammate using Astra enough context | ASTRA_COMMAND_CENTER_BRIEF.md, prototype README/source/build path, data semantics, source research, acceptance gates and packaged evidence | Ready |
+| Confirm the direction | User's explicit acceptance above | Approved for Astra refinement |
+
+### Scope boundary
+
+This handoff satisfies the requested first stage: gather requirements, document them, demonstrate and review the direction for the teammate using Astra. It does not certify the deployed command center as redesigned. The existing production layout still has its old structure, with the separate performance repairs from PR #25.
+
+### Next owner: teammate using Astra
+
+Implement the approved full-viewport satellite composition against current main. Preserve teammates' firmware/API/database work. Replace the KPI/rail/queue/default-inspector structure rather than hiding it. Build national/viewport data coverage and truthful source states. Complete on-demand search/list/layers/activity/messages/zones/model/account flows. Keep device compact essentials and anchored expansion. Preserve accessibility, privacy, motion/performance constraints and role isolation. Review actual rendered implementation, then perform the acceptance gates in section 11 before reporting production completion.
+
+No new user preference is needed to begin that implementation. Resolve routine details within this approved direction, and return to Ayan only for meaningful changes to the locked behavior or concrete review findings.

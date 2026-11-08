@@ -1,3 +1,5 @@
+**Direction approved by Ayan, November 7:** "Use this direction for Astra and refine the details." Begin implementation from this accepted direction. Preserve locked choices; refine routine details without restarting requirements gathering. Production replacement is not complete.
+
 # Instructions for Astra: HomeBeacon command center design
 
 You are helping Ayan's workstream redesign an existing operational map. Start with `COMMAND_CENTER_MAP_ONLY.md`, not the previous deployed layout. The current design was explicitly rejected. Coordinate with the team and preserve existing APIs.
@@ -22,8 +24,8 @@ Propose coordinated, modern motion tied to real events. No fake liveness, endles
 
 Review the cookie experience honestly: current choices are identical, no optional tracking is installed, the panel consumes map space and dismissal jumps toward the footer. Propose privacy/settings access without an unnecessary consent-style interruption to operations. This is a UX proposal, not legal certification.
 
-Deliver the component bill of materials, annotated compositions, motion demonstration and open decisions. Compare rendered results with the source brief. Do not treat imported styles, a passing gallery, a green build or an axe result as design acceptance. Keep adding accepted decisions to the living brief. Do not deploy another redesign until the design is reviewed with Ayan.
+Deliver the component bill of materials, annotated compositions, motion demonstration and open decisions. Compare rendered results with the source brief. Do not treat imported styles, a passing gallery, a green build or an axe result as design acceptance. Keep adding accepted decisions to the living brief. The directional review is complete. Inspect and validate the concrete implementation before deployment; raise meaningful departures from the locked behavior.
 
 Keep the outer command canvas anchored without blank scroll space. Avoid expensive whole-page rescans or unnecessary font/module downloads. Public website, operator login and household access must remain discoverable. PR #25 repairs the current layout performance and scrolling; it does not replace this redesign.
 
-An independent interactive proposal lives in `docs/design/prototype/`. Read its README, build it locally and inspect the rendered states. It uses actual Argus factories with USGS imagery and a dated NWS geometry subset; fictional devices are labeled. It is a starting point for review, not production wiring or accepted national coverage.
+An independent interactive proposal lives in `docs/design/prototype/`. Read its README, build it locally and inspect the rendered states. It uses actual Argus factories with USGS imagery and a dated NWS geometry subset; fictional devices are labeled. It is the approved directional starting point, not production wiring or accepted national coverage.
