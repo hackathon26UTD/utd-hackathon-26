@@ -4,6 +4,7 @@ import {bodyText, customer, guarded, reply, run, fail} from './customer-connect-
 import {resolveHousehold} from './households.js';
 
 const MINUTE = 60000;
+const contextIndexed=new WeakSet();
 const text = (s, n = 180) => typeof s === 'string' ? s.replace(/<[^>]*>/g, '').replace(/[\x00-\x1f\x7f]/g, ' ').trim().slice(0, n) : '';
 const iso = v => Number.isFinite(Date.parse(v)) ? new Date(v).toISOString() : null;
 export const NEWS_SOURCES = [
@@ -105,6 +106,7 @@ async function cached(db,key,ttl,loader,now) {
   }
 }
 export async function householdContext(db,access,{fetcher=fetch,now=new Date(),includeNews=true,includeLinkIds=false}={}) {
+  if(!contextIndexed.has(db)){await db.collection('household_context_cache').createIndex({expiresAt:1},{expireAfterSeconds:0});contextIndexed.add(db);}
   const places=[],seen=new Set();let total=0;
   for(const link of access.links) {
     if(!ObjectId.isValid(link.deviceId))continue;
