@@ -66,7 +66,7 @@ export async function loadHomeWeather(coordinates, {fetcher=fetch,now=new Date()
   return result;
 }
 export function currentWeather(value,now) {
-  const weather={...value};
+  const weather={...value,url:'https://www.weather.gov/'};
   weather.alerts=(value.alerts||[]).filter(a=>iso(a.expires)&&new Date(a.expires)>now&&iso(a.sent)&&new Date(a.sent)<=new Date(+now+2*MINUTE));
   weather.forecast=(value.forecast||[]).filter(p=>iso(p.startTime)&&iso(p.endTime)&&new Date(p.endTime)>now&&new Date(p.startTime)<new Date(+now+12*60*MINUTE));
   const issued=iso(value.forecastIssuedAt);
