@@ -101,7 +101,7 @@ test('register links a device, sets a customer cookie and the customer sees only
   const d=await call(devices,'GET','/api/customer/devices',{cookie});
   assert.equal(d.status,200);assert.equal(d.body.devices.length,1);
   const dev=d.body.devices[0];
-  assert.deepEqual(Object.keys(dev).sort(),['conditions','exercise','help','id','lastSeen','messages','nickname','status','statusText']);
+  assert.deepEqual(Object.keys(dev).sort(),['conditions','consent','exercise','firstReportAt','fleetStatus','help','id','lastSeen','lastSeenAt','messages','nickname','notificationsPausedUntil','room','serial','status','statusText']);
   assert.equal(dev.id,link._id);assert.equal(dev.status,'no_recent_signal'); // no risk engine wired: never shown as safe
   assert.equal(d.text.includes(id),false);assert.equal(d.text.includes('keyHash'),false);
   assert.equal(dev.help.status,'none');

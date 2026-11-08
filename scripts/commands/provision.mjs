@@ -1,8 +1,6 @@
-// hb provision: build inventory (serials, device keys, pairing codes, label sheets) for boxes we make.
-// Operators never add boxes in a screen. This command calls the admin-only batch endpoint, then writes
-// private files. Device keys and pairing codes are written to mode 600 files and are never printed.
-import { mkdirSync, writeFileSync, existsSync, chmodSync, readdirSync } from 'node:fs';
-import { join, resolve, relative, isAbsolute, sep } from 'node:path';
+// Admin-only inventory creation. One-time credentials never pass through terminal output.
+import { mkdirSync, mkdtempSync, openSync, closeSync, writeFileSync, fsyncSync, fstatSync, lstatSync, realpathSync, readdirSync, constants } from 'node:fs';
+import { join, resolve, relative, isAbsolute, dirname, parse, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { HbError, EXIT, usageError } from '../lib/hb-errors.mjs';
 import { isLocalSite } from '../lib/hb-http.mjs';
@@ -10,228 +8,256 @@ import { buildSheet, buildSecretsHeader, checkSerial, SERIAL_RE, CODE_V1_RE, COD
 
 export const TYPES = ['esp32', 'xiao-esp32s3-sense', 'unoq'];
 export const MAX_COUNT = 100;
-const PREFIX_RE = /^[a-z0-9][a-z0-9-]{0,23}$/i;
-const BATCH_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const ID_RE = /^[a-f0-9]{24}$/i;
+const BATCH_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const USAGE = [
-  'hb provision --count N --prefix NAME --home-less [--type esp32|xiao-esp32s3-sense|unoq] [--note TEXT] [--origin URL] [--secrets-dir DIR] [--dry-run] [--yes]',
-  'hb provision add --prefix NAME [same options]   (one box)',
-  'hb provision rotate <deviceId> --reason TEXT --confirm SERIAL [--secrets-dir DIR] [--dry-run]',
-  'alias: hb devices provision ... is documented as this command; devices.mjs is not edited, so run hb provision.',
+  'hb devices provision --count N --prefix NAME [--home-less] [--type esp32|xiao-esp32s3-sense|unoq] [--note TEXT]',
+  'hb provision batch --count N --prefix NAME [--expected-report-interval-seconds N]',
+  'hb provision add --prefix NAME (one box)',
+  'hb provision rotate <deviceId> --reason TEXT --confirm SERIAL',
+  'Options: --out-dir DIR --secrets-dir DIR --origin URL --dry-run --yes',
 ].join('\n');
-
-const isHttpOrigin = (u) => { try { const p = new URL(u); return p.protocol === 'https:' || (p.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(p.hostname)); } catch { return false; } };
 const plainText = (s, max) => typeof s === 'string' && s.length <= max && !/[\u0000-\u001f\u007f]/.test(s);
 
-/** Validate flags into the request body for POST /api/ops/fleet-batch. Throws usage errors. */
+function originOf(value, flag) {
+  try {
+    const u = new URL(value);
+    if (u.username || u.password || u.search || u.hash || u.pathname !== '/' ||
+        !(u.protocol === 'https:' || (u.protocol === 'http:' && isLocalSite(u.href)))) throw Error();
+    return u.origin;
+  } catch { throw usageError(`${flag} must be an HTTPS origin without a path, credentials, query or fragment (local HTTP is allowed).`); }
+}
+
 export function planBatch(flags, { site, single = false } = {}) {
+  if (typeof flags.count === 'boolean' || (single && flags.count !== undefined && Number(flags.count) !== 1)) throw usageError('--count must be a whole number from 1 to 100 (add creates exactly one box).');
   const count = single ? 1 : Number(flags.count);
-  if (!single && (!Number.isInteger(count) || count < 1 || count > MAX_COUNT)) throw usageError(`--count must be a whole number from 1 to ${MAX_COUNT}`);
+  if (!Number.isInteger(count) || count < 1 || count > MAX_COUNT) throw usageError('--count must be a whole number from 1 to 100.');
   const prefix = flags.prefix;
-  if (typeof prefix !== 'string' || !PREFIX_RE.test(prefix)) throw usageError('--prefix is required: 1 to 24 letters, digits or hyphens, starting with a letter or digit (for example lab)');
-  const type = flags.type === undefined || flags.type === true ? 'esp32' : String(flags.type);
-  if (!TYPES.includes(type)) throw usageError(`--type must be one of ${TYPES.join(', ')}`);
-  const note = flags.note === undefined || flags.note === true ? '' : flags.note;
-  if (!plainText(note, 200)) throw usageError('--note must be plain text up to 200 characters');
-  const origin = String(flags.origin && flags.origin !== true ? flags.origin : site).replace(/\/+$/, '');
-  if (!isHttpOrigin(origin)) throw usageError('--origin must be an https URL (http only for localhost)');
-  if (!single && !flags['home-less']) {
-    throw usageError('Pass --home-less. New boxes are made with no home; the customer claim creates one. (npm run provision still builds the older synthetic-home demo boxes.)');
+  if (typeof prefix !== 'string' || !/^[a-z0-9][a-z0-9-]{0,23}$/i.test(prefix)) throw usageError('--prefix is required: 1 to 24 letters, digits or hyphens.');
+  const type = flags.type === undefined ? 'esp32' : flags.type;
+  if (!TYPES.includes(type)) throw usageError(`--type must be one of ${TYPES.join(', ')}.`);
+  const note = flags.note === undefined ? '' : flags.note;
+  if (!plainText(note, 160)) throw usageError('--note must be plain text up to 160 characters.');
+  if (flags['home-less'] === false) throw usageError('New inventory is always home-less; customer claim creates the home.');
+  const origin = originOf(flags.origin === undefined ? site : flags.origin, '--origin');
+  // Bound the QR before creating anything on the server.
+  if (Buffer.byteLength(`${origin}/customer#claim=HB-AAAA-AAAA.AAAA-AAAA`) > 213) throw usageError('--origin is too long for the printed QR.');
+  const plan = { count, prefix, type, note, origin };
+  if (flags['expected-report-interval-seconds'] !== undefined) {
+    const value = flags['expected-report-interval-seconds'];
+    const n = Number(value);
+    if (typeof value === 'boolean' || !Number.isSafeInteger(n) || n < 5 || n > 86400) throw usageError('--expected-report-interval-seconds must be a whole number from 5 to 86400.');
+    plan.expectedReportIntervalSeconds = n;
   }
-  return { count, prefix, type, note, origin };
+  return plan;
 }
 
-/** Check the server answer before anything is written. Returns the normalised list, or throws. */
-export function validateBatchResponse(data, plan) {
-  const bad = (why) => new HbError(`Batch response was not usable (${why}). Nothing was written. Check the server before retrying: boxes may already exist.`, EXIT.FAIL);
-  if (!data || typeof data !== 'object') throw bad('not JSON');
-  const batch = String(data.batch || '');
-  if (!BATCH_RE.test(batch)) throw bad('batch id missing or unsafe');
-  const list = Array.isArray(data.devices) ? data.devices : null;
-  if (!list) throw bad('devices missing');
-  if (list.length !== plan.count) throw bad(`expected ${plan.count} boxes, got ${list.length}`);
-  const seenSerial = new Set(), seenId = new Set();
+export function validateBatchResponse(data, plan, { serverOrigin = plan.origin } = {}) {
+  const bad = () => new HbError('Batch response was not usable. Inspect the private manifest before retrying; boxes may already exist.', EXIT.FAIL);
+  if (!data || typeof data.batchId !== 'string' || !BATCH_RE.test(data.batchId) || !Array.isArray(data.devices) || data.devices.length !== plan.count) throw bad();
+  const seenSerial = new Set(), seenId = new Set(), seenKey = new Set();
   let legacyChecksum = 0;
-  const devices = list.map((d, i) => {
-    const serial = String(d?.serial || '').toUpperCase();
-    if (!SERIAL_RE.test(serial)) throw bad(`box ${i + 1} serial malformed`);
-    if (seenSerial.has(serial)) throw bad('duplicate serial');
-    seenSerial.add(serial);
-    const id = String(d?.id || '');
-    if (!id || id.length > 64 || seenId.has(id)) throw bad(`box ${i + 1} id missing or duplicate`);
-    seenId.add(id);
-    const code = String(d?.pairingCode || '').toUpperCase();
-    if (!CODE_V2_RE.test(code) && !CODE_V1_RE.test(code)) throw bad(`box ${i + 1} pairing code malformed`);
-    if (!DEVICE_KEY_RE.test(String(d?.deviceKey || ''))) throw bad(`box ${i + 1} device key missing`);
-    const qr = String(d?.qrPayload || '');
-    if (!isHttpOrigin(qr.split('#')[0]) || !qr.includes('#claim=')) throw bad(`box ${i + 1} QR payload malformed`);
-    if (!checkSerial(serial).checksum) legacyChecksum++;
-    return { id, name: String(d?.name || `${plan.prefix}-${String(i + 1).padStart(3, '0')}`).slice(0, 80), serial, pairingCode: code, deviceKey: String(d.deviceKey), qrPayload: qr };
+  const devices = data.devices.map((d, i) => {
+    if (!d || !['serial', 'deviceId', 'pairingCode', 'deviceKey'].every(k => typeof d[k] === 'string') || !SERIAL_RE.test(d.serial) || !ID_RE.test(d.deviceId) ||
+        (!CODE_V2_RE.test(d.pairingCode) && !CODE_V1_RE.test(d.pairingCode)) ||
+        !DEVICE_KEY_RE.test(d.deviceKey) || d.expiresAt !== null ||
+        seenSerial.has(d.serial) || seenId.has(d.deviceId) || seenKey.has(d.deviceKey)) throw bad();
+    const qr = `${plan.origin}/customer#claim=${d.serial}.${d.pairingCode}`;
+    const serverQr = `${serverOrigin}/customer#claim=${d.serial}.${d.pairingCode}`;
+    if (![qr, serverQr].includes(d.qr ?? d.qrPayload) || (d.qr !== undefined && d.qrPayload !== undefined && d.qr !== d.qrPayload)) throw bad();
+    seenSerial.add(d.serial); seenId.add(d.deviceId); seenKey.add(d.deviceKey);
+    if (!checkSerial(d.serial).checksum) legacyChecksum++;
+    return { deviceId: d.deviceId, name: `${plan.prefix} ${i + 1}`, serial: d.serial,
+      pairingCode: d.pairingCode, deviceKey: d.deviceKey, qr, expiresAt: null };
   });
-  return { batch, devices, legacyChecksum };
+  return { batchId: data.batchId, devices, legacyChecksum };
 }
 
-function privateDir(dir) {
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  try { chmodSync(dir, 0o700); } catch { /* best effort */ }
+const within = (root, path) => { const r = relative(root, path); return r === '' || (!isAbsolute(r) && r !== '..' && !r.startsWith(`..${sep}`)); };
+// macOS uses these system aliases. Resolve only the OS prefix, never a user-controlled link.
+function systemPath(path) {
+  for (const root of ['/tmp', '/var']) if (path === root || path.startsWith(root + '/')) return resolve(realpathSync(root), relative(root, path));
+  return path;
 }
-/** Write a new private file. Never overwrites: on a clash a numeric suffix is added. Returns the path used. */
-function writeNew(dir, base, ext, content) {
-  privateDir(dir);
-  for (let n = 1; n < 100; n++) {
-    const file = join(dir, n === 1 ? `${base}${ext}` : `${base}-${n}${ext}`);
-    try { writeFileSync(file, content, { flag: 'wx', mode: 0o600 }); chmodSync(file, 0o600); return file; }
-    catch (e) { if (e?.code !== 'EEXIST') throw e; }
+function inspectPath(path) {
+  let cursor = parse(path).root;
+  for (const part of path.slice(cursor.length).split(sep).filter(Boolean)) {
+    cursor = join(cursor, part);
+    try { if (lstatSync(cursor).isSymbolicLink()) throw usageError('Private output paths must not contain symbolic links.'); }
+    catch (e) { if (e.code !== 'ENOENT') throw e; }
   }
-  throw new HbError(`Too many existing files named ${base}`, EXIT.FAIL);
 }
 
-/** Refuse a secrets directory that git would not ignore when it lives inside the repository. */
-function checkSecretsDir(repoRoot, dir, sample) {
-  const abs = resolve(repoRoot, dir);
-  const rel = relative(repoRoot, abs);
-  const inside = rel && !rel.startsWith('..') && !isAbsolute(rel);
-  if (!inside) return abs;
-  const r = spawnSync('git', ['check-ignore', '-q', '--', join(rel, sample)], { cwd: repoRoot });
-  if (r.status !== 0) throw usageError(`${rel}${sep} is inside the repository and git would not ignore files named ${sample}. Use firmware/<sketch>/ (secrets.*.h is ignored), a folder under work/, or a path outside the repo.`);
+/** Only outside the checkout, or actually ignored .secrets paths. Reject existing symlink ancestors. */
+export function privatePath(repoRoot, value) {
+  const repo = realpathSync(repoRoot);
+  const abs = systemPath(resolve(repo, value));
+  inspectPath(abs);
+  if (within(repo, abs)) {
+    const secretRoot = join(repo, '.secrets');
+    if (!within(secretRoot, abs)) throw usageError('Private files must be outside the repository or inside ignored .secrets/.');
+    const ignored = spawnSync('git', ['check-ignore', '-q', '--', abs === secretRoot ? '.secrets/' : relative(repo, abs)], { cwd: repo });
+    if (ignored.status !== 0) throw usageError('Private output is not ignored by git. Use an ignored .secrets/ directory or an external directory.');
+  }
   return abs;
 }
 
-function wifiFromEnv(env) { return { ssid: env.WIFI_SSID || '', pass: env.WIFI_PASS || '' }; }
-
-function writeSecrets(ctx, dir, devices, apiBase) {
-  const written = [];
-  for (const d of devices) {
-    const file = join(dir, `secrets.${d.serial}.h`);
-    if (existsSync(file)) throw usageError(`Refusing to overwrite ${file}`);
-  }
-  privateDir(dir);
-  for (const d of devices) {
-    const file = join(dir, `secrets.${d.serial}.h`);
-    writeFileSync(file, buildSecretsHeader(d, { apiBase, wifi: wifiFromEnv(ctx.env) }), { flag: 'wx', mode: 0o600 });
-    chmodSync(file, 0o600);
-    written.push(file);
-  }
-  return written;
+export function privateDirectory(repoRoot, value) {
+  const path = privatePath(repoRoot, value);
+  if (path === parse(path).root || path === realpathSync(repoRoot)) throw usageError('Choose a dedicated private output directory.');
+  try {
+    const pending = [];
+    let parent = path;
+    while (true) {
+      try { lstatSync(parent); break; } catch (e) { if (e.code !== 'ENOENT') throw e; pending.unshift(parent); parent = dirname(parent); }
+    }
+    for (const dir of pending) mkdirSync(dir, { mode: 0o700 });
+    const stat = lstatSync(path);
+    // Never silently tighten permissions on a shared existing directory.
+    if (!stat.isDirectory() || (stat.mode & 0o777) !== 0o700 || stat.uid !== process.getuid?.()) throw usageError('Existing private output directories must be owned by you and have mode 700. Choose a new directory or fix its permissions.');
+    privatePath(repoRoot, path);
+    return path;
+  } catch (e) { if (e instanceof HbError) throw e; throw usageError('Could not prepare the private output directory. Check its permissions.'); }
 }
 
-const stamp = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\..*/, '');
+/** Reserve before the API mutation; exclusive + no-follow creation, held descriptor, identity checks. */
+export function reservePrivateFile(repoRoot, value) {
+  const path = privatePath(repoRoot, value);
+  const parent = privateDirectory(repoRoot, dirname(path));
+  const parentStat = lstatSync(parent);
+  let fd;
+  try { fd = openSync(path, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW, 0o600); }
+  catch { throw usageError('Private output already exists or cannot be created. Choose a fresh path; existing files are never overwritten.'); }
+  return {
+    path,
+    write(content) {
+      try {
+        privatePath(repoRoot, path);
+        const dir = lstatSync(parent), file = lstatSync(path), opened = fstatSync(fd);
+        if (dir.ino !== parentStat.ino || dir.dev !== parentStat.dev || (dir.mode & 0o777) !== 0o700 ||
+            file.ino !== opened.ino || file.dev !== opened.dev || opened.nlink !== 1 || (opened.mode & 0o777) !== 0o600) throw Error();
+        writeFileSync(fd, content); fsyncSync(fd);
+      } catch { throw new HbError('Could not save private output safely. The server may already have changed the device; inspect the private output before retrying.', EXIT.FAIL); }
+    },
+    close() { if (fd !== undefined) { closeSync(fd); fd = undefined; } },
+  };
+}
+
+// ctx.api may be an object exposing .ok. Suppress server/transport text: it can echo one-time codes.
+export async function privateRequest(ctx, path, options) {
+  try { return await ctx.api.ok(path, options); }
+  catch (e) {
+    const code = e instanceof HbError ? e.code : EXIT.NETWORK;
+    throw new HbError(code === EXIT.AUTH ? 'Admin access failed. Check API_ADMIN_KEY; inventory requires the admin key.' :
+      'The provisioning request failed. Check the site and endpoint. A write may have succeeded; inspect the fleet before retrying.', code);
+  }
+}
+
+function outputOptions(ctx) {
+  originOf(ctx.site, '--site');
+  for (const flag of ['out-dir', 'secrets-dir']) if (ctx.flags[flag] !== undefined && (typeof ctx.flags[flag] !== 'string' || !ctx.flags[flag])) throw usageError(`--${flag} requires a directory.`);
+  return { out: privatePath(ctx.repoRoot, ctx.flags['out-dir'] ?? '.secrets/onboarding'),
+    secrets: ctx.flags['secrets-dir'] === undefined ? null : privatePath(ctx.repoRoot, ctx.flags['secrets-dir']) };
+}
+function reserveBundle(ctx, paths, kind, count, labels) {
+  const files = [];
+  try {
+    const dir = mkdtempSync(join(privateDirectory(ctx.repoRoot, paths.out), `${kind}-`));
+    const reserve = (path) => { const f = reservePrivateFile(ctx.repoRoot, path); files.push(f); return f; };
+    const manifest = reserve(join(dir, 'manifest.json'));
+    const sheet = labels ? reserve(join(dir, 'sheet.html')) : null;
+    const secretsDir = paths.secrets ? mkdtempSync(join(privateDirectory(ctx.repoRoot, paths.secrets), `${kind}-`)) : null;
+    const secrets = secretsDir ? Array.from({ length: count }, (_, i) => reserve(join(secretsDir, `secrets.${String(i + 1).padStart(3, '0')}.h`))) : [];
+    return { manifest, sheet, secrets, close: () => files.forEach((f) => f.close()) };
+  } catch (e) { files.forEach((f) => f.close()); if (e instanceof HbError) throw e; throw usageError('Could not reserve private output files. No request was sent.'); }
+}
+function saveManifest(ctx, bundle, request, response) {
+  bundle.manifest.write(JSON.stringify({ createdAt: new Date(ctx.now()).toISOString(), site: ctx.site, request, response,
+    secretsFiles: bundle.secrets.map((f) => f.path) }, null, 2) + '\n');
+}
+function saveHeaders(ctx, bundle, devices) {
+  bundle.secrets.forEach((file, i) => file.write(buildSecretsHeader(devices[i], { apiBase: ctx.site,
+    wifi: { ssid: ctx.env.WIFI_SSID || '', pass: ctx.env.WIFI_PASS || '' } })));
+}
 
 async function runBatch(ctx, single) {
   const plan = planBatch(ctx.flags, { site: ctx.site, single });
-  const outRoot = resolve(ctx.repoRoot, typeof ctx.flags['out-dir'] === 'string' ? ctx.flags['out-dir'] : 'work');
-  const secretsDir = typeof ctx.flags['secrets-dir'] === 'string' ? ctx.flags['secrets-dir'] : null;
-  const local = isLocalSite(ctx.site);
-  const warnings = [];
-  if (isLocalSite(plan.origin)) warnings.push('QR codes will point at a local address. Pass --origin https://<your site> for labels you will print.');
-  if (secretsDir) checkSecretsDir(ctx.repoRoot, secretsDir, 'secrets.HB-AAAA-AAAA.h');
-
+  const paths = outputOptions(ctx);
   if (ctx.flags['dry-run']) {
-    const result = { dryRun: true, site: ctx.site, endpoint: 'POST /api/ops/fleet-batch', body: plan, inventory: join(outRoot, 'inventory', '<batch>.json'), sheet: join(outRoot, 'labels', '<batch>', 'sheet.html'), secretsDir: secretsDir ? resolve(ctx.repoRoot, secretsDir) : null, warnings };
-    ctx.emit(result, () => {
-      ctx.out(`Dry run. Would ask ${ctx.site} for ${plan.count} box${plan.count === 1 ? '' : 'es'} named ${plan.prefix}-001${plan.count > 1 ? ' onward' : ''} (type ${plan.type}).`);
-      ctx.out(`  inventory (keys, mode 600): ${result.inventory}`);
-      ctx.out(`  label sheet:                ${result.sheet}`);
-      if (secretsDir) ctx.out(`  secrets headers:            ${result.secretsDir}`);
-      warnings.forEach((w) => ctx.warn(w));
-      ctx.out('Nothing was sent or written.');
-    });
+    ctx.emit({ dryRun: true, endpoint: 'POST /api/ops/fleet-batch', body: plan, outputDirectory: paths.out, secretsDirectory: paths.secrets },
+      () => ctx.out(`Would create ${plan.count} home-less boxes. Private files: ${paths.out}. Nothing sent or written.`));
     return EXIT.OK;
   }
-  if (!local && !ctx.flags.yes) throw usageError(`This creates real inventory on ${ctx.site}. Re-run with --yes to confirm, or use --dry-run first.`);
-
-  const r = await ctx.api('/api/ops/fleet-batch', { method: 'POST', auth: 'admin', body: plan, timeoutMs: 60000 });
-  if (r.status === 404 || r.status === 405) throw new HbError(`${ctx.site} has no /api/ops/fleet-batch yet (HTTP ${r.status}). Deploy the onboarding server module first.`, EXIT.FAIL);
-  if (r.status === 403) throw new HbError('The batch endpoint accepts the admin key only (HTTP 403). Operator sessions cannot create inventory.', EXIT.AUTH);
-  if (!r.ok) throw new HbError(`POST /api/ops/fleet-batch: ${r.data?.error || 'failed'} (HTTP ${r.status})`, r.status === 401 ? EXIT.AUTH : r.status >= 500 ? EXIT.NETWORK : EXIT.FAIL);
-
-  const { batch, devices, legacyChecksum } = validateBatchResponse(r.data, plan);
-  if (legacyChecksum) warnings.push(`${legacyChecksum} serial${legacyChecksum === 1 ? '' : 's'} did not match the CLI check character rule. Fine for older serials; confirm with the server owner if all of them do.`);
-
-  // Inventory first: it holds the only copy of the keys.
-  const createdAt = new Date(ctx.now()).toISOString();
-  const manifest = { batch, createdAt, site: ctx.site, origin: plan.origin, prefix: plan.prefix, type: plan.type, note: plan.note, devices };
-  const inventory = writeNew(join(outRoot, 'inventory'), batch, '.json', JSON.stringify(manifest, null, 2) + '\n');
-  const sheet = writeNew(join(outRoot, 'labels', batch), 'sheet', '.html', buildSheet(devices, { batch, origin: plan.origin, createdAt }));
-  let secrets = [];
-  if (secretsDir) secrets = writeSecrets(ctx, resolve(ctx.repoRoot, secretsDir), devices, plan.origin);
-
-  const result = { batch, count: devices.length, serials: devices.map((d) => d.serial), inventory, sheet, secretsFiles: secrets, warnings };
-  ctx.emit(result, () => {
-    ctx.out(`${ctx.c.green('created')} ${devices.length} box${devices.length === 1 ? '' : 'es'} in batch ${batch}`);
-    ctx.out(`  serials: ${devices[0].serial}${devices.length > 1 ? ` to ${devices[devices.length - 1].serial}` : ''}`);
-    ctx.out(`  inventory (device keys and codes, mode 600): ${inventory}`);
-    ctx.out(`  label sheet (print, then delete): ${sheet}`);
-    if (secrets.length) ctx.out(`  secrets headers: ${secrets.length} written (mode 600)`);
-    warnings.forEach((w) => ctx.warn(w));
-    ctx.out('Keys and pairing codes were not printed. Add a credentials registry row for the batch, then flash each box.');
-  });
-  return EXIT.OK;
+  if (!isLocalSite(ctx.site) && !ctx.flags.yes) throw usageError('This creates real inventory. Use --yes to proceed or --dry-run to preview.');
+  const bundle = reserveBundle(ctx, paths, 'batch', plan.count, true);
+  try {
+    const r = await privateRequest(ctx, '/api/ops/fleet-batch', { method: 'POST', auth: 'admin', body: plan, timeoutMs: 60000 });
+    // Save the raw response first, even if the server's contract or QR is wrong. Keys are returned once.
+    saveManifest(ctx, bundle, plan, r.data);
+    const { batchId, devices, legacyChecksum } = validateBatchResponse(r.data, plan, { serverOrigin: new URL(ctx.site).origin });
+    bundle.sheet.write(buildSheet(devices, { batch: batchId, origin: plan.origin, createdAt: new Date(ctx.now()).toISOString() }));
+    saveHeaders(ctx, bundle, devices);
+    const result = { count: devices.length, inventory: bundle.manifest.path, sheet: bundle.sheet.path,
+      secretsFiles: bundle.secrets.map((f) => f.path), legacyChecksum };
+    ctx.emit(result, () => {
+      ctx.out(`Created ${result.count} home-less boxes. Inventory: ${result.inventory}`);
+      ctx.out(`Private label sheet: ${result.sheet}`);
+      if (result.secretsFiles.length) ctx.out(`Saved ${result.secretsFiles.length} separate firmware headers; paths are in the manifest.`);
+      if (legacyChecksum) ctx.warn('Some serials use an older check-character format. They remain usable.');
+    });
+    return EXIT.OK;
+  } catch (e) {
+    // Only locally generated messages get this far; include recovery path, never the response.
+    if (e instanceof HbError) throw new HbError(`${e.message} Private manifest: ${bundle.manifest.path}`, e.code);
+    throw new HbError(`Could not finish labels or headers. Inspect the private manifest before retrying: ${bundle.manifest.path}`, EXIT.FAIL);
+  } finally { bundle.close(); }
 }
 
 async function runRotate(ctx, args) {
   const id = args[1];
-  if (!id || !ID_RE.test(id)) throw usageError('Usage: hb provision rotate <24-hex device id> --reason TEXT --confirm SERIAL');
+  if (args.length !== 2 || !ID_RE.test(id)) throw usageError('Usage: hb provision rotate <24-hex device id> --reason TEXT --confirm SERIAL');
   const reason = ctx.flags.reason;
-  if (typeof reason !== 'string' || reason.length < 3 || reason.length > 200 || /[\u0000-\u001f\u007f]/.test(reason)) throw usageError('--reason is required (3 to 200 plain characters)');
-  const secretsDir = typeof ctx.flags['secrets-dir'] === 'string' ? ctx.flags['secrets-dir'] : null;
-  const outRoot = resolve(ctx.repoRoot, typeof ctx.flags['out-dir'] === 'string' ? ctx.flags['out-dir'] : 'work');
-
-  const detail = await ctx.api('/api/ops/fleet', { auth: 'admin', query: { id } });
-  if (detail.status === 404 && !detail.data?.error) throw new HbError(`${ctx.site} has no /api/ops/fleet yet. Deploy the onboarding server module first.`, EXIT.FAIL);
-  if (!detail.ok) throw new HbError(`Could not read box ${id}: ${detail.data?.error || 'HTTP ' + detail.status}`, detail.status === 401 || detail.status === 403 ? EXIT.AUTH : EXIT.FAIL);
-  const dev = detail.data?.device || detail.data || {};
-  const serial = String(dev.serial || '').toUpperCase();
-  if (!SERIAL_RE.test(serial)) throw new HbError('The server did not return a usable serial for that box.', EXIT.FAIL);
-  const name = String(dev.name || id).slice(0, 80);
-  if (secretsDir) checkSecretsDir(ctx.repoRoot, secretsDir, `secrets.${serial}.h`);
-
-  const confirm = typeof ctx.flags.confirm === 'string' ? ctx.flags.confirm.toUpperCase() : '';
-  if (ctx.flags['dry-run'] || confirm !== serial) {
-    const summary = { dryRun: true, id, name, serial, action: 'rotate_key', note: 'The old key stops working at once. The box stays silent until it is reflashed with the new key.' };
-    ctx.emit(summary, () => {
-      ctx.out(`Would rotate the device key for ${name} (${serial}). The old key stops working immediately, and the box reads silent until it is reflashed.`);
-      if (!ctx.flags['dry-run']) ctx.out(`To proceed, repeat the command with --confirm ${serial}`);
-    });
-    return ctx.flags['dry-run'] ? EXIT.OK : EXIT.USAGE;
+  if (!plainText(reason, 160) || reason.trim().length < 3) throw usageError('--reason is required (3 to 160 plain characters).');
+  const serial = typeof ctx.flags.confirm === 'string' ? ctx.flags.confirm.toUpperCase() : '';
+  if (!SERIAL_RE.test(serial)) throw usageError('--confirm must be the box serial. The old key stops working immediately; reflash the box with the saved key.');
+  const paths = outputOptions(ctx);
+  const body = { action: 'rotate_key', confirmSerial: serial, reason };
+  const endpoint = `/api/ops/fleet/${id}/action`;
+  if (ctx.flags['dry-run']) {
+    ctx.emit({ dryRun: true, endpoint: `POST ${endpoint}`, body }, () => ctx.out('Would rotate the key. The old key stops working immediately; reflash with the saved key. Nothing sent or written.'));
+    return EXIT.OK;
   }
-
-  const r = await ctx.api('/api/ops/fleet-actions', { method: 'POST', auth: 'admin', body: { deviceId: id, action: 'rotate_key', reason }, timeoutMs: 30000 });
-  if (r.status === 404 && !r.data?.error) throw new HbError(`${ctx.site} has no /api/ops/fleet-actions yet. Deploy the onboarding server module first.`, EXIT.FAIL);
-  if (!r.ok) throw new HbError(`rotate_key: ${r.data?.error || 'failed'} (HTTP ${r.status})`, r.status === 401 || r.status === 403 ? EXIT.AUTH : EXIT.FAIL);
-  const deviceKey = String(r.data?.deviceKey || '');
-  if (!DEVICE_KEY_RE.test(deviceKey)) throw new HbError('The server accepted the rotation but returned no usable key. Rotate again to get one; the old key is already dead.', EXIT.FAIL);
-
-  const rec = { rotatedAt: new Date(ctx.now()).toISOString(), id, name, serial, site: ctx.site, reason, deviceKey };
-  const file = writeNew(join(outRoot, 'inventory', 'rotations'), `${serial}-${stamp(ctx.now())}`, '.json', JSON.stringify(rec, null, 2) + '\n');
-  let secrets = [];
-  if (secretsDir) secrets = writeSecrets(ctx, resolve(ctx.repoRoot, secretsDir), [{ id, serial, deviceKey }], ctx.site);
-  const result = { id, serial, rotation: file, secretsFiles: secrets };
-  ctx.emit(result, () => {
-    ctx.out(`${ctx.c.green('rotated')} ${name} (${serial}). The old key is dead now.`);
-    ctx.out(`  new key saved (mode 600, not printed): ${file}`);
-    if (secrets.length) ctx.out(`  fresh secrets header: ${secrets[0]}`);
-    ctx.out('Reflash the box (hubs and the Uno Q: place the key in the agent env file). The fleet panel shows recovered when it reports. Update the credentials registry row.');
-  });
-  return EXIT.OK;
+  const bundle = reserveBundle(ctx, paths, 'rotation', 1, false);
+  try {
+    const r = await privateRequest(ctx, endpoint, { method: 'POST', auth: 'admin', body, timeoutMs: 30000 });
+    saveManifest(ctx, bundle, { deviceId: id, ...body }, r.data);
+    if (!DEVICE_KEY_RE.test(r.data?.deviceKey)) throw new HbError('Rotation returned no usable key. The old key may already be disabled.', EXIT.FAIL);
+    saveHeaders(ctx, bundle, [{ deviceId: id, serial, deviceKey: r.data.deviceKey }]);
+    ctx.emit({ id, serial, rotation: bundle.manifest.path, secretsFiles: bundle.secrets.map((f) => f.path) }, () => {
+      ctx.out(`Key rotated. Private manifest: ${bundle.manifest.path}`);
+      ctx.out('The old key is disabled. Reflash the box, or update the Uno Q agent environment, using the saved key.');
+    });
+    return EXIT.OK;
+  } catch (e) {
+    throw new HbError(`${e instanceof HbError ? e.message : 'Could not finish rotation output.'} Private manifest: ${bundle.manifest.path}`, e instanceof HbError ? e.code : EXIT.FAIL);
+  } finally { bundle.close(); }
 }
 
 export default {
-  name: 'provision',
-  summary: 'Build box inventory: serials, keys, pairing codes and label sheets',
-  usage: USAGE,
-  group: 'Hardware and agent',
-  booleans: ['home-less', 'dry-run', 'yes'],
+  name: 'provision', summary: 'Create home-less inventory and private pairing labels', usage: USAGE,
+  group: 'Hardware and agent', booleans: ['home-less', 'dry-run', 'yes'],
   async run(args, ctx) {
     if (args[0] === 'rotate') return runRotate(ctx, args);
-    if (args[0] === 'add') return runBatch(ctx, true);
+    if (args.length > 1) throw usageError(USAGE);
     if (args[0] === 'list') {
-      const dir = resolve(ctx.repoRoot, typeof ctx.flags['out-dir'] === 'string' ? ctx.flags['out-dir'] : 'work', 'inventory');
-      const batches = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => f.slice(0, -5)).sort() : [];
-      ctx.emit({ batches }, () => ctx.out(batches.length ? batches.join('\n') : 'No local inventory batches.'));
+      const { out } = outputOptions(ctx);
+      let batches = [];
+      try { batches = readdirSync(out, { withFileTypes: true }).filter((d) => d.isDirectory() && /^batch-[A-Za-z0-9]+$/.test(d.name)).map((d) => d.name).sort(); }
+      catch (e) { if (e.code !== 'ENOENT') throw new HbError('Could not list local inventory.', EXIT.FAIL); }
+      ctx.emit({ batches }, () => ctx.out(batches.join('\n') || 'No local inventory batches.'));
       return EXIT.OK;
     }
-    if (args[0] && args[0] !== 'batch') throw usageError(`Unknown provision subcommand "${args[0]}".\n${USAGE}`);
-    return runBatch(ctx, false);
+    if (args[0] && !['batch', 'add'].includes(args[0])) throw usageError(USAGE);
+    return runBatch(ctx, args[0] === 'add');
   },
 };
