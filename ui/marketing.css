@@ -1,4 +1,4 @@
-.home-site{--home-ink:var(--kit-ink);--home-muted:var(--kit-ink-3);--home-line:var(--kit-line);--home-surface:var(--kit-surface);--home-soft:var(--kit-surface-2);color:var(--home-ink);background:var(--kit-bg);font-family:var(--font-sans,'Geist Variable',sans-serif);line-height:1.65;min-height:100vh;padding-top:1px}
+.home-site{--home-ink:var(--kit-ink);--home-muted:var(--kit-ink-3);--home-line:var(--kit-line);--home-surface:var(--kit-surface);--home-soft:var(--kit-surface-2);color:var(--home-ink);background:var(--kit-bg);font-family:var(--font-sans,'Hanken Grotesk Variable',sans-serif);line-height:1.65;min-height:100vh;padding-top:1px}
 .home-site *{box-sizing:border-box}.home-site .home-width{width:min(1230px,calc(100% - 80px));margin-inline:auto}.home-site a{text-underline-offset:.22em}.home-site :is(a,button,summary):focus-visible{outline:3px solid var(--kit-accent);outline-offset:4px}
 /* Independent corner controls, with the two page links on the center axis. */
 .home-site .home-header{width:min(1440px,calc(100% - 64px));position:relative;z-index:45;margin:28px auto 0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px}
