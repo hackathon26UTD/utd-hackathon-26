@@ -81,3 +81,9 @@ test('refresh follows the same event and pauses if that event leaves the history
  assert.equal(await page.evaluate(()=>wf.cursor),2);await expect(page.locator('.wf-ev.is-current')).toContainText('Recorded event 1');
  await page.evaluate(f=>wf.update({...f,events:f.events.slice(1)}),fixture);assert.equal(await page.evaluate(()=>wf.cursor),0);assert.equal(await page.evaluate(()=>wf.playing),false);await expect(page.locator('.wf-banner')).toContainText('left this time window');await ctx.close();
 });
+
+test('closing an expanded explanation cancels queued detail events and late updates',async()=>{
+ const{ctx,page,errors}=await setup();await page.locator('[data-id="rules_latch"]').click();
+ await page.evaluate(f=>{document.querySelector('.wf-node-panel details').open=true;wf.destroy();wf.update(f);},fixture);
+ await page.waitForTimeout(50);assert.deepEqual(errors,[]);await expect(page.locator('.wf-node')).toHaveCount(0);await ctx.close();
+});

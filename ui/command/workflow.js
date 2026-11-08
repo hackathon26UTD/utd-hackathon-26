@@ -120,6 +120,7 @@ export function mountWorkflow({ root, ctx }) {
   const isLive = () => M.cursor >= M.events.length;
 
   function update(raw) {
+    if (M.destroyed) return;
     const tl = normalizeTimeline(raw);
     if (!tl) return;
     const wasLive = !M.tl || isLive();
@@ -247,6 +248,7 @@ ${evidence.length ? `<ul class="wf-evidence">${evidence.map(e => `<li><code>${es
   }
 
   function paint({ keepFocus = false } = {}) {
+    if (M.destroyed) return;
     const active = keepFocus ? document.activeElement : null;
     const nodeFocus = active && root.contains(active) ? active.closest('.wf-node')?.dataset.id : null;
     bannerEl.hidden = !M.banner; bannerEl.textContent = M.banner;
@@ -344,7 +346,7 @@ ${evidence.length ? `<ul class="wf-evidence">${evidence.map(e => `<li><code>${es
   }
   nodesEl.addEventListener('focusin', e => reveal(e.target.closest('.wf-node')));
   q('.wf-node-panel').addEventListener('toggle', () => {
-    if (M.selected) reveal(nodesEl.querySelector(`[data-id="${M.selected}"]`));
+    if (!M.destroyed && M.selected) reveal(nodesEl.querySelector(`[data-id="${M.selected}"]`));
   }, true);
 
   // Pan by dragging, pinch with two fingers, zoom with Ctrl or Command and the wheel. A plain wheel scrolls the page.
@@ -380,7 +382,7 @@ ${evidence.length ? `<ul class="wf-evidence">${evidence.map(e => `<li><code>${es
   ro.observe(viewport);
 
   function selectNode(id) { if (NODE_IDS.includes(id)) select(id, { toggle: false }); }
-  function destroy() { stop(); ro.disconnect(); root.replaceChildren(); }
+  function destroy() { M.destroyed = true; stop(); ro.disconnect(); root.replaceChildren(); }
   paint();
   return { update, setState, destroy, selectNode, fit, pause: stop, get cursor() { return M.cursor; }, get playing() { return M.playing; } };
 }
