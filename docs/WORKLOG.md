@@ -220,3 +220,10 @@ Ayan selected the U.S. disaster overview, then regions and neighborhoods. All fi
 - Added `firmware/common/mesh.h` (encrypted unicast flooding with TTL 5, duplicate suppression, gateway beacons, ACKs routed back to the origin, origin keeps unacknowledged messages and re-sends them, events kept over readings when the buffer is full, time sync from gateways) and `firmware/common/uplink.h` (Wi-Fi, Internet health check, verified HTTPS, SD/RAM queue, message → API conversion). Any box with Internet becomes the gateway; box B can now upload for box A. Protocol v2 adds origin/dest/via/hops/ttl.
 - Provisioning now takes `--box ID=MAC` for 2-8 boxes and gives every box the full device table (any box can upload for any other: documented trade-off). Hub accepts any box id and shows hops/gateway.
 - Known limits: one shared channel (hotspot's when visible, else 1); ESP-NOW ~100–200 m per hop; gateway duplicate window is in RAM.
+
+## 2026-11-08 early morning: first hardware mesh test (Dhruv)
+
+- Boards: box A = XIAO ESP32S3 (MAC 20:6E:F1:88:1C:78), box B = XIAO ESP32C3 (MAC 58:8C:81:AD:24:C4; not a classic ESP32: needs `CDCOnBoot=cdc` to print over USB). Flashed `firmware/mesh_test` from this laptop with arduino-cli; box A forced as gateway (no hotspot).
+- Debugging: the C3's original USB cable was charge-only (Windows saw no device). First run: B -> A worked (52 hellos incl. held backlog) but A -> B failed (B rx=0). Added radio-level send counters to `mesh.h`: A's sends failed 100%, B's ~90%. Cause: **antennas not attached** on the XIAO boards. With antennas: 0 failed both ways, every hello ACKed, 0 waiting. `npm run mesh-test -- --no-flash` reports PASS.
+- Mesh changes from this: radio power saving off (`WIFI_PS_NONE`), throttled resends (3 oldest held messages per 0.5 s instead of the whole backlog every 4 s), `mesh` command shows radio ok/failed counts. Test script reads serial via .NET on Windows and builds C3/S2 with USB CDC.
+- Next: store-and-forward test (unplug box A ~30 s, replug), then sensors via the Uno Q (wired: D11 buzzer, A4/A5 DS1307 I2C, D13 tilt, A0 water, A1 flame) -> UART -> XIAO.
