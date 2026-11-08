@@ -177,7 +177,7 @@ export async function profilePhotoHandler(context,kind) {
           const options={session};
           const account=await accounts.findOne({_id:user.email.toLowerCase()},options);
           // Authorize the EXACT snapshot used for the photo key, including replacement/revocation.
-          if(!sessionMatchesAccount(user,account,kind,{requireGeneration:true})) fail(401,'Account changed. Sign in again.');
+          if(!await sessionMatchesAccount(user,account,kind,{requireGeneration:true,env})) fail(401,'Account changed. Sign in again.');
           const _id=await profilePhotoKey(kind,user.email,account);
           if(request.method==='GET') {
             const photo=await collection.findOne({_id},options);if(!photo) fail(404,'No profile photo.');
