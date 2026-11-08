@@ -107,7 +107,9 @@ void addReading(JsonArray a, const char *sensor, float v, const char *unit, uint
 bool enqueueMsg(const MeshMsg &m) {
   const MeshNodeCfg *n = mesh::nodeCfg(m.origin);
   if (!n) return false;
-  uint32_t ep = (m.flags & F_TIME_VALID) ? m.epoch : mesh::nowEpoch();
+  // An old untimed message must not acquire the reconnect time as its observation.
+  // Omission uses canonical server_fallback provenance, excluded from learned baselines.
+  uint32_t ep = (m.flags & F_TIME_VALID) ? m.epoch : 0;
   String eventId = String(m.origin) + "-" + m.boot + "-" + m.seq;
   if (m.type == MSG_READING) {
     if (m.flags & (F_WATER_VALID | F_MAINS_VALID) || m.batteryMv) {  // HomeBeacon telemetry needs one of these

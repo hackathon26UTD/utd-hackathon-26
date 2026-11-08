@@ -19,10 +19,14 @@ export function normalizeStatus(s) {
 
 // What to draw for a device. A device that has gone quiet is never "normal": it becomes unknown.
 // Anything worse than normal stays as it was, flagged as last known (stale critical never turns safe).
+export const observationClock = (p, now=Date.now()) => p?.synthetic === true && p?.source === 'simulation-studio' && time(p.simulationClock)!==null ? time(p.simulationClock) : now;
+export const observationFreshMs = (p, fallback=120000) => p?.synthetic === true && p?.source === 'simulation-studio' ? (p.simulationOfflineMin??15)*60000 : fallback;
 export function displayStatus(dev, now = Date.now()) {
+  now=observationClock(dev,now);
   const status = normalizeStatus(dev?.risk?.status ?? dev?.severity);
   const seen = time(dev?.lastSeen) ?? time(dev?.observedAt);
-  const silent = dev?.offline === true || dev?.stale === true || seen === null || now - seen > SILENT_AFTER_MS;
+  const simulation = dev?.synthetic === true && dev?.source === 'simulation-studio';
+  const silent = dev?.offline === true || dev?.stale === true || seen === null || (!simulation && now - seen > SILENT_AFTER_MS);
   if (status === 'normal' && silent) return { status: 'unknown', lastKnown: true, silent };
   return { status, lastKnown: silent && status !== 'unknown', silent };
 }
@@ -386,17 +390,17 @@ export function formatReading(sensor, value, unit) {
 }
 
 // latest: {sensor:{value,unit,ts}}. Returns groups with rows, including sensors that have not reported (as unknown).
-export function readingRows(latest = {}, now = Date.now()) {
+export function readingRows(latest = {}, now = Date.now(), freshMs=30*60000) {
   const known = new Set(SENSOR_GROUPS.flatMap(g => g[1]));
-  const groups = SENSOR_GROUPS.map(([title, sensors]) => ({ title, rows: sensors.map(s => rowFor(s, latest[s], now)) }));
-  const extra = Object.keys(latest).filter(s => !known.has(s)).sort().map(s => rowFor(s, latest[s], now));
+  const groups = SENSOR_GROUPS.map(([title, sensors]) => ({ title, rows: sensors.map(s => rowFor(s, latest[s], now, freshMs)) }));
+  const extra = Object.keys(latest).filter(s => !known.has(s)).sort().map(s => rowFor(s, latest[s], now, freshMs));
   if (extra.length) groups.push({ title: 'Other', rows: extra });
   return groups;
 }
-function rowFor(sensor, r, now) {
+function rowFor(sensor, r, now, freshMs) {
   const reported = !!r && r.value !== undefined && r.value !== null;
   const age = reported ? now - (time(r.ts) ?? now) : null;
-  return { sensor, label: SENSOR_LABEL[sensor] || sensor.replace(/_/g, ' '), text: reported ? formatReading(sensor, r.value, r.unit) : 'Not reported', reported, ts: reported ? r.ts : null, old: age !== null && age > 30 * 60 * 1000 };
+  return { sensor, label: SENSOR_LABEL[sensor] || sensor.replace(/_/g, ' '), text: reported ? formatReading(sensor, r.value, r.unit) : 'Not reported', reported, ts: reported ? r.ts : null, old: age !== null && age > freshMs };
 }
 
 // Legacy /api/command-center values become the same shape so the readings tab works without the new API.

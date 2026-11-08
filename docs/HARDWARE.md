@@ -96,7 +96,7 @@ Suggested rules: `water_level > <wet threshold>` (critical), `flame == 1`, `temp
   - Serial Monitor 115200 baud. If an S3 upload fails: hold BOOT, tap RESET, upload.
 - **Alternative: PlatformIO in VS Code** pins library versions in a committed `platformio.ini`; about 15 minutes more setup.
 - **Arduino Uno Q: Arduino App Lab** for both halves (MCU sketch + Linux-side Python hub). Arduino IDE 2 can still program the MCU side.
-- Device keys: `npm run provision` (needs `API_ADMIN_KEY` from Ayan) registers both boxes, assigns them to synthetic demo homes and writes the git-ignored `firmware/*/secrets.h`. Full build/flash/test guide: [firmware/TESTING.md](../firmware/TESTING.md). Datasheets: [DATASHEETS.md](DATASHEETS.md).
+- Device keys: `npm run provision` (uses the existing private `API_ADMIN_KEY` from environment, `.env` or `.dev.vars`; `npm run provision -- --check` verifies access without creating anything) registers both boxes, assigns them to synthetic demo homes and writes the git-ignored `firmware/*/secrets.h`. Full build/flash/test guide: [firmware/TESTING.md](../firmware/TESTING.md). Datasheets: [DATASHEETS.md](DATASHEETS.md).
 
 ---
 

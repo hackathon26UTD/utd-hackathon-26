@@ -2,7 +2,7 @@ import {showDataTool} from './data-tools.js';
 // Full device workspace plus the small area card for regions.
 // Kit factories compose the shells. Conditions text comes from the timeline service when it answers,
 // and from the same deterministic rules in the browser when it does not.
-import { STATUS_LABEL, HELP_LABEL, HELP_STATUSES, MSG_STATE_TEXT, ageText, displayStatus, linkText, readingRows, latestFromValues, sparkline, messageState, failText, devicesInBbox } from './core.js';
+import { observationClock, observationFreshMs, STATUS_LABEL, HELP_LABEL, HELP_STATUSES, MSG_STATE_TEXT, ageText, displayStatus, linkText, readingRows, latestFromValues, sparkline, messageState, failText, devicesInBbox } from './core.js';
 import { setHtml, dateTimeText, toast } from './dom.js';
 import { api, exerciseMode } from './api.js';
 import { deriveConditions, deriveTimeline, normalizeTimeline, NODE_DEFS, NODE_STATUS_TEXT, NODE_STATUS_GLYPH, ADVISORY_LINE } from './conditions.js';
@@ -46,7 +46,7 @@ export function mountDetail(ctx) {
   // Timeline service: 8 checkpoints and the event history. Without a session (public demo) or when the
   // service does not answer, the same document is derived from the summary the browser already holds.
   async function loadTimeline(id, { quiet = false } = {}) {
-    if (!ctx.role) { S.tl = { id, state: 'local' }; render(); return; }
+    if (ctx.demo || !ctx.role) { S.tl = { id, state: 'local' }; render(); return; }
     if (!quiet || S.tl?.id !== id) { S.tl = { id, state: 'loading' }; render(); }
     const r = await api(`/api/ops/device-timeline?id=${encodeURIComponent(id)}&hours=${TIMELINE_HOURS}`);
     if (S.selectedId !== id) return;
@@ -70,7 +70,7 @@ export function mountDetail(ctx) {
     const close = document.createElement('button'); close.id = 'detail-close'; close.type = 'button'; close.className = 'dr-close'; close.setAttribute('aria-label', 'Close device details');
     close.innerHTML = '<span class="dr-close-wide">Back to map</span><span class="dr-close-narrow">Back to map</span>';
     const head = document.createElement('header'); head.className = 'dr-head';
-    head.innerHTML = `<div class="dr-title-block"><p class="dr-eyebrow">${exercise ? 'Fictional device · mapped address' : 'Connected home'}</p><h2 id="dr-title" tabindex="-1"></h2><p class="dr-sub"></p></div><div class="dr-chips"></div>`;
+    head.innerHTML = `<div class="dr-title-block"><p class="dr-eyebrow">${exercise ? (p.source==='simulation-studio'?'Fictional device · generated location':'Fictional device · mapped address') : 'Connected home'}</p><h2 id="dr-title" tabindex="-1"></h2><p class="dr-sub"></p></div><div class="dr-chips"></div>`;
     head.append(close);
     const tabKit = K.mainTabs({ label: 'Device pages', active: tabKey(), tabs: TABS.map(([id,label]) => ({id,label})), onChange: id => setTab(id) });
     const tabs = tabKit.el; tabs.classList.add('dr-tabs');
@@ -122,7 +122,7 @@ export function mountDetail(ctx) {
   }
 
   function paintDrawer(p, fresh) {
-    const now = Date.now();
+    const now = observationClock(p);
     const shown = displayStatus(p, now);
     const D = S.detail?.id === p.id ? S.detail : null;
     const dev = D?.data?.device || D?.data || {};
@@ -218,7 +218,7 @@ export function mountDetail(ctx) {
     const reporting = tl.nodes.filter(n => ['ok', 'warn', 'critical'].includes(n.status)).length;
     const silentNote = shown.silent && shown.status !== 'unknown' ? '<span class="chip warn">Last known</span>' : '';
     const latest = p.live?.latest || latestFromValues(p.values, p.observedAt);
-    const read = keys => { for (const key of keys) { const r = latest?.[key]; if (r && Date.now() - Date.parse(r.ts || p.observedAt || '') < 120000) return r.value; } return null; };
+    const read = keys => { for (const key of keys) { const r = latest?.[key]; if (r && now - Date.parse(r.ts || p.observedAt || '') <= observationFreshMs(p)) return r.value; } return null; };
     const powerValue = read(['mains_power','power.mains','main_power_available']);
     const wifiValue = read(['wifi_connected','wan_connected']);
     const signal = (label,value) => `<div class="dr-signal ${value === true || value === 1 ? 'ok' : value === false || value === 0 ? 'warn' : 'unknown'}"><span>${label}</span><strong>${value === true || value === 1 ? 'Connected' : value === false || value === 0 ? 'Disconnected' : 'Not reported'}</strong></div>`;
@@ -245,7 +245,7 @@ export function mountDetail(ctx) {
     return `<h3>Why this tier</h3><ul class="reasons">${reasons.length ? reasons.map(r => `<li>${esc(r.text)}${(r.evidence || []).map(e => `<small class="evidence">${esc(e.sensor)}${e.value !== undefined ? ' ' + esc(String(e.value)) + (e.unit ? ' ' + esc(e.unit) : '') : ''} · observed ${esc(ageText(e.observedAt, now))}${e.stale ? ' · older report' : ''}</small>`).join('')}</li>`).join('') : '<li>No active sensor alerts in the latest reports.</li>'}</ul>
 ${corr.length ? `<h3>Area context</h3><ul class="reasons">${corr.map(c => `<li>${esc(c.text)}</li>`).join('')}</ul>` : ''}
 ${power ? `<dl class="mini"><div><dt>Mains</dt><dd>${power.mains === true ? 'Connected' : power.mains === false ? 'Lost' : 'Not reported'}</dd></div><div><dt>Battery</dt><dd>${power.battery_pct == null ? 'Not reported' : esc(power.battery_pct) + '%'}</dd></div><div><dt>Power mode</dt><dd>${esc(power.mode === 'saver' ? 'Power save mode' : power.mode === 'critical' ? 'Critical power save' : power.mode === 'normal' ? 'Normal' : 'Not reported')}</dd></div></dl>` : ''}
-` + readingRows(latest, now).map(g => `<h3>${esc(g.title)}</h3><table class="readings"><tbody>${g.rows.map(r => {
+` + readingRows(latest, now, observationFreshMs(p,30*60000)).map(g => `<h3>${esc(g.title)}</h3><table class="readings"><tbody>${g.rows.map(r => {
       const d = sparkline(series[r.sensor] || []);
       return `<tr><th scope="row">${esc(r.label)}</th><td class="${r.reported ? '' : 'muted'}">${esc(r.text)}</td><td>${d ? `<svg class="spark" viewBox="0 0 120 28" role="img" aria-label="Last hour of ${esc(r.label)}"><path d="${d}"/></svg>` : ''}</td><td class="muted">${r.reported ? esc(ageText(r.ts, now)) + (r.old ? ' (older)' : '') : ''}</td></tr>`;
     }).join('')}</tbody></table>`).join('') + '<p><small>Not reported means unknown, not zero and not fine.</small></p>';
