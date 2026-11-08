@@ -92,12 +92,13 @@ uint32_t millis(){return fakeMs;}
 struct SerialMock { void println(const char*){} template<typename... Args> void printf(const char*,Args...){} } Serial;
 #include "local_history.h"
 using namespace local_history;
-void restart(){state=State{};activeSlot=-1;dirty=false;attempted=false;lastAttemptMs=0;begin({F_WATER_VALID|F_MAINS_VALID,false,400,6});}
+const char *deviceA="0123456789abcdef01234567",*deviceB="abcdef0123456789abcdef01";
+void restart(const char *device=deviceA){state=State{};activeSlot=-1;dirty=false;attempted=false;lastAttemptMs=0;begin({F_WATER_VALID|F_MAINS_VALID,false,400,6},device);}
 MeshMsg reading(unsigned seq){MeshMsg m={};m.boot=1;m.seq=seq;m.type=MSG_READING;m.flags=F_WATER_VALID|F_MAINS_VALID|F_MAINS|F_TIME_VALID;m.epoch=1800000000+seq*3600;m.waterRaw=100;return m;}
 int main(){
-  restart(); observe(reading(1),true); assert(Preferences::writes==1);
-  fakeMs=HISTORY_SAMPLE_MS;observe(reading(2),true);assert(Preferences::writes==1 && dirty);
-  fakeMs=HISTORY_CHECKPOINT_MS;loop();assert(Preferences::writes==2 && !dirty);
+  restart(); assert(identityReady);const int bindingWrites=Preferences::writes;observe(reading(1),true); assert(Preferences::writes==bindingWrites+1);
+  fakeMs=HISTORY_SAMPLE_MS;observe(reading(2),true);assert(Preferences::writes==bindingWrites+1 && dirty);
+  fakeMs=HISTORY_CHECKPOINT_MS;loop();assert(Preferences::writes==bindingWrites+2 && !dirty);
   restart();assert(state.count==2 && state.metrics[WATER_RAW].count==2);
   observe(reading(2),true);assert(state.count==2);
   Preferences::blobs["slot1"][20]^=1;
@@ -109,6 +110,19 @@ int main(){
   restart();assert(state.count==2);
   assert(state.samples[0].epoch==1800003600); // retained original timestamp, not replay time
   print();
+  // Device ID, not the key, owns the recorder: same ID/key rotation restores.
+  restart(deviceA);assert(identityReady && state.count==2);
+  restart(deviceB);assert(identityReady && state.count==0);
+  assert(Preferences::blobs["slot0"].empty() && Preferences::blobs["slot1"].empty());
+  fakeMs+=HISTORY_CHECKPOINT_MS;observe(reading(1),true);assert(state.count==1);
+  restart(deviceB);assert(identityReady && state.count==1);
+  // Legacy unbound slots must never be restored or uploaded.
+  Preferences::blobs.erase("identity");restart(deviceB);assert(identityReady && state.count==0);
+  observe(reading(1),true);assert(state.count==1);
+  Preferences::failRemove=true;restart(deviceA);assert(!identityReady && !storageOk && state.count==0);
+  Preferences::failRemove=false;Preferences::fail=true;restart(deviceA);assert(!identityReady && state.count==0);
+  Preferences::fail=false;restart(deviceA);assert(identityReady && state.count==0);
+  restart("invalid");assert(!identityReady && state.count==0);
 }
 `, { 'Preferences.h': `#pragma once
 #include <map>
@@ -116,13 +130,14 @@ int main(){
 #include <vector>
 #include <cstring>
 class Preferences { public:
- static std::map<std::string,std::vector<char>> blobs; static int writes; static bool fail;
+ static std::map<std::string,std::vector<char>> blobs; static int writes; static bool fail, failRemove;
  bool begin(const char*,bool){return true;}
+ bool remove(const char*k){if(failRemove)return false;return blobs.erase(k)>0;}
  size_t getBytesLength(const char*k){return blobs[k].size();}
  size_t getBytes(const char*k,void*p,size_t n){if(blobs[k].size()!=n)return 0;memcpy(p,blobs[k].data(),n);return n;}
  size_t putBytes(const char*k,const void*p,size_t n){++writes;if(fail)return 0;blobs[k]=std::vector<char>((const char*)p,(const char*)p+n);return n;}
 };
-std::map<std::string,std::vector<char>> Preferences::blobs;int Preferences::writes=0;bool Preferences::fail=false;
+std::map<std::string,std::vector<char>> Preferences::blobs;int Preferences::writes=0;bool Preferences::fail=false;bool Preferences::failRemove=false;
 ` }));
 
 test('generated local history headers match common source in all sketches', () => {

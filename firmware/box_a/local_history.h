@@ -7,13 +7,40 @@ namespace local_history {
 static State state;
 static Policy policy;
 static Preferences storage;
-static bool storageOk = false, dirty = false, attempted = false;
+static bool storageOk = false, identityReady = false, dirty = false, attempted = false;
 static uint32_t lastAttemptMs = 0, writeFailures = 0;
 static int activeSlot = -1;
-inline void begin(Policy p) {
+inline bool validDeviceId(const char *id) {
+  if (!id || strlen(id) != 24) return false;
+  for (int i = 0; i < 24; ++i) if (!((id[i] >= '0' && id[i] <= '9') || (id[i] >= 'a' && id[i] <= 'f') || (id[i] >= 'A' && id[i] <= 'F'))) return false;
+  return true;
+}
+inline void begin(Policy p, const char *deviceId) {
   policy = p;
+  state = State{}; activeSlot = -1; dirty = false; attempted = false;
+  identityReady = false; storageOk = false;
+  if (!validDeviceId(deviceId)) { Serial.println("[history] invalid device identity; restore/sync disabled"); return; }
   storageOk = storage.begin("hb_history", false);
-  if (!storageOk) { Serial.println("[history] NVS unavailable; RAM only"); return; }
+  if (!storageOk) { Serial.println("[history] NVS unavailable; RAM only, sync disabled"); return; }
+  char expected[25] = {}, savedId[25] = {};
+  for (int i = 0; i < 24; ++i) expected[i] = deviceId[i] >= 'A' && deviceId[i] <= 'F' ? deviceId[i] + ('a' - 'A') : deviceId[i];
+  const bool sameIdentity = storage.getBytesLength("identity") == sizeof(savedId) &&
+    storage.getBytes("identity", savedId, sizeof(savedId)) == sizeof(savedId) && !memcmp(savedId, expected, sizeof(savedId));
+  if (!sameIdentity) {
+    // Delete both old slots BEFORE committing the new identity. Interrupted reset
+    // cannot associate old-home samples with the newly provisioned device.
+    for (const char *key : {"slot0", "slot1"}) {
+      if (storage.getBytesLength(key) && (!storage.remove(key) || storage.getBytesLength(key))) {
+        storageOk = false; Serial.println("[history] identity reset failed; restore/sync disabled"); return;
+      }
+    }
+    if (storage.putBytes("identity", expected, sizeof(expected)) != sizeof(expected) ||
+        storage.getBytes("identity", savedId, sizeof(savedId)) != sizeof(savedId) || memcmp(savedId, expected, sizeof(savedId))) {
+      storageOk = false; Serial.println("[history] identity binding failed; restore/sync disabled"); return;
+    }
+    Serial.println("[history] new/changed identity: prior unbound or other-device history cleared");
+  }
+  identityReady = true;
   State candidate;
   for (int slot = 0; slot < 2; ++slot) {
     const char *key = slot ? "slot1" : "slot0";
@@ -42,8 +69,8 @@ inline void observe(const MeshMsg &m, bool own) {
 }
 inline void loop() { checkpoint(millis()); }
 inline void print() {
-  Serial.printf("[history] retained=%u/%u overwritten=%u decimated=%u duplicates=%u unknown_time=%u nvs=%d unsaved=%d write_failures=%u bytes_per_slot=%u\n",
-    state.count, CAPACITY, state.overwritten, state.skipped, state.duplicates, state.unknownTime, storageOk, dirty, writeFailures, unsigned(sizeof(State)));
+  Serial.printf("[history] retained=%u/%u overwritten=%u decimated=%u duplicates=%u unknown_time=%u nvs=%d identity_ready=%d unsaved=%d write_failures=%u bytes_per_slot=%u\n",
+    state.count, CAPACITY, state.overwritten, state.skipped, state.duplicates, state.unknownTime, storageOk, identityReady, dirty, writeFailures, unsigned(sizeof(State)));
   const char *names[] = {"water_raw", "flame_raw", "accel_dev_mg", "battery_mv"};
   const char *units[] = {"ADC", "ADC", "mg", "mV"};
   for (int i = 0; i < METRIC_COUNT; ++i) {
