@@ -61,17 +61,42 @@ export class MapView {
   get zoom() { return this.map.getZoom(); }
   bbox() { const b = this.map.getBounds(); return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]; }
 
-  setRadar(time) {
+  async setRadar(time) {
     this.radarTime = time;
-    const m = this.map;
-    if (!m.getSource('devices')) return;
-    if (m.getLayer('weather-radar')) m.removeLayer('weather-radar');
-    if (m.getSource('weather-radar')) m.removeSource('weather-radar');
-    if (!time) return;
+    const m = this.map, token = this.radarToken = (this.radarToken || 0) + 1;
+    this.cancelRadarLoad?.();
+    if (!m.getSource('devices')) return false;
+    const remove = id => { if (m.getLayer(id)) m.removeLayer(id); if (m.getSource(id)) m.removeSource(id); };
+    if (!time) {
+      for (const id of ['weather-radar-a', 'weather-radar-b']) remove(id);
+      this.radarCurrent = null; return false;
+    }
+    const old = m.getLayer(this.radarCurrent || '') ? this.radarCurrent : null;
+    const id = old === 'weather-radar-a' ? 'weather-radar-b' : 'weather-radar-a';
+    remove(id);
     const base = 'https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows';
     const query = `service=WMS&version=1.1.1&request=GetMap&layers=conus_bref_qcd&styles=&format=image%2Fpng&transparent=true&srs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(time)}&bbox={bbox-epsg-3857}`;
-    m.addSource('weather-radar', { type: 'raster', tiles: [`${base}?${query}`], tileSize: 256, attribution: '<a href="https://opengeo.ncep.noaa.gov/geoserver/www/index.html">NOAA MRMS radar</a>' });
-    m.addLayer({ id: 'weather-radar', type: 'raster', source: 'weather-radar', paint: { 'raster-opacity': 0.68, 'raster-fade-duration': 0 } }, m.getLayer('dev-groups') ? 'dev-groups' : undefined);
+    m.addSource(id, { type: 'raster', tiles: [`${base}?${query}`], tileSize: 256, maxzoom: 8, bounds: [-126, 23, -65, 51], attribution: '<a href="https://opengeo.ncep.noaa.gov/geoserver/www/index.html">NOAA MRMS radar</a>' });
+    // Keep the previous image until every visible tile of the incoming frame is ready.
+    m.addLayer({ id, type: 'raster', source: id, paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 450 }, 'raster-resampling': 'linear', 'raster-fade-duration': 0 } }, m.getLayer('dev-groups') ? 'dev-groups' : undefined);
+    const ready = await new Promise(resolve => {
+      const finish = ok => { clearTimeout(timeout); m.off('sourcedata', loaded); m.off('error', failed); if (this.cancelRadarLoad === cancel) this.cancelRadarLoad = null; resolve(ok); };
+      const loaded = e => { if (e.sourceId === id && m.getSource(id) && m.isSourceLoaded(id)) finish(true); };
+      const failed = e => { if (e.sourceId === id) finish(false); };
+      const cancel = () => finish(false);
+      const timeout = setTimeout(() => finish(false), 15000);
+      this.cancelRadarLoad = cancel;
+      m.on('sourcedata', loaded); m.on('error', failed);
+      if (m.isSourceLoaded(id)) finish(true);
+    });
+    if (token !== this.radarToken) return false;
+    if (!ready) { remove(id); return false; }
+    this.radarCurrent = id;
+    m.setPaintProperty(id, 'raster-opacity', 0.68);
+    if (old && m.getLayer(old)) m.setPaintProperty(old, 'raster-opacity', 0);
+    await new Promise(resolve => setTimeout(resolve, 470));
+    if (token === this.radarToken && old) remove(old);
+    return true;
   }
 
   setDrawing(on) { this.drawing = on; this.map.getCanvas().style.cursor = on ? 'crosshair' : ''; this.map.doubleClickZoom[on ? 'disable' : 'enable'](); }

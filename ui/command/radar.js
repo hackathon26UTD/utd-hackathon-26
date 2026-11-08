@@ -13,18 +13,36 @@ export function mountRadar(mapView, root) {
   const button = root.querySelector('#radar-toggle'), panel = root.querySelector('#radar-controls');
   if (!button || !panel) return;
   const slider = panel.querySelector('input'), play = panel.querySelector('button'), label = panel.querySelector('output');
-  let frames = [], index = 0, timer, active = false, generation = 0;
-  function stop() { clearInterval(timer); timer = null; play.textContent = 'Play'; play.setAttribute('aria-pressed', 'false'); }
-  function draw() {
+  let frames = [], index = 0, timer, active = false, generation = 0, playing = false, drawToken = 0, sliderAnimation, scrubTimer;
+  function stop() { playing = false; clearTimeout(timer); timer = null; play.textContent = 'Play'; play.setAttribute('aria-pressed', 'false'); }
+  function moveSlider(target) {
+    cancelAnimationFrame(sliderAnimation);
+    const from = Number(slider.value), started = performance.now();
+    const tick = now => {
+      const t = Math.min(1, (now - started) / 450), eased = t * t * (3 - 2 * t);
+      slider.value = String(from + (target - from) * eased);
+      if (t < 1) sliderAnimation = requestAnimationFrame(tick);
+    };
+    sliderAnimation = requestAnimationFrame(tick);
+  }
+  async function draw(manual = false) {
     const time = frames[index]; if (!time) return;
-    slider.value = String(index);
-    label.textContent = `NOAA radar · ${new Date(time).toLocaleString()}${Date.now() - Date.parse(time) > 20 * 60000 ? ' · delayed' : ''}`;
-    mapView.setRadar(time);
+    const token = ++drawToken, target = index;
+    const ready = await mapView.setRadar(time);
+    if (!active || token !== drawToken) return;
+    if (!ready) { label.textContent = 'Next radar frame unavailable · keeping last image'; return; }
+    if (!manual) moveSlider(target);
+    label.textContent = `NOAA radar · ${new Date(time).toLocaleString()}${Date.now() - Date.parse(frames[frames.length - 1]) > 20 * 60000 ? ' · delayed' : ''}`;
   }
   function start() {
-    stop();
+    stop(); playing = true;
     play.textContent = 'Pause'; play.setAttribute('aria-pressed', 'true');
-    timer = setInterval(() => { if (!document.hidden) { index = (index + 1) % frames.length; draw(); } }, 1200);
+    const step = async () => {
+      if (!playing || !active) return;
+      if (!document.hidden) { index = (index + 1) % frames.length; await draw(); }
+      if (playing && active) timer = setTimeout(step, 800);
+    };
+    timer = setTimeout(step, 1200);
   }
   async function refresh(autoplay = false) {
     const request = ++generation;
@@ -33,24 +51,25 @@ export function mountRadar(mapView, root) {
       if (!response.ok) throw new Error('Radar unavailable');
       const next = radarFrames(await response.text());
       if (!active || request !== generation) return;
-      frames = next.filter((_, i) => i % 3 === 0 || i === next.length - 1); index = frames.length - 1;
-      slider.max = String(index); slider.disabled = false; play.disabled = false; draw();
+      frames = next; index = frames.length - 1;
+      slider.max = String(index); slider.disabled = false; play.disabled = false; await draw();
       if (autoplay) start();
     } catch {
       if (!active || request !== generation) return;
-      stop(); mapView.setRadar(null); slider.disabled = true; play.disabled = true;
+      stop(); slider.disabled = true; play.disabled = true;
       label.textContent = 'NOAA radar unavailable. Check connection and try again.';
     }
   }
   button.addEventListener('click', () => {
     active = !active; button.setAttribute('aria-pressed', String(active)); panel.hidden = !active;
     if (active) { label.textContent = 'Loading NOAA radar…'; refresh(true); }
-    else { generation++; stop(); mapView.setRadar(null); }
+    else { generation++; drawToken++; stop(); clearTimeout(scrubTimer); cancelAnimationFrame(sliderAnimation); mapView.setRadar(null); }
   });
-  slider.addEventListener('input', () => { stop(); index = Number(slider.value); draw(); });
+  slider.step = '0.01';
+  slider.addEventListener('input', () => { stop(); cancelAnimationFrame(sliderAnimation); clearTimeout(scrubTimer); index = Math.round(Number(slider.value)); scrubTimer = setTimeout(() => draw(true), 80); });
   play.addEventListener('click', () => {
-    if (timer) return stop();
+    if (playing) return stop();
     start();
   });
-  setInterval(() => { if (active && !timer && !document.hidden && index === frames.length - 1) refresh(); }, 300000);
+  setInterval(() => { if (active && !playing && !document.hidden && index === frames.length - 1) refresh(); }, 300000);
 }

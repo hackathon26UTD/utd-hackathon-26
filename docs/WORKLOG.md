@@ -342,3 +342,7 @@ Verification: NOAA WMS capabilities and a real PNG tile returned successfully. C
 ## 2026-11-07 | Radar continuous playback
 
 User requested automatic continuous playback. Enabling Rain radar now starts looping automatically; Pause and timeline scrubbing remain available, and playback stops advancing in hidden tabs. Rebuilt UI and verified in local Chrome that the timeline advances without pressing Play and remains fixed after Pause. Local preview stays on port 8794.
+
+## 2026-11-07 | Radar transition stability
+
+User reported disappearing images and jagged timeline movement. Replaced destructive frame swaps with two radar buffers: retain visible tiles while the next frame loads, crossfade only after readiness, and preserve the prior frame on error. Playback waits for loading and transitions instead of advancing past pending requests. Uses every NOAA frame, linear raster resampling, fractional slider movement with eased thumb animation, and coalesced scrubbing. Delayed-source status is based on the newest available observation rather than intentionally selected history. Added two regression tests covering frame retention, crossfade, failed loads and cancellation. Both pass. Local Chrome verified automatic timestamp advancement and scrubbing against NOAA without page errors.
