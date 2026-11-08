@@ -199,9 +199,9 @@ export function mountFleet(container, { api, role, onClose = () => {} }) {
     const body = el('form', '', 'fleet-confirm'); body.autocomplete = 'off';
     body.append(el('p', ACTIONS[action][1]));
     const serial = input('confirmSerial', 100), reason = el('textarea', '', 'kit-text-box');
-    serial.required = true; reason.name = 'reason'; reason.required = true; reason.minLength = 3; reason.maxLength = 200;
+    serial.required = true; reason.name = 'reason'; reason.required = true; reason.minLength = 3; reason.maxLength = 160;
     reason.placeholder = 'Why is this needed? Do not include private customer details.';
-    body.append(field(`Type serial ${device.serial}`, serial), field('Reason (3–200 characters)', reason));
+    body.append(field(`Type serial ${device.serial}`, serial), field('Reason (3–160 characters)', reason));
     let home = null;
     if (action === 'reassign_home') { home = input('homeId', 200); home.required = true; body.append(field('New home ID', home)); }
     const error = el('p', '', 'fleet-error'); error.setAttribute('role', 'alert');

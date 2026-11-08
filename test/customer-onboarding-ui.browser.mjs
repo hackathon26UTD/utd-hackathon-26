@@ -133,6 +133,30 @@ test('manual legacy serial warns once, validates code, and preserves errors for 
   } finally { await context.close(); }
 });
 
+test('returning waiting customer keeps immediate Wi-Fi help after reload using server linkedAt', async () => {
+  const linkedAt = new Date(Date.now() - 11 * 60e3).toISOString();
+  const { context, page, errors, calls, data } = await setup({ devices: [{ ...box(), linkedAt }] });
+  try {
+    const card = page.locator('#devices article');
+    const help = card.getByText('Still nothing after 10 minutes', { exact: true });
+    await expect(help).toBeVisible();
+    const reads = calls.filter(c => c.path === '/api/customer/devices').length;
+    // Reload clears page memory. Do not advance the clock: the original server time must suffice.
+    await page.reload();
+    await expect(card.getByText('Waiting for your box to report', { exact: true })).toBeVisible();
+    await expect(help).toBeVisible();
+    await expect(card.locator('.wifi-help').getByText(/Your installer sets up Wi-Fi/)).toBeVisible();
+    assert.ok(calls.filter(c => c.path === '/api/customer/devices').length > reads);
+    assert.equal(data.devices[0].linkedAt, linkedAt);
+    // Old link age alone must never show waiting help once reporting has resumed.
+    Object.assign(data.devices[0], { fleetStatus: { state: 'active', reason: 'reporting' }, lastSeenAt: new Date().toISOString(), firstReportAt: new Date().toISOString() });
+    await tick(page);
+    await expect(card.getByText('Reporting', { exact: true })).toBeVisible();
+    await expect(help).toHaveCount(0);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
 test('polls every ten seconds through waiting, reporting, silent and disabled without inventing normal', async () => {
   const d = { ...box(), linkedAt: new Date(Date.now() - 11 * 60e3).toISOString() };
   const { context, page, errors, calls, data } = await setup({ devices: [d] });

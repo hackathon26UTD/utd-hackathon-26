@@ -37,6 +37,7 @@ async function route(context){
   // 5) operator or demo session
   const session=await readSession(request,env);
   if(!session)return json({error:'Sign in to view this data.'},401);
+  if(method==='POST'&&/^\/api\/devices\/?$/.test(path))return json({error:'New boxes must be provisioned through the administrator CLI.'},403);
   if(!['GET','HEAD'].includes(method)&&!sameOrigin(request))return json({error:'Request origin is not allowed.'},403);
   if(session.role==='demo'&&!((method==='GET'&&DEMO_GET.includes(path))||(method==='POST'&&path==='/api/layers')))return json({error:'Demo accounts can view exercise data only.'},403);
   context.data.operator=session;
