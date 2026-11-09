@@ -54,6 +54,9 @@ def render(st: dict, width: int = 78) -> str:
     g = st.get("gauges") or {}
     if g:
         out.append("Hub: " + "  ".join(f"{k}={v}" for k, v in g.items() if k != "t"))
+    env = st.get("env")
+    if env:
+        out.extend(_env_lines(env))
     inbox = st.get("live", {}).get("inbox", [])
     if inbox:
         out.append("")
@@ -61,6 +64,21 @@ def render(st: dict, width: int = 78) -> str:
         for m in inbox[-4:]:
             out.append(f"  {time.strftime('%H:%M:%S', time.localtime(m['at']))} {m['text']}" + ("  [needs ack]" if m.get("requires_ack") else ""))
     return "\n".join(out)
+
+
+def _env_lines(env: dict) -> list:
+    """Three short lines from the environment snapshot (display only). Missing data shows as unknown."""
+    from . import envreport as e
+    api, clk = e._v(env, "api") or {}, e._v(env, "clock") or {}
+    return ["Env: disk " + _unk(e._v(env, "disk_state", "free_pct"), "% free") + ", memory " + _unk(e._v(env, "memory", "avail_mb"), " MB free")
+            + ", temp " + _unk(e._v(env, "temperature", "max_c"), " C") + ", Wi-Fi " + _unk(e._v(env, "wifi", "signal_dbm"), " dBm"),
+            "Env: clock skew " + _unk(clk.get("skew_s"), " s") + ", API " + ("unknown" if not api else
+                f"HTTP {api.get('http_status')} in {api.get('latency_ms')} ms" if api.get("http_status") else "UNREACHABLE " + str(api.get("error") or "")),
+            "Env: service restarts " + _unk(e._v(env, "service", "restarts"), "") + ", serial ports " + _unk(len(e._v(env, "serial") or []) if e._v(env, "serial") is not None else None, "")]
+
+
+def _unk(v, unit: str) -> str:
+    return "unknown" if v is None else f"{v}{unit}"
 
 
 def fetch(url: str, timeout: float = 3.0) -> dict:

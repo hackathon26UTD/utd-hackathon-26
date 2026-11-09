@@ -3,6 +3,9 @@ Description=HomeBeacon Uno Q agent (sensor monitor, uplink and low-power manager
 Documentation=https://utd-hackathon-26.pages.dev/downloads/unoq/
 After=network-online.target
 Wants=network-online.target
+# Never give up restarting: a hub that stays down is worse than one that retries. The boot guard, not
+# systemd's start limit, decides when an update has failed too often and rolls it back.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -11,8 +14,12 @@ Group=homebeacon
 SupplementaryGroups=dialout
 # The device key lives in a root-only file read by systemd, never in the config or on a command line.
 EnvironmentFile=-/etc/homebeacon/unoq.env
+# Boot guard: counts this start, and rolls an unconfirmed update back after repeated failed starts. It lives
+# outside the releases so a broken release cannot disable it. The leading "-" means a guard problem never blocks a start.
+ExecStartPre=-/usr/bin/python3 -I -B /usr/local/libexec/homebeacon-unoq/bootguard.py pre-start --prefix /opt/homebeacon-unoq --state /var/lib/homebeacon-unoq
 ExecStart=/usr/bin/python3 /opt/homebeacon-unoq/current/run_agent.py --config /etc/homebeacon/unoq.toml run
-# Exit code 75 comes from the allowlisted "reboot-agent" command and restarts at once.
+# Exit code 75 comes from the allowlisted "reboot-agent" command and from a finished self-update or rollback;
+# it restarts at once. Any other exit also restarts (Restart=always), after RestartSec.
 Restart=always
 RestartSec=10
 RestartForceExitStatus=75
@@ -38,7 +45,8 @@ LockPersonality=true
 DevicePolicy=closed
 DeviceAllow=char-ttyACM rw
 DeviceAllow=char-ttyUSB rw
-ReadWritePaths=/var/lib/homebeacon-unoq
+# State, plus the install prefix so the agent can stage and switch releases itself. Logs belong under the state dir.
+ReadWritePaths=/var/lib/homebeacon-unoq /opt/homebeacon-unoq
 
 [Install]
 WantedBy=multi-user.target

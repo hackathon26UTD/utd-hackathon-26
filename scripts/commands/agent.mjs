@@ -49,6 +49,7 @@ export function startMockApi(key) {
       try { body = raw ? JSON.parse(raw) : null; } catch { /* leave null */ }
       st.requests.push({ method: req.method, path, ok: req.headers['x-device-key'] === key });
       const send = (code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
+      if (req.method === 'GET' && path === '/api/ready') return send(200, { status: 'ready' });
       if (req.headers['x-device-key'] !== key) return send(401, { error: 'Invalid device key' });
       if (req.method === 'POST' && path === '/api/beacon/ingest') {
         const dup = st.eventIds.has(body?.event_id);
@@ -140,10 +141,13 @@ async function simulate(args, ctx) {
     const by = {};
     for (const r of mock.st.requests) by[`${r.method} ${r.path}`] = (by[`${r.method} ${r.path}`] || 0) + 1;
     result.summary = { requests: by, eventTypes: [...new Set(mock.st.events.map((e) => e.type))], acks: mock.st.acks, duplicates: mock.st.duplicates, settingsReports: mock.st.settingsReports };
-    check('only the device key was used', mock.st.requests.every((r) => r.ok));
+    // /api/ready is the public readiness probe (the environment report sends no key to it); everything else must carry the hub key.
+    check('only the device key was used', mock.st.requests.every((r) => r.ok || r.path === '/api/ready'));
     check('readings were uploaded', (by['POST /api/ingest'] || 0) >= 1);
     check('beacon telemetry used unique event ids', (by['POST /api/beacon/ingest'] || 0) >= 1 && mock.st.duplicates === 0);
-    check('hazard and mode events were sent', ['hub.hazard_seen', 'agent.mode'].every((t) => mock.st.events.some((e) => e.type === t)) || scenario === 'quiet');
+    // The outage scenario is a silent box A, so no hazard is expected there; mode changes still are.
+    const wanted = scenario === 'outage' ? ['agent.mode'] : ['hub.hazard_seen', 'agent.mode'];
+    check('hazard and mode events were sent', wanted.every((t) => mock.st.events.some((e) => e.type === t)) || scenario === 'quiet');
     check('info message shown, not auto-acknowledged', mock.st.acks.some(([id, s]) => id.endsWith('1') && s === 'shown') && !mock.st.acks.some(([id, s]) => id.endsWith('1') && s === 'acked'));
     check('allowlisted command acknowledged', mock.st.acks.some(([id, s]) => id.endsWith('2') && s === 'acked'));
     check('dangerous command refused, never run', mock.st.events.some((e) => e.type === 'agent.cmd_refused') && !mock.st.acks.some(([id, s]) => id.endsWith('3') && s === 'acked'));

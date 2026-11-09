@@ -85,7 +85,12 @@ export function untar(buf) {
 
 const sha256 = (b) => createHash('sha256').update(b).digest('hex');
 
-export function buildPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq'), signingKey = process.env.UNOQ_SIGNING_KEY } = {}) {
+// A channel other than stable is published as manifest-<channel>.json, so stable devices never see it.
+export const manifestName = (channel) => (channel === 'stable' ? 'manifest.json' : `manifest-${channel}.json`);
+
+export function buildPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq'), signingKey = process.env.UNOQ_SIGNING_KEY,
+  channel = process.env.UNOQ_CHANNEL || 'stable', critical = process.env.UNOQ_CRITICAL === '1' } = {}) {
+  if (!/^[a-z][a-z0-9-]{0,15}$/.test(channel)) throw new Error(`channel must be lower case letters, digits or -, got ${channel}`);
   const ver = version();
   if (!/^\d+\.\d+\.\d+$/.test(ver)) throw new Error(`agents/unoq/VERSION must be MAJOR.MINOR.PATCH, got ${ver}`);
   const top = `homebeacon-unoq-${ver}`;
@@ -107,6 +112,8 @@ export function buildPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq'
   const manifest = {
     name: 'homebeacon-unoq', version: ver, file, size: tgz.length, sha256: sha256(tgz), minPython: '3.11',
     installer: 'install.sh', installerSha256: sha256(installer),
+    // channel: which devices see this release. critical: a safety fix the agent may install even during a hazard.
+    channel, critical,
     notes: 'Checksum is verified by install.sh. Pass --pubkey to also verify the Ed25519 signature when one is listed.',
   };
   if (signingKey) {
@@ -116,18 +123,20 @@ export function buildPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq'
     manifest.signature = `${file}.sig`;
     manifest.signatureAlgorithm = 'ed25519';
   }
-  writeFileSync(join(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  writeFileSync(join(outDir, manifestName(channel)), JSON.stringify(manifest, null, 2) + '\n');
   return { dir: outDir, file: join(outDir, file), manifest, files: files.map((f) => f.name) };
 }
 
 const SECRET_PATTERNS = [/dk_[A-Za-z0-9]{16,}/, /ak_[A-Za-z0-9]{16,}/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/, /mongodb(\+srv)?:\/\/[^\s'"]+:[^\s'"]+@/, /re_[A-Za-z0-9]{20,}/];
 
 /** Verifies the published release. Returns {ok, problems, notes}. Never trusts the manifest without recomputing. */
-export function verifyPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq'), pubkey, runSelfTest = true } = {}) {
+export function verifyPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq'), pubkey, runSelfTest = true, channel = 'stable' } = {}) {
   const problems = [];
   const notes = [];
   let manifest;
-  try { manifest = JSON.parse(readFileSync(join(outDir, 'manifest.json'), 'utf8')); } catch { return { ok: false, problems: ['manifest.json missing or invalid'], notes }; }
+  try { manifest = JSON.parse(readFileSync(join(outDir, manifestName(channel)), 'utf8')); } catch { return { ok: false, problems: [`${manifestName(channel)} missing or invalid`], notes }; }
+  if (manifest.channel !== undefined && manifest.channel !== channel) problems.push(`manifest channel ${manifest.channel} differs from ${channel}`);
+  if (manifest.critical !== undefined && typeof manifest.critical !== 'boolean') problems.push('manifest critical must be true or false');
   const file = join(outDir, manifest.file || '');
   if (!/^homebeacon-unoq-\d+\.\d+\.\d+\.tar\.gz$/.test(manifest.file || '') || !existsSync(file)) return { ok: false, problems: ['tarball named in the manifest is missing'], notes };
   const buf = readFileSync(file);
@@ -148,7 +157,7 @@ export function verifyPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq
     for (const rx of SECRET_PATTERNS) if (rx.test(e.data.toString('utf8'))) problems.push(`secret-like text in ${e.name}`);
     if (/\u2014/.test(e.data.toString('utf8')) && /\.(md|toml|sh|service)$/.test(e.name)) problems.push(`em dash in ${e.name}`);
   }
-  for (const need of ['hbagent/agent.py', 'hbagent/power.py', 'run_agent.py', 'VERSION', 'packaging/install.sh', 'packaging/homebeacon-unoq.service']) {
+  for (const need of ['hbagent/agent.py', 'hbagent/power.py', 'hbagent/updater.py', 'hbagent/bootguard.py', 'run_agent.py', 'VERSION', 'packaging/install.sh', 'packaging/homebeacon-unoq.service']) {
     if (!entries.some((e) => e.name === `${top}/${need}`)) problems.push(`missing ${need}`);
   }
   const inst = existsSync(join(outDir, 'install.sh')) ? readFileSync(join(outDir, 'install.sh')) : null;
@@ -181,8 +190,12 @@ export function verifyPackage({ outDir = join(ROOT, 'public', 'downloads', 'unoq
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {
-  const i = process.argv.indexOf('--out');
-  const r = buildPackage(i > 0 ? { outDir: process.argv[i + 1] } : {});
+  const arg = (flag) => { const i = process.argv.indexOf(flag); return i > 0 ? process.argv[i + 1] : undefined; };
+  const opts = {};
+  if (arg('--out')) opts.outDir = arg('--out');
+  if (arg('--channel')) opts.channel = arg('--channel');
+  if (process.argv.includes('--critical')) opts.critical = true;
+  const r = buildPackage(opts);
   console.log(`built ${r.manifest.file} (${r.manifest.size} bytes) sha256 ${r.manifest.sha256}${r.manifest.signature ? ' signed' : ' unsigned'}`);
   console.log(`files in ${r.dir}`);
 }
