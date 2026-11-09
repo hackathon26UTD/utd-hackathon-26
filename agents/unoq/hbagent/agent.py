@@ -376,7 +376,7 @@ class Agent:
                 res = self.api.beacon_ingest(item["body"])
             else:
                 ids = [item["id"]]
-                res = self.api.event(item["body"].get("type", "agent.event"), item["body"].get("data"))
+                res = self.api.event(item["body"].get("type", "agent.event"), item["body"].get("data"), eid=item.get("eid"))
             if res.ok:
                 self.store.ack(ids)
                 self.counters["sent"] += 1

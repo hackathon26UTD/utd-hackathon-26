@@ -36,7 +36,7 @@ class Clock:
 
 
 def short_tmp():
-    return tempfile.mkdtemp(prefix="hb", dir="/tmp")   # unix socket paths are short-limited
+    return tempfile.mkdtemp(prefix="hb", dir=("/tmp" if os.path.isdir("/tmp") else None))   # unix socket paths are short-limited
 
 
 class StoreTests(unittest.TestCase):

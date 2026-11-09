@@ -10,18 +10,22 @@ import signal
 import sys
 import tempfile
 import time
+from typing import Optional
 
-from . import VERSION, commands, config, live, mcu, power, protocol, servers, updater
+from . import VERSION, commands, config, doctor, lifecycle, live, mcu, power, protocol, servers, support, updater, watchdog
 from .agent import Agent
-from .store import Store
+from .store import PRIO_STATUS, Store
 from .uplink import Api
 
 DEFAULT_CONFIG = "/etc/homebeacon/unoq.toml"
 
 
+def _cfg_path(args) -> Optional[str]:
+    return getattr(args, "config", None) or (DEFAULT_CONFIG if os.path.exists(DEFAULT_CONFIG) else None)
+
+
 def _cfg(args) -> config.Config:
-    path = getattr(args, "config", None) or (DEFAULT_CONFIG if os.path.exists(DEFAULT_CONFIG) else None)
-    cfg = config.load(path)
+    cfg = config.load(_cfg_path(args))
     if getattr(args, "state_dir", None):
         cfg.state_dir = args.state_dir
     return cfg
@@ -60,14 +64,24 @@ def cmd_run(args) -> int:
         pass
     store = Store(os.path.join(cfg.state_dir, "agent.sqlite"), cfg.queue_rows, cfg.queue_bytes)
     key = "" if args.no_uplink else cfg.device_key()
-    api = None
+    api = guard = wd = None
     if key and cfg.device_id:
-        api = Api(cfg.base_url, key, cfg.http_timeout_s)
+        guard = watchdog.UplinkGuard(
+            state_file=watchdog.state_path(cfg.state_dir),
+            on_event=lambda etype, data: store.push("event", {"type": etype, "data": data}, PRIO_STATUS),
+            critical_pending=lambda: store.stats()["critical"] > 0)
+        api = Api(cfg.base_url, key, cfg.http_timeout_s, guard=guard)
+        wd = watchdog.UplinkWatchdog(guard, api, store.depth)
     else:
         logging.getLogger("hbagent").warning("Running local-only: %s", "uplink disabled" if args.no_uplink else
                                              "set api.device_id and the device key to enable the uplink")
     source = mcu.make(cfg.mcu_source, cfg.mcu_port, cfg.mcu_baud, args.scenario)
     agent = Agent(cfg, store, api, source)
+    if wd is not None:
+        watchdog.install(agent, wd)
+    life = None
+    if not args.no_lifecycle:
+        life = lifecycle.Lifecycle(agent, cfg, store, auto_update=api is not None).install()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: (agent.stop.set(), agent.wake.set()))
     srv = ctl = None
@@ -86,9 +100,15 @@ def cmd_run(args) -> int:
     try:
         code = agent.run(args.max_steps)
     finally:
+        if life is not None:
+            life.close()
         for s in (srv, ctl):
             if s:
                 s.stop()
+        if guard is not None:
+            guard.flush_state()
+        if api is not None:
+            api.close()
         store.close()
     return code
 
@@ -123,13 +143,181 @@ def cmd_live(args) -> int:
     return live.run(args.url, args.interval, args.once)
 
 
+def _uplink_health(args) -> Optional[dict]:
+    try:
+        return watchdog.read_state(watchdog.state_path(_cfg(args).state_dir))
+    except (config.ConfigError, OSError):
+        return None
+
+
+def _uplink_lines(g: Optional[dict]) -> list:
+    if not g:
+        return []
+    out = ["Uplink guard: " + ("KEY REJECTED, retrying every 15 minutes" if g.get("key_rejected") else str(g.get("state", "unknown")).replace("_", " "))]
+    if g.get("key_rejected"):
+        out.append("  " + str(g.get("message", "")))
+    elif g.get("message"):
+        out.append("  " + str(g["message"]))
+    if g.get("last_ok_age_s") is not None:
+        out.append(f"  last accepted upload {doctor._dur(g['last_ok_age_s'])} ago (as of the last agent write)")
+    if g.get("heals"):
+        h = g["heals"][-1]
+        out.append(f"  self-heal attempts: {len(g['heals'])}; latest {h.get('action')} (network {h.get('network')})")
+    return out
+
+
 def cmd_status(args) -> int:
+    g = _uplink_health(args)
     try:
         st = live.fetch(args.url)
     except Exception:  # noqa: BLE001
         print(f"The agent is not answering at {args.url}.", file=sys.stderr)
+        for ln in _uplink_lines(g):
+            print(ln, file=sys.stderr)
         return 1
-    print(json.dumps(st, indent=2) if args.json else live.render(st))
+    if args.json:
+        print(json.dumps({**st, "uplink_guard": g}, indent=2))
+    else:
+        print(live.render(st))
+        for ln in _uplink_lines(g):
+            print(ln)
+    return 0
+
+
+# ---------------------------------------------------------------- troubleshooting
+def cmd_doctor(args) -> int:
+    path = _cfg_path(args)
+    try:
+        cfg = _cfg(args)
+    except config.ConfigError as e:
+        checks = doctor.config_failure(str(e))
+    else:
+        checks = doctor.run_checks(cfg, config_path=path, env_file=args.env_file, offline=args.offline)
+    if args.json:
+        print(json.dumps({"exit_code": doctor.exit_code(checks), "summary": doctor.summary(checks), "checks": [c.as_dict() for c in checks]}, indent=2))
+    else:
+        print(doctor.render(checks))
+    return doctor.exit_code(checks)
+
+
+def cmd_support_bundle(args) -> int:
+    cfg = _cfg(args)
+    key = doctor.find_key(cfg, args.env_file)[0]
+    checks = doctor.run_checks(cfg, config_path=_cfg_path(args), env_file=args.env_file, offline=args.offline)
+    queue = None
+    qpath = os.path.join(cfg.state_dir, "agent.sqlite")
+    if os.path.exists(qpath):
+        try:
+            queue = doctor.read_queue_stats(qpath, time.time())
+        except Exception:  # noqa: BLE001
+            queue = None
+    status = None
+    try:
+        status = live.fetch(args.url)
+    except Exception:  # noqa: BLE001
+        pass
+    upd, _ = doctor.get_update_status(cfg)
+    try:
+        info = support.build_bundle(cfg, queue_stats=queue, report=[c.as_dict() for c in checks], update_status=upd, status=status,
+                                    key=key, log_n=args.lines, out_dir=args.out_dir,
+                                    uplink_state=watchdog.read_state(watchdog.state_path(cfg.state_dir)))
+    except OSError as e:
+        print(f"Could not write the support bundle: {e}", file=sys.stderr)
+        return 1
+    print(f"Support bundle written: {info['path']} ({info['bytes']} bytes, mode 600)")
+    print("Secrets are masked and the device key is not included. Nothing was uploaded; copy it off the hub yourself if you want to share it.")
+    return 0
+
+
+def cmd_logs(args) -> int:
+    cfg = _cfg(args)
+    secrets = [k for k in (doctor.find_key(cfg, args.env_file)[0],) if k]
+    src, lines = support.log_lines(cfg, args.lines, secrets)
+    if not lines and not args.follow:
+        print("No log lines found. The agent logs to the systemd journal unless log_file is set in the config.\n"
+              "Try: journalctl -u homebeacon-unoq -n 100 --no-pager", file=sys.stderr)
+        return 1
+    for ln in lines:
+        print(ln)
+    if args.follow:
+        return _follow_logs(cfg, secrets)
+    return 0
+
+
+def _follow_logs(cfg, secrets) -> int:
+    import subprocess
+    try:
+        if cfg.log_file:
+            with open(cfg.log_file, "r", encoding="utf-8", errors="replace") as f:
+                f.seek(0, os.SEEK_END)
+                inode = os.fstat(f.fileno()).st_ino
+                while True:
+                    line = f.readline()
+                    if line:
+                        print(support.mask(line.rstrip("\n")[:support.MAX_LINE], secrets), flush=True)
+                        continue
+                    time.sleep(1.0)
+                    try:
+                        if os.stat(cfg.log_file).st_ino != inode:        # rotated: reopen
+                            return _follow_logs(cfg, secrets)
+                    except OSError:
+                        pass
+        p = subprocess.Popen(["journalctl", "-u", "homebeacon-unoq", "-f", "-n", "0", "--no-pager", "-o", "short-iso"],
+                             stdout=subprocess.PIPE, text=True, errors="replace")
+        for line in p.stdout:                                           # type: ignore[union-attr]
+            print(support.mask(line.rstrip("\n")[:support.MAX_LINE], secrets), flush=True)
+    except (KeyboardInterrupt, BrokenPipeError):
+        return 0
+    except OSError as e:
+        print(f"Cannot follow the log: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_env(args) -> int:
+    cfg = _cfg(args)
+    key = doctor.find_key(cfg, args.env_file)[0]
+    env = support.environment(cfg)
+    if args.json:
+        print(json.dumps(support.mask_obj(env, [key] if key else []), indent=2, sort_keys=True, default=str))
+        return 0
+    text = None
+    try:
+        from . import envreport
+        fn = getattr(envreport, "render_environment_text", None)
+        if fn is not None:
+            text = fn(env)
+    except Exception:  # noqa: BLE001
+        text = None
+    if not isinstance(text, str):
+        text = "\n".join(f"{k}: {v}" for k, v in sorted(env.items()))
+    print(support.mask(text, [key] if key else []))
+    return 0
+
+
+_UPDATE_FN = {"check": "update_check", "apply": "update_apply", "rollback": "update_rollback", "status": "update_status"}
+
+
+def cmd_update(args) -> int:
+    import inspect
+    cfg = _cfg(args)
+    fn = getattr(updater, _UPDATE_FN[args.action], None)
+    if fn is None:
+        if args.action == "check":
+            args.download = False
+            return cmd_check_update(args)
+        print(f"`update {args.action}` is not available in this build. Use `check-update` and install.sh (see docs/UNOQ_AGENT.md).", file=sys.stderr)
+        return 1
+    try:
+        res = fn(cfg) if inspect.signature(fn).parameters else fn()
+    except updater.UpdateError as e:
+        print(f"Update {args.action} failed: {support.mask(str(e))}", file=sys.stderr)
+        return 1
+    if isinstance(res, dict):
+        print(json.dumps(support.mask_obj(res), indent=2, sort_keys=True, default=str) if args.json else
+              "\n".join(f"{k}: {support.mask(str(v))}" for k, v in sorted(res.items()) if k != "manifest"))
+        return 1 if (res.get("ok") is False or res.get("error")) else 0
+    print(support.mask(str(res)))
     return 0
 
 
@@ -252,11 +440,15 @@ def cmd_setup(args) -> int:
     if not key or len(key) < 8:
         print("No key entered.", file=sys.stderr)
         return 1
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        f.write(f"HB_DEVICE_KEY={key}\n")
-    os.chmod(path, 0o600)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(f"HB_DEVICE_KEY={key}\n")
+        os.chmod(path, 0o600)
+    except PermissionError:
+        print(f"Cannot write {path} as this user. Run: sudo homebeacon-unoq setup", file=sys.stderr)
+        return 1
     print(f"Saved to {path} (mode 600). Restart the service: sudo systemctl restart homebeacon-unoq")
     return 0
 
@@ -271,6 +463,7 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--fake", action="store_true", help="use the fake MCU (no hardware)")
     r.add_argument("--scenario", default="quiet", choices=["quiet", "flood", "outage", "mixed"])
     r.add_argument("--no-uplink", action="store_true")
+    r.add_argument("--no-lifecycle", action="store_true", help="do not run self-update, boot guard or environment report")
     r.add_argument("--status-port", type=int)
     r.add_argument("--base-url")
     r.add_argument("--device-id")
@@ -317,6 +510,31 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("check-update", help="look for a checksummed release (never installs)")
     s.add_argument("--download", action="store_true", help="fetch and verify the tarball into the state dir")
     s.set_defaults(fn=cmd_check_update)
+    s = sub.add_parser("doctor", help="check the hub end to end and say how to fix each problem (exit 0 ok, 1 warn, 2 fail)")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--offline", action="store_true", help="skip the checks that use the network")
+    s.add_argument("--env-file", default=doctor.DEFAULT_ENV_FILE)
+    s.set_defaults(fn=cmd_doctor)
+    s = sub.add_parser("support-bundle", help="write a redacted .tar.gz for support (local file, never uploaded)")
+    s.add_argument("--lines", type=int, default=support.LOG_LINES_DEFAULT, help="log lines to include")
+    s.add_argument("--out-dir", help="default <state_dir>/support")
+    s.add_argument("--offline", action="store_true")
+    s.add_argument("--url", default="http://127.0.0.1:8765")
+    s.add_argument("--env-file", default=doctor.DEFAULT_ENV_FILE)
+    s.set_defaults(fn=cmd_support_bundle)
+    s = sub.add_parser("logs", help="show the agent log with secrets masked")
+    s.add_argument("-n", "--lines", type=int, default=100)
+    s.add_argument("-f", "--follow", action="store_true")
+    s.add_argument("--env-file", default=doctor.DEFAULT_ENV_FILE)
+    s.set_defaults(fn=cmd_logs)
+    s = sub.add_parser("env", help="print what the hub knows about its own environment")
+    s.add_argument("--json", action="store_true")
+    s.add_argument("--env-file", default=doctor.DEFAULT_ENV_FILE)
+    s.set_defaults(fn=cmd_env)
+    s = sub.add_parser("update", help="check, apply or roll back an agent update; or show update status")
+    s.add_argument("action", choices=list(_UPDATE_FN))
+    s.add_argument("--json", action="store_true")
+    s.set_defaults(fn=cmd_update)
     s = sub.add_parser("setup", help="store the device key in a mode 600 file")
     s.add_argument("--env-file", default="/etc/homebeacon/unoq.env")
     s.set_defaults(fn=cmd_setup)

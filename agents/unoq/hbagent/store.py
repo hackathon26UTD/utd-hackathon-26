@@ -8,6 +8,7 @@ SQLite in WAL mode, one file in the agent's state directory. Everything is cappe
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import threading
 import time
@@ -64,6 +65,8 @@ class Store:
         if kind not in KINDS:
             raise ValueError(kind)
         text = json.dumps(body, separators=(",", ":"))
+        if eid is None and kind == "event":
+            eid = "ev-" + secrets.token_hex(10)      # stable across retries: the same row always resends the same id
         with self._lock:
             self.con.execute("INSERT INTO q(kind, eid, prio, created, body, size) VALUES(?,?,?,?,?,?)",
                              (kind, eid, prio, now or time.time(), text, len(text)))
@@ -85,12 +88,17 @@ class Store:
         with self._lock:
             return self.con.execute("SELECT COUNT(*) FROM q").fetchone()[0]
 
-    def stats(self) -> dict:
+    def stats(self, now: Optional[float] = None) -> dict:
         with self._lock:
             rows, size = self.con.execute("SELECT COUNT(*), COALESCE(SUM(size),0) FROM q").fetchone()
             crit = self.con.execute("SELECT COUNT(*) FROM q WHERE prio=0").fetchone()[0]
             oldest = self.con.execute("SELECT MIN(created) FROM q").fetchone()[0]
-        return {"rows": rows, "bytes": size, "critical": crit, "oldest": oldest, "dropped": self.dropped}
+            kinds = dict(self.con.execute("SELECT kind, COUNT(*) FROM q GROUP BY kind").fetchall())
+            attempts = self.con.execute("SELECT COALESCE(MAX(attempts),0) FROM q").fetchone()[0]
+        age = None if oldest is None else round(max(0.0, (now or time.time()) - oldest), 1)
+        return {"rows": rows, "bytes": size, "critical": crit, "oldest": oldest, "dropped": self.dropped,
+                "oldest_age_s": age, "by_kind": kinds, "max_attempts": attempts,
+                "max_rows": self.max_rows, "max_bytes": self.max_bytes}
 
     def peek(self, kind: Optional[str] = None, limit: int = 1, skip_kinds: tuple = ()) -> list[dict]:
         """Oldest first within priority. Does not remove anything. `skip_kinds` leaves those kinds out of the view."""
