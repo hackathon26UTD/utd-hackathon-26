@@ -33,10 +33,10 @@ Production canonical/share URLs, sitemap, robots, email default links and the re
 
 At the initial verification the US registry still delegated to Porkbun; Cloudflare zone, Pages certificates and Resend verification were pending. This is a saved configuration, not a claim that the new domain or mail is live.
 
-1. Wait for Pages TLS validation and verify HTTPS on both hostnames.
-2. Release the tested domain changes and verify page metadata, database readiness and private boundaries on the new domain.
-3. Verify the deployed application transport with a synthetic sink message.
+Completed: valid HTTPS on apex/www; production canonical metadata on both; MongoDB readiness; anonymous device API remains 401; OAuth issuer uses the new origin; deployed application email-test returned sent=true on its first attempt to a Resend sink.
 
-Production sender/reply/origin settings were patched after Resend verification. Existing secret entries remained present. The only real test recipient was Ayan’s own hello alias/Gmail destination; no teammates or customers were contacted.
+The www CNAME was briefly made DNS-only while checking validation and restored to proxied before final verification. The Pages API apex validation badge can lag the active edge certificate; actual HTTPS verification succeeded without bypassing certificate checks.
+
+Production sender/reply/origin settings were patched after Resend verification and activated by the verified production release. Existing secret entries remained present. The only real test recipient was Ayan’s own hello alias/Gmail destination; no teammates or customers were contacted.
 
 References: [Pages custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/), [Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/), [Resend domain verification](https://resend.com/docs/api-reference/domains/verify-domain).

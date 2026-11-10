@@ -1,4 +1,4 @@
-November 10 domain setup: `safehomemesh.us` is being connected to the existing Pages project. Cloudflare nameservers, active routing and Resend sender are verified, including an own-inbox delivery test. Pages TLS and website release remain pending. See [DOMAIN.md](DOMAIN.md) for rollout state.
+November 10 domain setup: `safehomemesh.us` is connected to the existing Pages project. Cloudflare nameservers, active routing and Resend sender are verified, including an own-inbox delivery test. Apex/www HTTPS and production release PR87 are verified, including the deployed email transport. See [DOMAIN.md](DOMAIN.md) for rollout state.
 
 November 8 brand update: Ayan requested State Farm colors and Drive Safe & Save styling. Shared warm red actions, white/charcoal themes, Hanken Grotesk and outlined stacked Safe Home branding are implemented; see BRAND.md and the latest WORKLOG for actual release status. Sensor severity colors and account routing are unchanged.
 
