@@ -22,6 +22,7 @@ export async function ensureLiveIndexes(db) {
   const name = db.databaseName || 'db';
   if (ensured.has(name)) return;
   await Promise.all([
+    db.collection('readings').createIndex({ deviceId: 1, sensor: 1, ts: -1, _id: -1 }),
     db.collection('device_logs').createIndex({ at: 1 }, { expireAfterSeconds: DEVICE_LOG_TTL_S }),
     db.collection('device_logs').createIndex({ deviceId: 1, at: -1 }),
     db.collection('audit_log').createIndex({ at: 1 }, { expireAfterSeconds: AUDIT_TTL_S }),
@@ -262,7 +263,8 @@ async function latestReadings(db, objectIds, now) {
   if (!objectIds.length) return new Map();
   const rows = await db.collection('readings').aggregate([
     { $match: { deviceId: { $in: objectIds }, ts: { $gte: new Date(now.getTime() - 30 * 86400_000) } } },
-    { $sort: { ts: -1, _id: -1 } },
+    // Group order follows the index; newest timestamp/id still wins within each sensor.
+    { $sort: { deviceId: 1, sensor: 1, ts: -1, _id: -1 } },
     { $group: { _id: { d: '$deviceId', s: '$sensor' }, value: { $first: '$value' }, unit: { $first: '$unit' }, ts: { $first: '$ts' } } },
     { $limit: objectIds.length * 40 },
   ]).toArray();

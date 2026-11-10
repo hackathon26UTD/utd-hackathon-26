@@ -327,3 +327,19 @@ test('legacy ingest hook logs gaps and power mode changes only when the mode cha
   assert.match(logs[0].msg, /from normal to saver/);
   assert.equal(await db.collection('device_logs').countDocuments({ deviceId: id, code: 'seen.gap' }), 1, 'no gap after the second report');
 });
+
+test('latest sensor selection preserves timestamp ties, stale critical values and retention boundaries', async () => {
+  const d=await addDevice('ordered-latest', {lastSeen:mins(90)});
+  const earlier=new ObjectId('000000000000000000000001'),later=new ObjectId('ffffffffffffffffffffffff');
+  await db.collection('readings').insertMany([
+    {_id:earlier,deviceId:d.oid,sensor:'temp_c',value:20,ts:mins(90)},
+    {_id:later,deviceId:d.oid,sensor:'temp_c',value:60,ts:mins(90)},
+    {deviceId:d.oid,sensor:'water_detected',value:true,ts:mins(120)},
+    {deviceId:d.oid,sensor:'retention-edge',value:1,ts:mins(30*24*60)},
+    {deviceId:d.oid,sensor:'expired',value:1,ts:mins(30*24*60+1)},
+  ]);
+  const out=await getLive(db,{deviceId:d.id,now:T0,env});const latest=out.devices[0].latest;
+  assert.equal(out.devices[0].offline,true);
+  assert.equal(latest.temp_c.value,60);assert.equal(latest.water_detected.value,true);
+  assert.equal(latest['retention-edge'].value,1);assert.equal(latest.expired,undefined);
+});

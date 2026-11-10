@@ -12,7 +12,7 @@ November 10, 2026, Ayan domain setup workstream.
 
 ## Incoming mail
 
-Cloudflare forwarding rules are enabled individually for `hello`, `contact`, `support`, `info`, `noreply`, `no-reply`, `ayan`, `security`, `privacy`, `postmaster`, and `abuse` at this domain. They target Ayan’s already verified Gmail destination. These are forwarding aliases, not separate hosted mailboxes or Gmail send-as identities. No catch-all rule was enabled. Other personal addresses need an explicit name and destination.
+Cloudflare forwarding rules are enabled individually for `hello`, `contact`, `support`, `info`, `noreply`, `no-reply`, `abasheer`, `security`, `privacy`, `postmaster`, and `abuse` at this domain. They target Ayan’s already verified Gmail destination. These are forwarding aliases, not separate hosted mailboxes or Gmail send-as identities. No catch-all rule was enabled. Other personal addresses need an explicit name and destination.
 
 The provider-supplied root MX, routing SPF and routing DKIM records are prepared. The initial zone-level activation returned `Active zone required`. After registry propagation, activation succeeded and readback confirmed `enabled: true`, `status: ready`. A test from `noreply` to `hello` arrived in Ayan’s Gmail, verifying actual sending and forwarding.
 
