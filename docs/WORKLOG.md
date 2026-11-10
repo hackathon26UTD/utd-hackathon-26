@@ -875,3 +875,10 @@ Updated production canonical/share/sitemap URLs, email sender/link defaults and 
 
 
 Domain activation follow-up: US registry delegation now matches emerie/harley Cloudflare nameservers. Cloudflare zone is active; Email Routing activation succeeded and reads enabled/ready. Resend reports every sending record verified. One admin setup test from noreply@safehomemesh.us to hello@safehomemesh.us arrived in Ayan’s own Gmail at 06:05 UTC, establishing actual outgoing delivery plus inbound forwarding. No teammate or customer messages were sent. Patched production sender/reply/origin variables after verification; existing secrets remain present. Pages certificate issuance and release are still pending. PR87 holds the website/default-link changes.
+
+
+## November 10, 2026 — Domain release verified (Ayan)
+
+PR87 merged as adb197d31457b9118a348513abf5d492f738038a. Production run42766888253 passed and deployed 766e730d.utd-hackathon-26.pages.dev. Both safehomemesh.us and www.safehomemesh.us return200 over certificate-verified HTTPS, with the canonical root https://safehomemesh.us/. Both API readiness checks report MongoDB connected; anonymous device access stays401. Public login is200, dashboard redirect is302, and OAuth discovery advertises the new origin. The production admin email-test sent a synthetic welcome to delivered@resend.dev in one attempt (HTTP200, sent=true), exercising the deployed provider credential and new sender settings.
+
+The real own-inbox forwarding test also has Gmail authentication results SPF pass, DKIM pass (Resend and Cloudflare), and DMARC pass. Source/preview checks and production deployment are complete. The provider apex validation badge was still pending while valid edge HTTPS already served the application; no TLS checks were bypassed. A brief DNS-only www validation check was reverted to proxied before final verification. No registrar transfer, paid-plan change, secret disclosure, historical mail queue activation, or teammate/customer outreach. Other personal aliases await explicit name/destination mappings.
