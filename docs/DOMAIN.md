@@ -14,7 +14,7 @@ November 10, 2026, Ayan domain setup workstream.
 
 Cloudflare forwarding rules are enabled individually for `hello`, `contact`, `support`, `info`, `noreply`, `no-reply`, `ayan`, `security`, `privacy`, `postmaster`, and `abuse` at this domain. They target Ayan’s already verified Gmail destination. These are forwarding aliases, not separate hosted mailboxes or Gmail send-as identities. No catch-all rule was enabled. Other personal addresses need an explicit name and destination.
 
-The provider-supplied root MX, routing SPF and routing DKIM records are prepared. The zone-level Email Routing enable operation returned `Active zone required` while nameserver propagation was pending. Individually enabled rules do not establish working receipt until that operation succeeds.
+The provider-supplied root MX, routing SPF and routing DKIM records are prepared. The initial zone-level activation returned `Active zone required`. After registry propagation, activation succeeded and readback confirmed `enabled: true`, `status: ready`. A test from `noreply` to `hello` arrived in Ayan’s Gmail, verifying actual sending and forwarding.
 
 ## Outgoing mail
 
@@ -33,11 +33,10 @@ Production canonical/share URLs, sitemap, robots, email default links and the re
 
 At the initial verification the US registry still delegated to Porkbun; Cloudflare zone, Pages certificates and Resend verification were pending. This is a saved configuration, not a claim that the new domain or mail is live.
 
-1. Confirm US registry delegation to the assigned Cloudflare nameservers and Cloudflare zone activation.
-2. Enable zone-level Email Routing through the documented DNS endpoint; read back enabled/ready status.
-3. Confirm Resend domain and all required records are verified.
-4. Patch only the production email sender/reply/origin settings, preserving existing secrets and configuration.
-5. Release the tested domain changes and verify HTTPS, page metadata, database readiness and private boundaries on the new domain.
-6. Test sending only to approved test sinks, unless a real recipient test is explicitly requested.
+1. Wait for Pages TLS validation and verify HTTPS on both hostnames.
+2. Release the tested domain changes and verify page metadata, database readiness and private boundaries on the new domain.
+3. Verify the deployed application transport with a synthetic sink message.
+
+Production sender/reply/origin settings were patched after Resend verification. Existing secret entries remained present. The only real test recipient was Ayan’s own hello alias/Gmail destination; no teammates or customers were contacted.
 
 References: [Pages custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/), [Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/), [Resend domain verification](https://resend.com/docs/api-reference/domains/verify-domain).

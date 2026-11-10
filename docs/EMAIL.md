@@ -16,7 +16,7 @@ HomeBeacon sends a small set of branded emails through the Resend REST API. It i
 
 Set the secret with `wrangler pages secret put RESEND_API_KEY`. Never put it in the repo, a board or a browser bundle.
 
-Switching sender domain: verify the domain in Resend, then set `EMAIL_FROM`. The new default sender domain is `safehomemesh.us`. It was added to the existing Resend account and its required DNS records were prepared on November 10, 2026; verification and production cutover remain pending nameserver propagation. The previous `safehome.endyland.com` sender remains verified and intact. See [DOMAIN.md](DOMAIN.md) for the actual rollout state.
+Switching sender domain: verify the domain in Resend, then set `EMAIL_FROM`. The new default sender domain is `safehomemesh.us`. It was added to the existing Resend account and its required DNS records were prepared on November 10, 2026; all sending records and actual delivery through the hello alias to Ayan’s Gmail are now verified; website release remains pending Pages TLS. The previous `safehome.endyland.com` sender remains verified and intact. See [DOMAIN.md](DOMAIN.md) for the actual rollout state.
 
 ## Emails
 
