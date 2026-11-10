@@ -899,3 +899,13 @@ Preview verification for PR89: full CI and deployment run42771513324 passed. Chr
 
 
 Production optimization release verified: run42772321938 passed and deployed d5c5252a9594c2bea75236b72924bbc098cee464 as https://b04aa76c.utd-hackathon-26.pages.dev. App JS/CSS match the browser-tested preview; the primary safehomemesh.us app entry also matches the local tested build. MongoDB readiness is healthy; authenticated live snapshot and three incremental requests return200, with the anonymous boundary still401. The cold snapshot took2.9s and unchanged incremental polls712–778ms; these small smoke samples do not establish an overall API latency improvement. The targeted local query and off-screen work reductions are the measured gains. No new real telemetry, production data migration, paid changes, or customer outreach. Personal alias readback confirms abasheer enabled and no ayan rule.
+
+## November 10, 2026 — Ayan workstream: reload reliability and hosting limits
+
+User asked whether Cloudflare or Vercel provides more requests and to fix demo reload failures. Historical sanitized production tails recorded `exceededCpu` / 503 on ingest; this is a per-request CPU limit, not proof of daily quota exhaustion. Account remains free; no billing change authorized or made.
+
+Added explicit public-page/static-asset exclusions in `public/_routes.json`. Previously root middleware caused default all-path Function routing. Protected document gates, APIs, OAuth, MCP, unknown future routes, and the same-origin embedded demo remain Functions. The embedded demo keeps its middleware-specific framing policy; no security headers or authentication checks were weakened. This reduces unnecessary invocation/CPU exposure but does not remove the free backend's 10 ms limit or prove ingestion failures fixed. No telemetry was replayed or written.
+
+Verification: 10 focused routing/header/role-gate tests passed and UI/Functions build passed. Full suite and deployed route verification recorded by the associated PR/release checks. Cloudflare static Pages requests are unlimited/free; free Functions share 100,000 requests/day and 10 ms CPU per invocation. Vercel Hobby advertises 1 million function invocations/month with separate compute limits. Workers Standard starts at $5/month, but remains a proposed follow-up, not enabled.
+
+Sources: https://developers.cloudflare.com/pages/functions/routing/ ; https://developers.cloudflare.com/workers/platform/pricing/ ; https://vercel.com/docs/plans/hobby
