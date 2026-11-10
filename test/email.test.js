@@ -77,7 +77,7 @@ test('helpers: clean, safeSubject and safeUrl', () => {
   assert.equal(clean('a\r\nb‮c\u0000d  e'), 'a b c d e');
   assert.ok(safeSubject('Hi\r\nBcc: a@b.co').indexOf('\n') < 0);
   assert.equal(safeUrl('https://x.example', '/customer'), 'https://x.example/customer');
-  assert.equal(safeUrl('http://evil.example', '/customer').startsWith('https://utd-hackathon-26.pages.dev'), true);
+  assert.equal(safeUrl('http://evil.example', '/customer').startsWith('https://safehomemesh.us'), true);
   assert.equal(safeUrl('https://x.example', 'https://evil.example/a'), 'https://x.example/');
 });
 

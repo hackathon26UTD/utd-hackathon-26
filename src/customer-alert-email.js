@@ -1,5 +1,5 @@
 // Presentation only: no recipient, provider, queue, network or delivery side effects.
-const ORIGIN = 'https://utd-hackathon-26.pages.dev';
+const ORIGIN = 'https://safehomemesh.us';
 const EVENTS = {
   'detected-condition': 'Detected condition: review needed',
   'stale-offline': 'No recent signal: review needed',
