@@ -5,4 +5,4 @@ Disallow: /command-center
 Disallow: /profile
 Disallow: /login
 Disallow: /reset-password
-Sitemap: https://utd-hackathon-26.pages.dev/sitemap.xml
+Sitemap: https://safehomemesh.us/sitemap.xml

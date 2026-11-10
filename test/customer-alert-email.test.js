@@ -33,8 +33,8 @@ test('recovery requires review, simulation is labeled and contradictory normal i
   assert.ok(!r.text.includes('No disturbance detected'));assert.ok(r.text.includes('Water detected'));
 });
 test('customer link is restricted to exact HTTPS origin and account page without query/fragment',()=>{
-  const target='https://utd-hackathon-26.pages.dev/customer';
-  for(const url of ['javascript:alert(1)','https://evil.test/customer','https://utd-hackathon-26.pages.dev.evil.test/customer','https://utd-hackathon-26.pages.dev/customer?redirect=https://evil.test','https://user:pass@utd-hackathon-26.pages.dev/customer','http://utd-hackathon-26.pages.dev/customer','https://utd-hackathon-26.pages.dev/customer#secret',target]){
+  const target='https://safehomemesh.us/customer';
+  for(const url of ['javascript:alert(1)','https://evil.test/customer','https://safehomemesh.us.evil.test/customer','https://safehomemesh.us/customer?redirect=https://evil.test','https://user:pass@utd-hackathon-26.pages.dev/customer','http://utd-hackathon-26.pages.dev/customer','https://safehomemesh.us/customer#secret',target]){
     const r=render({...sample,customerUrl:url});assert.ok(r.html.includes(`href="${target}"`));assert.ok(!r.html.includes('evil.test'));assert.ok(!r.html.includes('javascript:'));
   }
 });

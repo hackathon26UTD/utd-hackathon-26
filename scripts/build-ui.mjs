@@ -11,10 +11,10 @@ await copyFile('node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs','public/as
 
 // Preview share cards must resolve against the preview that contains their image.
 const previewBranch = /^pr-[1-9]\d*$/.test(process.env.DEPLOY_BRANCH || '') ? process.env.DEPLOY_BRANCH : null;
-const siteOrigin = `https://${previewBranch ? previewBranch + '.' : ''}utd-hackathon-26.pages.dev`;
+const siteOrigin = previewBranch ? `https://${previewBranch}.utd-hackathon-26.pages.dev` : 'https://safehomemesh.us';
 for (const name of (await readdir('public')).filter(name => /\.html$/.test(name) || ['robots.txt', 'sitemap.xml'].includes(name))) {
   const path = `public/${name}`;
   const source = await readFile(path, 'utf8');
-  const result = source.replace(/https:\/\/(?:pr-\d+\.)?utd-hackathon-26\.pages\.dev/g, siteOrigin);
+  const result = source.replace(/https:\/\/(?:(?:pr-\d+\.)?utd-hackathon-26\.pages\.dev|(?:www\.)?safehomemesh\.us)/g, siteOrigin);
   if (result !== source) await writeFile(path, result);
 }

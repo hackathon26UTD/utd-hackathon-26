@@ -1,6 +1,6 @@
 import {bodyText} from './customer-connect-common.js';
 
-export const CUSTOMER_URL='https://utd-hackathon-26.pages.dev/customer';
+export const CUSTOMER_URL='https://safehomemesh.us/customer';
 export const escapeHtml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function emailConfigured(env) {
   return env.HOME_EMAIL_ENABLED==='true' && !!env.RESEND_API_KEY && !!env.RESEND_WEBHOOK_SECRET && !!env.SESSION_SECRET && /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(env.HOME_EMAIL_FROM||'');

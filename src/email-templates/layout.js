@@ -5,7 +5,7 @@ export const BRAND = {
   ground: '#14121c', ink: '#f8f1e5', amber: '#f6a623', paper: '#f5efe3', critical: '#b4232c', ok: '#12775a',
   text: '#1f1b16', muted: '#5b5247', link: '#7a4300', rule: '#d9cfbd',
 };
-export const DEFAULT_ORIGIN = 'https://utd-hackathon-26.pages.dev';
+export const DEFAULT_ORIGIN = 'https://safehomemesh.us';
 export const PROTOTYPE_NOTE = 'This is a prototype. Call emergency services for emergencies.';
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
