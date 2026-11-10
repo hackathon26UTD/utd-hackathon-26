@@ -486,3 +486,13 @@ export function messageState(m, deviceId) {
   return d?.state || m.state || 'queued';
 }
 export const MSG_STATE_TEXT = { queued: 'Waiting for the device', delivered: 'Delivered', acked: 'Confirmed', expired: 'Expired', cancelled: 'Cancelled' };
+
+// Visibility events and the regular timer can ask for the same refresh together.
+// Share its result so one completed request owns the next polling timer.
+export function singleFlight(operation) {
+  let pending = null;
+  return (...args) => {
+    if (!pending) pending = Promise.resolve().then(() => operation(...args)).finally(() => { pending = null; });
+    return pending;
+  };
+}

@@ -12,7 +12,7 @@ import { allowsMotion, mountDisplaySettings } from '../display-settings.js';
 import { mountRadar } from './radar.js';
 // Command center v2: street-level map, live device updates, regions, overlays, zones, information boxes, logs.
 // Everything here consumes JSON from the API. Missing data is shown as unknown, never as safe.
-import { observationClock, LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
+import { observationClock, LADDER, STATUS_LABEL, HELP_LABEL, liveUrl, pollDelay, singleFlight, newLiveState, mergeLive, combineProperties, matchesFilter, countStatuses, displayStatus, deviceFeatures, regionFeatures, localRegions, localFollowUps, precisionForZoom, ageText, failText } from './core.js';
 import { api, exerciseMode } from './api.js';
 import { MapView } from './map.js';
 import { mountToolbar, loadSavedView } from './toolbar.js'; // MAP-V2
@@ -528,9 +528,17 @@ export async function mountCommand(env) {
   $('#demo-scenarios').onclick = e => { const b = e.target.closest('[data-scenario]'); if (b) loadScenario(b.dataset.scenario); };
   $('#demo-show-map').onclick = async () => { if (await ctx.closeWorkspace({ focus: false, animate: true })) { fitScenario(); $('[data-view="map"]').focus(); } };
   $('#demo-show-overview').onclick = () => ctx.openWorkspace('overview');
+  let previewVisible = true;
+  const canRefresh = () => !document.hidden && (!S.embed || previewVisible);
   window.addEventListener('message', e => {
     if (!demo || !S.embed || e.origin !== location.origin || e.source !== window.parent) return;
-    if(e.data?.type==='homebeacon:preview-playback'){mv.windFlow.setPaused(e.data.running!==true);return;}
+    if(e.data?.type==='homebeacon:preview-playback'){
+      const wasVisible = previewVisible;
+      previewVisible = e.data.visible !== false;
+      mv.windFlow.setPaused(e.data.running!==true);
+      if (!wasVisible && previewVisible && S.props.length) { recompute(); renderAll(); loadRegions(); }
+      return;
+    }
     if(e.data?.type!=='homebeacon:preview-step'||S.demoBusy)return;
     const at = SCENARIOS.findIndex(s => s.id === S.demoScenario);
     loadScenario(SCENARIOS[(at + 1) % SCENARIOS.length].id);
@@ -569,7 +577,7 @@ export async function mountCommand(env) {
 
   // ---- data: live polling ----
 
-  async function pollLive() {
+  const pollLive = singleFlight(async () => {
     clearTimeout(S.timer);
     if (document.hidden) { S.timer = setTimeout(pollLive, 4000); return; }
     const r = await api(liveUrl({ since: S.live.cursor }));
@@ -589,7 +597,7 @@ export async function mountCommand(env) {
     }
     renderPill();
     S.timer = setTimeout(pollLive, pollDelay(S.errors));
-  }
+  });
 
   // ---- data: regions and priorities ----
 
@@ -640,16 +648,16 @@ export async function mountCommand(env) {
   if (!S.embed && route.get('view') === 'review') ctx.openWorkspace('review', { animate: false });
   else if (demo && !S.embed && (studio || route.get('view')==='demo')) ctx.openWorkspace('demo');
   mv.map.once('load', () => loadRegions());
-  setInterval(renderPill, 1000);
+  setInterval(() => { if (canRefresh()) renderPill(); }, 1000);
   setInterval(() => {
-    if (document.hidden) return;
+    if (!canRefresh()) return;
     // Synthetic reports are fixed snapshots, but their age still advances.
     // Recompute every surface together so an old report cannot stay green in
     // the map/list while the detail card correctly marks it unknown.
     if (demo) { recompute(); renderAll(); }
     loadRegions();
   }, 20000);
-  setInterval(() => { if (!document.hidden) overlays.reloadAll(); }, 120000);
+  setInterval(() => { if (canRefresh()) overlays.reloadAll(); }, 120000);
 
   if (!demo) {
     pollLive();

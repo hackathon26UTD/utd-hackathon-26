@@ -62,7 +62,7 @@ export function mountMarketing({brand, footer}) {
     const reduced=!allowsMotion(),running=!paused&&!reduced&&!document.hidden&&visible;
     pause.textContent=reduced?'Next':running?'Pause':'Play';
     pause.setAttribute('aria-label',reduced?'Next simulated scenario':running?'Pause overview animation':'Play overview animation');
-    preview.contentWindow?.postMessage({type:'homebeacon:preview-playback',running},location.origin);
+    preview.contentWindow?.postMessage({type:'homebeacon:preview-playback',running,visible:visible&&!document.hidden},location.origin);
     if(running&&ready)timer=setInterval(step,6500);
   };
   pause.addEventListener('click',()=>{if(!allowsMotion()){step();return;}paused=!paused;paintPlayback();});

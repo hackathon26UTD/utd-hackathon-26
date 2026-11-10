@@ -406,3 +406,18 @@ test('message state reads flat or per-device delivery', () => {
   assert.equal(c.messageState({}, 'a'), 'queued');
   assert.equal(c.MSG_STATE_TEXT.acked, 'Confirmed');
 });
+
+test('overlapping refresh triggers share one request and can retry after a failure', async () => {
+  let resolve, calls=0;
+  const refresh=c.singleFlight(()=>{calls++;return new Promise(done=>{resolve=done;});});
+  const first=refresh(), resumed=refresh();
+  assert.equal(first,resumed);
+  await Promise.resolve();
+  assert.equal(calls,1);
+  resolve('fresh');
+  assert.deepEqual(await Promise.all([first,resumed]),['fresh','fresh']);
+  const next=refresh();await Promise.resolve();assert.equal(calls,2);resolve('new');await next;
+  let attempt=0;const retry=c.singleFlight(()=>{if(++attempt===1)throw Error('temporary');return 'recovered';});
+  await assert.rejects(retry(),/temporary/);
+  assert.equal(await retry(),'recovered');
+});
