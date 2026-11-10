@@ -66,6 +66,6 @@ Page weight is about 15 KB smaller than before (now / 851 KB, /simulations 788 K
 
 ## November 10 query and refresh pass
 
-The live latest-reading lookup now follows an aligned device/sensor/time/id index rather than sorting the entire matching history in memory. A disposable 50,000-reading benchmark on MongoDB8.2.6 measured medians54.4→45.7ms with no blocking sort in the new execution plan. Both still examined50,000 rows; see DATABASE_SCALE_RECOMMENDATION.md for the required eventual latest-state read model. This is not a claim of a16% overall page-speed gain.
+The live latest-reading lookup now follows an aligned device/sensor/time/id index rather than sorting the entire matching history in memory. A disposable 50,000-reading benchmark on MongoDB8.2.6 measured seven-sample medians55.5→46.3ms with no blocking sort in the new execution plan. Both still examined50,000 rows; see DATABASE_SCALE_RECOMMENDATION.md for the required eventual latest-state read model. This is not a claim of a17% overall page-speed gain.
 
 Live refreshes share an in-flight operation across visibility and timer triggers. Off-screen embedded previews skip their status/age/overlay timers and recompute when visible again. Synthetic age and stale critical semantics remain unchanged. Focused tests pass56/56 and the Functions/UI build passes with the existing unenv warning. Production and browser evidence follow in WORKLOG.
