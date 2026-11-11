@@ -11,7 +11,7 @@ body.hb-product{min-height:100dvh;font-family:'Hanken Grotesk Variable',system-u
 .hb-product .kit :is(button,a,input,select,textarea,summary):focus-visible{outline:3px solid var(--kit-status-dot-info);outline-offset:3px}
 /* Restrained entry motion. Live map telemetry never restarts page animations. */
 @keyframes hb-enter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}.hb-product .access-page,.hb-product .login,.hb-product .legal,#customer>.shell{animation:hb-enter .45s cubic-bezier(.2,.7,.2,1) both}.hb-product .kit button,.hb-product .kit a{transition:background-color .16s,border-color .16s,color .16s,transform .16s}}
+@media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}.hb-product .access-page,.hb-product .login,.hb-product .legal,#customer>.shell{animation:hb-enter 250ms cubic-bezier(.2,.7,.2,1) both}.hb-product .kit button,.hb-product .kit a{transition:background-color .16s,border-color .16s,color .16s,transform 150ms ease-out}.hb-product .kit button:not(:disabled):active,.hb-product .kit a.primary:active,.account-demo__button:active{transform:scale(.97)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 /* Shared display settings and restrained control shapes. */
 .hb-product .kit{--kit-radius:9px;--kit-radius-sm:7px;--kit-radius-lg:12px}

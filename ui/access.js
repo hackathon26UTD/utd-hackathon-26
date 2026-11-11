@@ -67,5 +67,5 @@ export async function mountAccess(root, {mode='signup',switchAccount=false}={}) 
     const response=await fetch('/api/access',{credentials:'same-origin'});
     if(response.ok&&!switchAccount){const result=await response.json();if(result.authenticated){location.replace(result.destination);return;}}
   }catch{/* An explicit form lets the user retry without a redirect loop. */}
-  main.replaceChildren(brand,accessView({mode}),h('a',{href:'/simulations',class:'account-simulation'},'Explore simulations'));
+  main.replaceChildren(brand,accessView({mode}),h('div',{class:'account-demo'},h('a',{href:'/simulations',class:'account-demo__button'},'Try the demo'),h('p',{},'No sign-in. Sample homes only, nothing live.')));
 }

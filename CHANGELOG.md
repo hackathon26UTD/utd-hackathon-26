@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-10 — Demo button and motion polish
+
+### Changed
+
+- Sign-in/sign-up page: the "Explore simulations" text link is now a visible **Try the demo** button with "No sign-in. Sample homes only, nothing live." (`ui/access.js`, `ui/access.css`). It opens `/simulations`, which reads only synthetic data from `/api/demo`; no session, database or device handler is involved.
+- Motion (per /animations): customer page entrance 450ms to 250ms; buttons scale to 0.97 on press (150ms ease-out). Reduced-motion rules are unchanged (`ui/product-kit.css`).
+
+Already true, verified not changed: the 3D box is on the homepage `#device` section (commit `dc9e9ef`); demo accounts are GET-only on exercise endpoints (`functions/api/_middleware.js`). Branch `feat/polish-demo-motion` is not merged; the homepage box is also still unmerged on `feat/marketing-about-explorer`.
+
 ## 2026-11-08 — Safe Home name and organization documentation
 
 ### Changed
