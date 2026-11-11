@@ -922,3 +922,5 @@ Local verification: build passed, 10 focused routing/header/role-gate tests pass
 Ayan asked for a site refinement pass, /animations, no more operator load problems, a safe demo path, and the 3D box on the homepage. Found: the 3D box is already on the homepage on `feat/marketing-about-explorer` (unmerged); the demo path existed only as a small text link, now a button; the demo API is isolated from sessions and the database. Operator polling already pauses when the tab is hidden and backs off on errors (`ui/command/index.js`). A reproducible operator load fault was not found in code; none was reproduced in a browser this session.
 
 Verification: build passed; 712 tests, 0 failed on the second run (the first run showed one unidentified failure that did not repeat, treat as flaky). Not checked: visual review of the new button, live operator load, GitHub (token invalid).
+
+Browser check (local, port 8792): sign-in page shows the Try the demo button; /simulations loads signed-out with sample data and calls no operator endpoints. Only two expected 401s (signed-out session probes) and `/api/public/news` fetched twice. Live operator load still not tested.
