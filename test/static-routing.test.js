@@ -5,7 +5,7 @@ const routes = JSON.parse(await readFile(new URL('../public/_routes.json', impor
 const matches = (rule, path) => new RegExp('^' + rule.split('*').map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$').test(path);
 const dynamic = path => routes.include.some(r => matches(r, path)) && !routes.exclude.some(r => matches(r, path));
 test('public reloads and assets bypass Functions', () => {
- for (const path of ['/', '/index.html', '/login', '/login.html', '/login/', '/simulations', '/assets/chunks/map.js', '/images/logo.svg', '/robots.txt']) assert.equal(dynamic(path), false, path);
+ for (const path of ['/', '/index.html', '/about', '/about.html', '/about/', '/login', '/login.html', '/login/', '/simulations', '/assets/chunks/map.js', '/images/logo.svg', '/robots.txt']) assert.equal(dynamic(path), false, path);
 });
 test('private gates and all service routes retain Functions', () => {
  for (const path of ['/portal', '/dashboard', '/command-center', '/profile']) for (const suffix of ['', '/', '.html', '.html/']) assert.equal(dynamic(path + suffix), true, path + suffix);

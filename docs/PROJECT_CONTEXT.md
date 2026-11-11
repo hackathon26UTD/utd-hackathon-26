@@ -1,3 +1,5 @@
+November 10 marketing revision: product showcase, public interactive CAD enclosure and a separate About story are implemented on the marketing branch. See [MARKETING.md](MARKETING.md) and the associated release checks for deployment status. Hardware and backend reliability limits are unchanged.
+
 November 10 performance/scale assessment: PR89 reduces history sorting, overlapping live polls and off-screen preview work. Atlas remains the current database. [Database recommendation](DATABASE_SCALE_RECOMMENDATION.md) evaluates managed PostgreSQL for the central product and local SQLite on Linux gateways; this is not a migration decision or provisioning change.
 
 November 10 domain setup: `safehomemesh.us` is connected to the existing Pages project. Cloudflare nameservers, active routing and Resend sender are verified, including an own-inbox delivery test. Apex/www HTTPS and production release PR87 are verified, including the deployed email transport. See [DOMAIN.md](DOMAIN.md) for rollout state.

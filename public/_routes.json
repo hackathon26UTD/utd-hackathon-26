@@ -58,6 +58,9 @@
     "/status.js",
     "/style.css",
     "/theme-boot.css",
-    "/theme-init.js"
+    "/theme-init.js",
+    "/about",
+    "/about.html",
+    "/about/"
   ]
 }

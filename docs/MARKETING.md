@@ -1,3 +1,19 @@
+# Product marketing update — November 10, 2026
+
+The marketing homepage now separates product discovery from the origin story. Navigation provides Features, The box and a dedicated `/about` page. Existing Safe Home colors, Hanken Grotesk, Argus controls, Dashboard routing and profile settings remain.
+
+The hero retains the actual animated, simulated map and adds selectable household-dashboard and event-history illustrations. All are labeled fictional. Switching away from the map pauses its preview; existing visibility, motion and playback behavior remains. Household/history illustrations do not fetch or expose private records.
+
+The public box explorer lazy-loads the existing customer enclosure renderer and the same CAD assets near the viewport. Visitors can drag, zoom, open/close the lid, reset the view, and select local recording, connection or sensor features using buttons or ray-picked model hotspots. Keyboard controls and all feature text work without pointer interaction. A failed WebGL load retains the text alternative. Internal components remain explicitly illustrative; endurance, replay and physical delivery are not newly verified by this website change.
+
+The About page preserves the four-person HackUTD origin, event details, intent and service context, and explains the next chapter without invented founder biographies or launch claims. It has its own title, canonical metadata, sitemap entry and static route exclusions. It does not load the dashboard iframe or 3D renderer.
+
+Verification commands: `npm run build`, `node test/marketing-product.browser.mjs [origin]`, and `node test/marketing-weather.browser.mjs [origin]`. The new browser check covers actual model ray-picking, lid keyboard operation, showcase switching, About navigation, 320/390/768 px layout, and scoped automated accessibility checks. See WORKLOG and PR release evidence for results.
+
+---
+
+## Historical homepage contract
+
 # Public website and portal
 
 Current as of November 8, 2026. Owner: Ayan's workstream. Code: `ui/marketing.js`, `ui/marketing.css`, `ui/display-settings.js`, `ui/home-profile.js`.
