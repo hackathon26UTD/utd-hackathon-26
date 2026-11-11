@@ -40,3 +40,5 @@ The www CNAME was briefly made DNS-only while checking validation and restored t
 Production sender/reply/origin settings were patched after Resend verification and activated by the verified production release. Existing secret entries remained present. The only real test recipient was Ayan’s own hello alias/Gmail destination; no teammates or customers were contacted.
 
 References: [Pages custom domains](https://developers.cloudflare.com/pages/configuration/custom-domains/), [Email Routing](https://developers.cloudflare.com/email-service/get-started/route-emails/), [Resend domain verification](https://resend.com/docs/api-reference/domains/verify-domain).
+
+- 2026-11-11: Cloudflare Redirect Rule "www to apex (301)" (id eabbcb6a4d7e48d0b3be75fd447013d0) added on the safehomemesh.us zone via the Cloudflare connector. Before: no redirect rules existed. Undo: delete that rule. Old pages.dev hostname intentionally not redirected.
