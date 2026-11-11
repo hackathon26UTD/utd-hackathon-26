@@ -1,14 +1,16 @@
+import { allowsMotion } from './display-settings.js';
 import {addCircuit} from './enclosure-circuit.js';
 import * as THREE from 'three';
 import { STLLoader } from 'three/addons/loaders/STLLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // The CAD files use Z-up. Center each part in XY, preserve dimensions, then assemble.
-export async function mountEnclosure(host, { onReady = () => {} } = {}) {
+export async function mountEnclosure(host, { onReady = () => {}, interactiveFeatures = false, onFeature = () => {} } = {}) {
   let dead = false, renderer, controls, observer, frame, lidMesh, pointerStart;
   const disposables = [];
+  const hotspots = [];
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
-  let rotating = !motion.matches, visible = true, hinge, lidAngle = -.15, lidTarget = -.15;
+  let rotating = allowsMotion(), visible = true, hinge, lidAngle = -.15, lidTarget = -.15;
   const scene = new THREE.Scene();
   // A real 3D floor grid is depth-occluded by the enclosure, never painted on its surfaces.
   const floorGrid = new THREE.GridHelper(700,28);
@@ -44,13 +46,14 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
     if (dead || !visible || document.hidden) return;
     if (rotating) model.rotation.y += Math.min((time - (previous || time)) / 1000, .05) * .22;
     previous = time;
+    for (const point of hotspots) point.visible = lidTarget < -.5;
     if (hinge) { lidAngle += (lidTarget-lidAngle) * .14; if (Math.abs(lidAngle-lidTarget)<.002) lidAngle=lidTarget; hinge.rotation.x=lidAngle; }
     controls.update(); render();
     if (rotating || Math.abs(lidAngle-lidTarget)>.001) frame = requestAnimationFrame(tick);
   }
   const wake = () => { if (!frame && !dead) { previous = 0; frame = requestAnimationFrame(tick); } };
   const toggle = () => { rotating = !rotating; wake(); };
-  const motionChange = () => { if (motion.matches) { rotating = false; render(); } };
+  const motionChange = () => { if (!allowsMotion()) { rotating = false; render(); } };
   const visibility = () => { if (!document.hidden) wake(); };
   const stopDrag = () => { rotating = false; };
   const resetView = () => { camera.position.set(310, 255, 360); controls.target.set(0, 52, 0); model.rotation.y = -.2; controls.update(); render(); };
@@ -61,19 +64,22 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
     if (event.key === ' ') {event.preventDefault();toggle();}
     if (event.key === 'Home') { event.preventDefault(); resetView(); }
   };
-  const changeLid = () => {
-    const open = lidTarget > -.5; lidTarget = open ? -1.65 : 0;
-    if (motion.matches) { lidAngle=lidTarget; if (hinge) hinge.rotation.x=lidAngle; }
+  const changeLid = (forceOpen) => {
+    const open = typeof forceOpen === 'boolean' ? forceOpen : lidTarget > -.5; lidTarget = open ? -1.65 : 0;
+    if (!allowsMotion()) { lidAngle=lidTarget; if (hinge) hinge.rotation.x=lidAngle; }
     renderer?.domElement.setAttribute('aria-expanded',String(open));
-    host.dataset.lid = open ? 'open' : 'closed'; wake();
+    host.dataset.lid = open ? 'open' : 'closed';
+    host.dispatchEvent(new CustomEvent('enclosure:lid', { detail: { open } })); wake();
   };
   motion.addEventListener('change', motionChange); document.addEventListener('visibilitychange', visibility);
+  document.addEventListener('homebeacon:motion', motionChange);
 
   const cleanup = () => {
     dead = true; themeObserver.disconnect(); cancelAnimationFrame(frame); observer?.disconnect(); resize.disconnect();
     controls?.dispose(); renderer?.dispose();
     disposables.forEach(d => d.dispose());
     motion.removeEventListener('change', motionChange); document.removeEventListener('visibilitychange', visibility);
+    document.removeEventListener('homebeacon:motion', motionChange);
     host.replaceChildren();
   };
   const down = e => {pointerStart={x:e.clientX,y:e.clientY};};
@@ -81,7 +87,14 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
     if(!lidMesh || !pointerStart || Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>6)return;
     const r=renderer.domElement.getBoundingClientRect();
     const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2((e.clientX-r.left)/r.width*2-1,1-(e.clientY-r.top)/r.height*2),camera);
-    if(ray.intersectObject(lidMesh).length)changeLid();
+    const hits = ray.intersectObjects([lidMesh, ...hotspots.filter(p => p.visible)]);
+    if (hits[0]?.object.userData.feature) { selectFeature(hits[0].object.userData.feature); onFeature(hits[0].object.userData.feature); }
+    else if(hits[0]?.object === lidMesh) changeLid();
+  };
+  const selectFeature = id => {
+    rotating = false;
+    for (const point of hotspots) { const active = point.userData.feature === id; point.scale.setScalar(active ? 1.4 : 1); point.material.color.set(active ? 0xd62311 : 0x245f91); }
+    changeLid(true);
   };
   const resize = new ResizeObserver(() => { if (renderer) { const { width, height } = host.getBoundingClientRect(); renderer.setSize(width, height, false); camera.aspect = width / Math.max(1, height); camera.updateProjectionMatrix(); render(); } });
   try {
@@ -121,13 +134,19 @@ export async function mountEnclosure(host, { onReady = () => {} } = {}) {
     hinge = new THREE.Group(); hinge.position.set(0,56.5,-68.9);
     lidMesh=new THREE.Mesh(lid,lidMaterial);hinge.add(lidMesh); hinge.rotation.x=lidAngle; model.add(hinge);
     addCircuit(model,disposables);
+    if (interactiveFeatures) {
+      for (const [id, x, z] of [['record', -24, -7], ['connection', 28, -22], ['sensors', -45, 29]]) {
+        const geometry = new THREE.SphereGeometry(6, 20, 16), material = new THREE.MeshStandardMaterial({ color: 0x245f91, emissive: 0x192a31, roughness: .3 });
+        const point = new THREE.Mesh(geometry, material); point.position.set(x, 39, z); point.userData.feature = id; point.visible = false; model.add(point); hotspots.push(point); disposables.push(geometry, material);
+      }
+    }
     const ground = new THREE.Mesh(new THREE.CircleGeometry(180, 80), new THREE.MeshBasicMaterial({ color: 0xa4a6aa, transparent: true, opacity: .12 }));
     ground.rotation.x = -Math.PI / 2; ground.position.y = -1; scene.add(ground); disposables.push(ground.geometry, ground.material);
     resetView(); resize.observe(host);
     observer = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; if (visible) wake(); }); observer.observe(host);
-    note.textContent = 'Tap the lid to look inside'; host.dataset.loaded = 'true'; onReady(); wake();
+    note.textContent = interactiveFeatures ? 'Drag to turn. Tap the lid or a colored point to explore.' : 'Tap the lid to look inside'; host.dataset.loaded = 'true'; onReady({ toggleLid: () => changeLid(), selectFeature, reset: resetView }); wake();
   } catch {
-    note.textContent = '3D view unavailable. Your device reports are still available below.';
+    note.textContent = interactiveFeatures ? '3D view unavailable. Explore every feature using the buttons.' : '3D view unavailable. Your device reports are still available below.';
     host.dataset.error='true';
   }
   return cleanup;
